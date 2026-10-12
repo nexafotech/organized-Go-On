@@ -1,0 +1,20 @@
+[
+  {
+    "roll_number": "2026_CYBER_C1_001",
+    "full_name": "STUDENT_PLACEHOLDER_C1_001",
+    "email": "student_c1_001@college.edu",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "semester": "Semester 4",
+    "department": "Cyber Security",
+    "is_active": true
+  },
+  {
+    "roll_number": "2026_CYBER_C2_001",
+    "full_name": "STUDENT_PLACEHOLDER_C2_001",
+    "email": "student_c2_001@college.edu",
+    "class_name": "III Year CSE Cyber Security - Class 2",
+    "semester": "Semester 6",
+    "department": "Cyber Security",
+    "is_active": true
+  }
+]

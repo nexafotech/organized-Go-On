@@ -1,0 +1,15 @@
+================================================================================
+COLLEGE SOURCE RESOURCE MANIFEST & INTEGRITY CHECKSUMS (SHA-256)
+================================================================================
+official_timetable/WhatsApp Image 2026-08-18 at 3.42.38 PM (1).jpeg | 160048 bytes | SHA256:e404ede533e363a83887638d36368e7e1b1c829a1e76b835ef0d1a3a4a42c6b5 | Category: Official Timetable / Academic Schedule
+official_timetable/WhatsApp Image 2026-08-18 at 9.39.52 PM.jpeg | 95337 bytes | SHA256:bc72363dfa2d645fa05846551d986d47b90d7baf90828bb0d2cdd5b9eff7ccc9 | Category: Official Timetable / Academic Schedule
+official_timetable/WhatsApp Image 2026-08-18 at 9.56.17 PM.jpeg | 147884 bytes | SHA256:e83a90ec588f05eea28e2ea95f333969cb4bee58b1faa99e087cab88b3b93fbf | Category: Official Timetable / Academic Schedule
+official_name_lists/WhatsApp Image 2026-08-19 at 9.06.10 PM (1).jpeg | 164098 bytes | SHA256:11dad634a4bb6f88bf8d35a911f77abe7470141126016021748528db5670c134 | Category: Official Student Name List
+official_name_lists/WhatsApp Image 2026-08-19 at 9.06.10 PM.jpeg | 117508 bytes | SHA256:eb06d2d07d2614864be6384b728519888232d2cfc07f28e361cbbe0a54f7c480 | Category: Official Student Name List
+official_timetable/WhatsApp Image 2026-08-20 at 8.35.50 PM.jpeg | 182094 bytes | SHA256:ae9555e91f3b7727a6df146a05feba0453cb7ee19ccbb93df9349fe0727f385b | Category: Official Timetable / Academic Schedule
+official_photos/IMG_20260819_143612167.jpg.jpeg | 2584492 bytes | SHA256:5de9085068bfa4648b2904c34b7f1a87cccdc98f07e8f4182ce3b0d0e16e122c | Category: Official Student / Campus Photos
+official_photos/IMG_20260819_143705541.jpg.jpeg | 2682076 bytes | SHA256:f061c53de525e11faa36e09fd37cdf8245eb9983caa32eac1ed6c33c9a8334fa | Category: Official Student / Campus Photos
+official_photos/IMG_20260819_143731882.jpg.jpeg | 2573536 bytes | SHA256:f595b068a66f9110d279e9d55a8dc9e5ed00b4bc4a949ae7f056235f68c089bd | Category: Official Student / Campus Photos
+official_photos/IMG_20260819_143741100.jpg.jpeg | 1877464 bytes | SHA256:26fd9228b38f2cd4648fa69441418087c164ed2bc31ccd3c1251b6e58c72e9f0 | Category: Official Student / Campus Photos
+official_photos/IMG_20260819_143843786.jpg.jpeg | 2469636 bytes | SHA256:35b73be498fb6fc571167891be268825305977bd8ae7825ae93b6a2a4b9176cf | Category: Official Student / Campus Photos
+official_photos/IMG_20260819_144007736.jpg.jpeg | 3243158 bytes | SHA256:bd03fd6dfd0f4e7fa13f7fac9826412d23c72f097956ff5f8b4cd447fd0c9f62 | Category: Official Student / Campus Photos

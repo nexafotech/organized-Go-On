@@ -1,0 +1,12 @@
+import sqlite3
+conn = sqlite3.connect(r'C:\Users\Abishek\Desktop\am-oss\attendance_system.db')
+c = conn.cursor()
+c.execute("SELECT username FROM users WHERE username = 'FAC01'")
+print('Exact FAC01:', c.fetchall())
+c.execute("SELECT username FROM users WHERE username = 'fac01'")
+print('Exact fac01:', c.fetchall())
+c.execute("SELECT username FROM users WHERE LOWER(username) = LOWER('FAC01')")
+print('LOWER FAC01:', c.fetchall())
+c.execute("SELECT f.employee_id, u.username FROM faculty f JOIN users u ON u.id = f.user_id WHERE f.employee_id = 'FAC01'")
+print('Faculty employee_id FAC01:', c.fetchall())
+conn.close()

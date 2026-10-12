@@ -1,0 +1,10 @@
+[
+  {
+    "employee_id": "2026_FAC_001",
+    "full_name": "TEMPLATE_FACULTY_NAME",
+    "department": "CSE Cyber Security",
+    "username": "faculty_username_template",
+    "email": "faculty001@college.edu",
+    "password": "faculty_initial_pass"
+  }
+]

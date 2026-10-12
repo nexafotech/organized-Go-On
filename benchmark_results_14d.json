@@ -1,0 +1,969 @@
+{
+  "metadata": {
+    "milestone": "14D",
+    "date": "2026-09-25",
+    "machine": "Windows 11 AMD64 / NVIDIA RTX 4050 / Intel/AMD Host CPU",
+    "runtime": "CPUExecutionProvider",
+    "num_photos": 6,
+    "baseline_process_memory_mb": 173.64,
+    "images": [
+      {
+        "filename": "IMG_20260819_143612167.jpg.jpeg",
+        "path": "C:\\Users\\Abishek\\Desktop\\am-oss\\college_data\\official_photos\\IMG_20260819_143612167.jpg.jpeg",
+        "width": 3072,
+        "height": 4096,
+        "resolution": "3072x4096",
+        "megapixels": 12.58,
+        "size_bytes": 2584492,
+        "size_mb": 2.46,
+        "format": ".jpeg"
+      },
+      {
+        "filename": "IMG_20260819_143705541.jpg.jpeg",
+        "path": "C:\\Users\\Abishek\\Desktop\\am-oss\\college_data\\official_photos\\IMG_20260819_143705541.jpg.jpeg",
+        "width": 3072,
+        "height": 4096,
+        "resolution": "3072x4096",
+        "megapixels": 12.58,
+        "size_bytes": 2682076,
+        "size_mb": 2.56,
+        "format": ".jpeg"
+      },
+      {
+        "filename": "IMG_20260819_143731882.jpg.jpeg",
+        "path": "C:\\Users\\Abishek\\Desktop\\am-oss\\college_data\\official_photos\\IMG_20260819_143731882.jpg.jpeg",
+        "width": 3072,
+        "height": 4096,
+        "resolution": "3072x4096",
+        "megapixels": 12.58,
+        "size_bytes": 2573536,
+        "size_mb": 2.45,
+        "format": ".jpeg"
+      },
+      {
+        "filename": "IMG_20260819_143741100.jpg.jpeg",
+        "path": "C:\\Users\\Abishek\\Desktop\\am-oss\\college_data\\official_photos\\IMG_20260819_143741100.jpg.jpeg",
+        "width": 3072,
+        "height": 4096,
+        "resolution": "3072x4096",
+        "megapixels": 12.58,
+        "size_bytes": 1877464,
+        "size_mb": 1.79,
+        "format": ".jpeg"
+      },
+      {
+        "filename": "IMG_20260819_143843786.jpg.jpeg",
+        "path": "C:\\Users\\Abishek\\Desktop\\am-oss\\college_data\\official_photos\\IMG_20260819_143843786.jpg.jpeg",
+        "width": 3072,
+        "height": 4096,
+        "resolution": "3072x4096",
+        "megapixels": 12.58,
+        "size_bytes": 2469636,
+        "size_mb": 2.36,
+        "format": ".jpeg"
+      },
+      {
+        "filename": "IMG_20260819_144007736.jpg.jpeg",
+        "path": "C:\\Users\\Abishek\\Desktop\\am-oss\\college_data\\official_photos\\IMG_20260819_144007736.jpg.jpeg",
+        "width": 4096,
+        "height": 3072,
+        "resolution": "4096x3072",
+        "megapixels": 12.58,
+        "size_bytes": 3243158,
+        "size_mb": 3.09,
+        "format": ".jpeg"
+      }
+    ]
+  },
+  "per_image": {
+    "IMG_20260819_143612167.jpg.jpeg": {
+      "scrfd_arcface": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 132.59,
+          "median": 130.63,
+          "p95": 137.95,
+          "raw": [
+            138.77,
+            128.36,
+            130.63
+          ]
+        },
+        "confidences": {
+          "min": 0.8081,
+          "max": 0.8081,
+          "mean": 0.8081
+        },
+        "smallest_face": "746x921 (687066 px)",
+        "largest_face": "746x921 (687066 px)",
+        "alignment": {
+          "success": 1,
+          "failures": 0,
+          "failure_rate_pct": 0.0
+        },
+        "embedding": {
+          "count": 1,
+          "dimension": 512,
+          "norm_verified": true,
+          "total_embedding_time_ms": 123.31,
+          "avg_per_face_ms": 123.31
+        },
+        "total_warm_pipeline_ms": 255.9,
+        "memory_mb": {
+          "working_set": 703.52,
+          "peak": 730.02
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1123,
+              1784,
+              2044,
+              1038
+            ],
+            "width": 746,
+            "height": 921,
+            "area": 687066,
+            "confidence": 0.8081,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          }
+        ]
+      },
+      "dlib": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 10328.13,
+          "median": 10328.13,
+          "p95": 10377.9,
+          "raw": [
+            10383.43,
+            10272.83
+          ]
+        },
+        "smallest_face": "798x799 (637602 px)",
+        "largest_face": "798x799 (637602 px)",
+        "embedding": {
+          "count": 1,
+          "dimension": 128,
+          "total_embedding_time_ms": 439.83,
+          "avg_per_face_ms": 439.83
+        },
+        "total_warm_pipeline_ms": 10767.96,
+        "memory_mb": {
+          "working_set": 1028.62,
+          "peak": 1403.54
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1224,
+              1756,
+              2023,
+              958
+            ],
+            "width": 798,
+            "height": 799,
+            "area": 637602
+          }
+        ]
+      }
+    },
+    "IMG_20260819_143705541.jpg.jpeg": {
+      "scrfd_arcface": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 132.79,
+          "median": 131.72,
+          "p95": 135.99,
+          "raw": [
+            131.72,
+            136.46,
+            130.19
+          ]
+        },
+        "confidences": {
+          "min": 0.8383,
+          "max": 0.8383,
+          "mean": 0.8383
+        },
+        "smallest_face": "788x1037 (817156 px)",
+        "largest_face": "788x1037 (817156 px)",
+        "alignment": {
+          "success": 1,
+          "failures": 0,
+          "failure_rate_pct": 0.0
+        },
+        "embedding": {
+          "count": 1,
+          "dimension": 512,
+          "norm_verified": true,
+          "total_embedding_time_ms": 127.64,
+          "avg_per_face_ms": 127.64
+        },
+        "total_warm_pipeline_ms": 260.43,
+        "memory_mb": {
+          "working_set": 713.52,
+          "peak": 730.02
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1263,
+              1862,
+              2300,
+              1074
+            ],
+            "width": 788,
+            "height": 1037,
+            "area": 817156,
+            "confidence": 0.8383,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          }
+        ]
+      },
+      "dlib": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 10198.41,
+          "median": 10198.41,
+          "p95": 10212.48,
+          "raw": [
+            10182.78,
+            10214.04
+          ]
+        },
+        "smallest_face": "799x798 (637602 px)",
+        "largest_face": "799x798 (637602 px)",
+        "embedding": {
+          "count": 1,
+          "dimension": 128,
+          "total_embedding_time_ms": 444.45,
+          "avg_per_face_ms": 444.45
+        },
+        "total_warm_pipeline_ms": 10642.86,
+        "memory_mb": {
+          "working_set": 1030.75,
+          "peak": 1407.99
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1402,
+              1845,
+              2200,
+              1046
+            ],
+            "width": 799,
+            "height": 798,
+            "area": 637602
+          }
+        ]
+      }
+    },
+    "IMG_20260819_143731882.jpg.jpeg": {
+      "scrfd_arcface": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 131.42,
+          "median": 131.05,
+          "p95": 136.21,
+          "raw": [
+            136.78,
+            131.05,
+            126.42
+          ]
+        },
+        "confidences": {
+          "min": 0.8814,
+          "max": 0.8814,
+          "mean": 0.8814
+        },
+        "smallest_face": "682x868 (591976 px)",
+        "largest_face": "682x868 (591976 px)",
+        "alignment": {
+          "success": 1,
+          "failures": 0,
+          "failure_rate_pct": 0.0
+        },
+        "embedding": {
+          "count": 1,
+          "dimension": 512,
+          "norm_verified": true,
+          "total_embedding_time_ms": 140.98,
+          "avg_per_face_ms": 140.98
+        },
+        "total_warm_pipeline_ms": 272.4,
+        "memory_mb": {
+          "working_set": 713.52,
+          "peak": 730.02
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1397,
+              1776,
+              2265,
+              1094
+            ],
+            "width": 682,
+            "height": 868,
+            "area": 591976,
+            "confidence": 0.8814,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          }
+        ]
+      },
+      "dlib": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 10186.67,
+          "median": 10186.67,
+          "p95": 10277.7,
+          "raw": [
+            10085.52,
+            10287.82
+          ]
+        },
+        "smallest_face": "799x798 (637602 px)",
+        "largest_face": "799x798 (637602 px)",
+        "embedding": {
+          "count": 1,
+          "dimension": 128,
+          "total_embedding_time_ms": 441.03,
+          "avg_per_face_ms": 441.03
+        },
+        "total_warm_pipeline_ms": 10627.7,
+        "memory_mb": {
+          "working_set": 1030.75,
+          "peak": 1407.99
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1491,
+              1845,
+              2289,
+              1046
+            ],
+            "width": 799,
+            "height": 798,
+            "area": 637602
+          }
+        ]
+      }
+    },
+    "IMG_20260819_143741100.jpg.jpeg": {
+      "scrfd_arcface": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 136.04,
+          "median": 134.0,
+          "p95": 139.55,
+          "raw": [
+            134.0,
+            140.17,
+            133.95
+          ]
+        },
+        "confidences": {
+          "min": 0.8929,
+          "max": 0.8929,
+          "mean": 0.8929
+        },
+        "smallest_face": "699x929 (649371 px)",
+        "largest_face": "699x929 (649371 px)",
+        "alignment": {
+          "success": 1,
+          "failures": 0,
+          "failure_rate_pct": 0.0
+        },
+        "embedding": {
+          "count": 1,
+          "dimension": 512,
+          "norm_verified": true,
+          "total_embedding_time_ms": 123.03,
+          "avg_per_face_ms": 123.03
+        },
+        "total_warm_pipeline_ms": 259.07,
+        "memory_mb": {
+          "working_set": 713.53,
+          "peak": 730.02
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1389,
+              1778,
+              2318,
+              1079
+            ],
+            "width": 699,
+            "height": 929,
+            "area": 649371,
+            "confidence": 0.8929,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          }
+        ]
+      },
+      "dlib": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 10290.76,
+          "median": 10290.76,
+          "p95": 10545.51,
+          "raw": [
+            10007.71,
+            10573.82
+          ]
+        },
+        "smallest_face": "799x798 (637602 px)",
+        "largest_face": "799x798 (637602 px)",
+        "embedding": {
+          "count": 1,
+          "dimension": 128,
+          "total_embedding_time_ms": 462.3,
+          "avg_per_face_ms": 462.3
+        },
+        "total_warm_pipeline_ms": 10753.07,
+        "memory_mb": {
+          "working_set": 1030.76,
+          "peak": 1407.99
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1491,
+              1845,
+              2289,
+              1046
+            ],
+            "width": 799,
+            "height": 798,
+            "area": 637602
+          }
+        ]
+      }
+    },
+    "IMG_20260819_143843786.jpg.jpeg": {
+      "scrfd_arcface": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 123.82,
+          "median": 123.31,
+          "p95": 129.44,
+          "raw": [
+            130.13,
+            118.04,
+            123.31
+          ]
+        },
+        "confidences": {
+          "min": 0.855,
+          "max": 0.855,
+          "mean": 0.855
+        },
+        "smallest_face": "770x979 (753830 px)",
+        "largest_face": "770x979 (753830 px)",
+        "alignment": {
+          "success": 1,
+          "failures": 0,
+          "failure_rate_pct": 0.0
+        },
+        "embedding": {
+          "count": 1,
+          "dimension": 512,
+          "norm_verified": true,
+          "total_embedding_time_ms": 123.65,
+          "avg_per_face_ms": 123.65
+        },
+        "total_warm_pipeline_ms": 247.47,
+        "memory_mb": {
+          "working_set": 713.53,
+          "peak": 730.02
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1208,
+              1807,
+              2187,
+              1037
+            ],
+            "width": 770,
+            "height": 979,
+            "area": 753830,
+            "confidence": 0.855,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          }
+        ]
+      },
+      "dlib": {
+        "detected_faces": 1,
+        "density_category": "1-5 faces",
+        "detection_latency_ms": {
+          "avg": 10238.19,
+          "median": 10238.19,
+          "p95": 10265.89,
+          "raw": [
+            10207.42,
+            10268.96
+          ]
+        },
+        "smallest_face": "799x798 (637602 px)",
+        "largest_face": "799x798 (637602 px)",
+        "embedding": {
+          "count": 1,
+          "dimension": 128,
+          "total_embedding_time_ms": 455.18,
+          "avg_per_face_ms": 455.18
+        },
+        "total_warm_pipeline_ms": 10693.37,
+        "memory_mb": {
+          "working_set": 1030.76,
+          "peak": 1407.99
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1402,
+              1845,
+              2200,
+              1046
+            ],
+            "width": 799,
+            "height": 798,
+            "area": 637602
+          }
+        ]
+      }
+    },
+    "IMG_20260819_144007736.jpg.jpeg": {
+      "scrfd_arcface": {
+        "detected_faces": 10,
+        "density_category": "6-15 faces",
+        "detection_latency_ms": {
+          "avg": 139.04,
+          "median": 137.09,
+          "p95": 142.81,
+          "raw": [
+            143.45,
+            137.09,
+            136.58
+          ]
+        },
+        "confidences": {
+          "min": 0.8782,
+          "max": 0.9215,
+          "mean": 0.8969
+        },
+        "smallest_face": "147x160 (23520 px)",
+        "largest_face": "181x195 (35295 px)",
+        "alignment": {
+          "success": 10,
+          "failures": 0,
+          "failure_rate_pct": 0.0
+        },
+        "embedding": {
+          "count": 10,
+          "dimension": 512,
+          "norm_verified": true,
+          "total_embedding_time_ms": 1322.53,
+          "avg_per_face_ms": 132.25
+        },
+        "total_warm_pipeline_ms": 1461.57,
+        "memory_mb": {
+          "working_set": 713.6,
+          "peak": 730.02
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1032,
+              3283,
+              1211,
+              3128
+            ],
+            "width": 155,
+            "height": 179,
+            "area": 27745,
+            "confidence": 0.9215,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 1,
+            "bbox": [
+              891,
+              919,
+              1079,
+              759
+            ],
+            "width": 160,
+            "height": 188,
+            "area": 30080,
+            "confidence": 0.9115,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 2,
+            "bbox": [
+              977,
+              2621,
+              1164,
+              2466
+            ],
+            "width": 155,
+            "height": 187,
+            "area": 28985,
+            "confidence": 0.9079,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 3,
+            "bbox": [
+              905,
+              2270,
+              1091,
+              2131
+            ],
+            "width": 139,
+            "height": 186,
+            "area": 25854,
+            "confidence": 0.9049,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 4,
+            "bbox": [
+              872,
+              1609,
+              1037,
+              1465
+            ],
+            "width": 144,
+            "height": 165,
+            "area": 23760,
+            "confidence": 0.9023,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 5,
+            "bbox": [
+              796,
+              540,
+              991,
+              359
+            ],
+            "width": 181,
+            "height": 195,
+            "area": 35295,
+            "confidence": 0.8955,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 6,
+            "bbox": [
+              901,
+              1332,
+              1081,
+              1167
+            ],
+            "width": 165,
+            "height": 180,
+            "area": 29700,
+            "confidence": 0.8849,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 7,
+            "bbox": [
+              895,
+              3638,
+              1071,
+              3478
+            ],
+            "width": 160,
+            "height": 176,
+            "area": 28160,
+            "confidence": 0.884,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 8,
+            "bbox": [
+              1031,
+              2943,
+              1191,
+              2796
+            ],
+            "width": 147,
+            "height": 160,
+            "area": 23520,
+            "confidence": 0.8787,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          },
+          {
+            "face_idx": 9,
+            "bbox": [
+              956,
+              1962,
+              1126,
+              1820
+            ],
+            "width": 142,
+            "height": 170,
+            "area": 24140,
+            "confidence": 0.8782,
+            "landmarks_count": 5,
+            "landmarks_within_face_region": true
+          }
+        ]
+      },
+      "dlib": {
+        "detected_faces": 10,
+        "density_category": "6-15 faces",
+        "detection_latency_ms": {
+          "avg": 10039.99,
+          "median": 10039.99,
+          "p95": 10097.28,
+          "raw": [
+            10103.65,
+            9976.32
+          ]
+        },
+        "smallest_face": "129x129 (16641 px)",
+        "largest_face": "185x186 (34410 px)",
+        "embedding": {
+          "count": 10,
+          "dimension": 128,
+          "total_embedding_time_ms": 4374.7,
+          "avg_per_face_ms": 437.47
+        },
+        "total_warm_pipeline_ms": 14414.68,
+        "memory_mb": {
+          "working_set": 1031.55,
+          "peak": 1408.42
+        },
+        "boxes": [
+          {
+            "face_idx": 0,
+            "bbox": [
+              1062,
+              3280,
+              1216,
+              3125
+            ],
+            "width": 155,
+            "height": 154,
+            "area": 23870
+          },
+          {
+            "face_idx": 1,
+            "bbox": [
+              941,
+              2282,
+              1096,
+              2127
+            ],
+            "width": 155,
+            "height": 155,
+            "area": 24025
+          },
+          {
+            "face_idx": 2,
+            "bbox": [
+              985,
+              1959,
+              1114,
+              1830
+            ],
+            "width": 129,
+            "height": 129,
+            "area": 16641
+          },
+          {
+            "face_idx": 3,
+            "bbox": [
+              1013,
+              2604,
+              1142,
+              2475
+            ],
+            "width": 129,
+            "height": 129,
+            "area": 16641
+          },
+          {
+            "face_idx": 4,
+            "bbox": [
+              924,
+              1319,
+              1079,
+              1164
+            ],
+            "width": 155,
+            "height": 155,
+            "area": 24025
+          },
+          {
+            "face_idx": 5,
+            "bbox": [
+              924,
+              924,
+              1079,
+              769
+            ],
+            "width": 155,
+            "height": 155,
+            "area": 24025
+          },
+          {
+            "face_idx": 6,
+            "bbox": [
+              1056,
+              2934,
+              1185,
+              2805
+            ],
+            "width": 129,
+            "height": 129,
+            "area": 16641
+          },
+          {
+            "face_idx": 7,
+            "bbox": [
+              924,
+              3641,
+              1079,
+              3486
+            ],
+            "width": 155,
+            "height": 155,
+            "area": 24025
+          },
+          {
+            "face_idx": 8,
+            "bbox": [
+              899,
+              1601,
+              1028,
+              1472
+            ],
+            "width": 129,
+            "height": 129,
+            "area": 16641
+          },
+          {
+            "face_idx": 9,
+            "bbox": [
+              820,
+              551,
+              1006,
+              366
+            ],
+            "width": 185,
+            "height": 186,
+            "area": 34410
+          }
+        ]
+      }
+    }
+  },
+  "summary": {
+    "cold_start_ms": {
+      "dlib": 11043.56,
+      "scrfd_arcface": 762.88
+    },
+    "total_detected_faces": {
+      "dlib": 15,
+      "scrfd": 15
+    },
+    "alignment_summary": {
+      "total_scrfd_faces": 15,
+      "successfully_aligned": 15,
+      "alignment_failures": 0,
+      "failure_rate_pct": 0.0
+    },
+    "embedding_summary": {
+      "scrfd_arcface": {
+        "total_generated": 15,
+        "dimension": 512,
+        "failed": 0,
+        "avg_latency_ms": 130.74,
+        "median_latency_ms": 123.03,
+        "p95_latency_ms": 178.59
+      },
+      "dlib": {
+        "total_generated": 15,
+        "dimension": 128,
+        "failed": 0,
+        "avg_latency_ms": 441.17,
+        "median_latency_ms": 437.47,
+        "p95_latency_ms": 457.31
+      }
+    },
+    "detection_latency_ms": {
+      "scrfd": {
+        "avg": 132.62,
+        "median": 132.83,
+        "p95": 140.66
+      },
+      "dlib": {
+        "avg": 10213.69,
+        "median": 10210.73,
+        "p95": 10469.1
+      }
+    },
+    "total_pipeline_latency_ms": {
+      "scrfd_arcface": {
+        "avg": 459.47,
+        "median": 259.75,
+        "p95": 1164.28
+      },
+      "dlib": {
+        "avg": 11316.61,
+        "median": 10723.22,
+        "p95": 13503.0
+      }
+    },
+    "memory_mb": {
+      "baseline": 173.64,
+      "final_working_set": 1031.55,
+      "peak_working_set": 1408.42,
+      "additional_attributed_mb": 1234.78
+    }
+  }
+}

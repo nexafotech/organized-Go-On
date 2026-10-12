@@ -1,0 +1,514 @@
+[
+  {
+    "roll_number": "721025149001",
+    "student_id": null,
+    "full_name": "ABINAYA B",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149002",
+    "student_id": null,
+    "full_name": "ABISHEK A",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149003",
+    "student_id": null,
+    "full_name": "AKASH K",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149004",
+    "student_id": null,
+    "full_name": "ANANTHA BALAJI M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149005",
+    "student_id": null,
+    "full_name": "ARUL ROSHAN A M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149006",
+    "student_id": null,
+    "full_name": "ARUN PRASATH K",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149007",
+    "student_id": null,
+    "full_name": "ASHVITHA P",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149008",
+    "student_id": null,
+    "full_name": "ASWAJITH P V",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149009",
+    "student_id": null,
+    "full_name": "ASWIN M G",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149010",
+    "student_id": null,
+    "full_name": "BHARANIDHARAN V",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149011",
+    "student_id": null,
+    "full_name": "BHUVANESWARI S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149012",
+    "student_id": null,
+    "full_name": "DEEPIKA L",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149013",
+    "student_id": null,
+    "full_name": "DHAMARAI SELVAN M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149014",
+    "student_id": null,
+    "full_name": "DHARANEESH RAM S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149015",
+    "student_id": null,
+    "full_name": "DHARANI KUMAR K",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149016",
+    "student_id": null,
+    "full_name": "DHARSINI B",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149017",
+    "student_id": null,
+    "full_name": "DHEV ANANTH M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149018",
+    "student_id": null,
+    "full_name": "DUVARAKESH B",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149019",
+    "student_id": null,
+    "full_name": "GUNAL B",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149020",
+    "student_id": null,
+    "full_name": "HARISH SN",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149021",
+    "student_id": null,
+    "full_name": "HARSHAVARTHAN M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149022",
+    "student_id": null,
+    "full_name": "HARSHINI PRIYA P",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149023",
+    "student_id": null,
+    "full_name": "INIYA PRASANTH ARUNAGIRI",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149024",
+    "student_id": null,
+    "full_name": "JEGADHESAN P",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149025",
+    "student_id": null,
+    "full_name": "JITHISH A",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149026",
+    "student_id": null,
+    "full_name": "KAJENDRAN T",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149027",
+    "student_id": null,
+    "full_name": "KRITHIK R M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149028",
+    "student_id": null,
+    "full_name": "LAVANYA A",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149029",
+    "student_id": null,
+    "full_name": "MAHESHWARAN M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149030",
+    "student_id": null,
+    "full_name": "MANIBARATH R",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149031",
+    "student_id": null,
+    "full_name": "MANOJ KUMAR K",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149032",
+    "student_id": null,
+    "full_name": "MOHAMED ESHAK R",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149033",
+    "student_id": null,
+    "full_name": "MOHAMED SAFIVUDEEN S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149034",
+    "student_id": null,
+    "full_name": "MOHAMED SHARIF A",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149035",
+    "student_id": null,
+    "full_name": "MOHAMMED ARSATH A",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149036",
+    "student_id": null,
+    "full_name": "MOHANA LAKSHMI C",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149037",
+    "student_id": null,
+    "full_name": "MUHAMMED NIDHAN T",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149038",
+    "student_id": null,
+    "full_name": "NAVANITHA M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149039",
+    "student_id": null,
+    "full_name": "NAVEEN KUMAR M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149040",
+    "student_id": null,
+    "full_name": "NITHEASH S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149041",
+    "student_id": null,
+    "full_name": "PAVATHARINI S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149042",
+    "student_id": null,
+    "full_name": "PRAGATHEESWARAN M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149043",
+    "student_id": null,
+    "full_name": "PRAKASH B",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149044",
+    "student_id": null,
+    "full_name": "PRAVIN KUMAR C",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149045",
+    "student_id": null,
+    "full_name": "PRIYA",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149046",
+    "student_id": null,
+    "full_name": "RETHISH S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149047",
+    "student_id": null,
+    "full_name": "RITHANYA SHREE V",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149048",
+    "student_id": null,
+    "full_name": "ROSHAN BRITTO S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149049",
+    "student_id": null,
+    "full_name": "SAMIKSHA A",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149050",
+    "student_id": null,
+    "full_name": "SANJAY M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149051",
+    "student_id": null,
+    "full_name": "SATHISH KUMAR P",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149052",
+    "student_id": null,
+    "full_name": "SELVAM R",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149053",
+    "student_id": null,
+    "full_name": "SELVAPRIYA S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149054",
+    "student_id": null,
+    "full_name": "SHARAFATH ROSHAN S",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149055",
+    "student_id": null,
+    "full_name": "SHRI RAM P",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149056",
+    "student_id": null,
+    "full_name": "SONIYA KUMARI RN",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149057",
+    "student_id": null,
+    "full_name": "SRAVAN P V",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149058",
+    "student_id": null,
+    "full_name": "SUSIL V",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149059",
+    "student_id": null,
+    "full_name": "THIBHIKSHA M",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149060",
+    "student_id": null,
+    "full_name": "VISHAL R",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149061",
+    "student_id": null,
+    "full_name": "VISHNU PRASAD",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149062",
+    "student_id": null,
+    "full_name": "YUSUFSHA J",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "721025149063",
+    "student_id": null,
+    "full_name": "YUVA SHRI P",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "REGULAR",
+    "is_active": true
+  },
+  {
+    "roll_number": "301",
+    "student_id": null,
+    "full_name": "Akhil",
+    "class_name": "II Year CSE Cyber Security - Class 1",
+    "entry_type": "LATERAL_ENTRY",
+    "is_active": true
+  }
+]

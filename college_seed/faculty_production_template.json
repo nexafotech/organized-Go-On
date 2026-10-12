@@ -1,0 +1,20 @@
+[
+  {
+    "username": "FACULTY_PLACEHOLDER_001",
+    "email": "faculty_placeholder_001@college.edu",
+    "employee_id": "EMP_PLACEHOLDER_001",
+    "full_name": "Faculty Member Placeholder 001",
+    "department": "Cyber Security",
+    "password": "SECURE_TEMPORARY_PASSWORD_PLACEHOLDER",
+    "is_active": true
+  },
+  {
+    "username": "FACULTY_PLACEHOLDER_002",
+    "email": "faculty_placeholder_002@college.edu",
+    "employee_id": "EMP_PLACEHOLDER_002",
+    "full_name": "Faculty Member Placeholder 002",
+    "department": "Computer Science & Engineering",
+    "password": "SECURE_TEMPORARY_PASSWORD_PLACEHOLDER",
+    "is_active": true
+  }
+]

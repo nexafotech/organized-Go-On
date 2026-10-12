@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Attendance Marker — iOS Liquid Glass Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Soft Off-White / Light Canvas (Reference Image Palette) */
+      --bg: #EEF2F6;
+      --bg-gradient: radial-gradient(at 10% 10%, #F5F7FA 0px, transparent 60%),
+                     radial-gradient(at 90% 15%, #E9EFF6 0px, transparent 60%),
+                     radial-gradient(at 50% 90%, #E6EDF5 0px, transparent 60%);
+      
+      /* Accent Orange (Used in MINIMUM strictly for small badges/active indicators) */
+      --primary: #FF7A00;
+      --primary-hover: #F97316;
+      --primary-light: rgba(255, 122, 0, 0.1);
+      --primary-glow: 0 6px 18px rgba(255, 122, 0, 0.3);
+
+      /* Semantic Status Colors */
+      --success: #10B981;
+      --success-light: rgba(16, 185, 129, 0.12);
+      --danger: #EF4444;
+      --danger-light: rgba(239, 68, 68, 0.12);
+      --warning: #F59E0B;
+      --warning-light: rgba(245, 158, 11, 0.12);
+      --info: #38BDF8;
+
+      /* High-End Dark Graphite for Primary CTAs */
+      --cta-dark: #1E252D;
+      --cta-dark-hover: #111827;
+
+      /* iOS Liquid Frosted Milky Glass (Light) */
+      --glass: rgba(255, 255, 255, 0.76);
+      --glass-strong: #FFFFFF;
+      --glass-surface: rgba(255, 255, 255, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.95);
+      --glass-blur: blur(28px) saturate(180%);
+      --liquid-bevel: inset 0 1px 1px 0 #FFFFFF, inset 0 -1px 1px 0 rgba(0, 0, 0, 0.02);
+      --liquid-reflection: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.3) 100%);
+      --glass-shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+      --glass-shadow-lg: 0 16px 42px -6px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+
+      /* Clean Deep Charcoal Typography */
+      --ink: #1E242B;
+      --ink-secondary: #64748B;
+      --ink-muted: #94A3B8;
+      --separator: rgba(0, 0, 0, 0.05);
+
+      /* Geometry */
+      --r-card: 26px;
+      --r-inner: 18px;
+      --r-pill: 100px;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0D1117;
+      --bg-gradient: radial-gradient(at 0% 0%, #161D27 0px, transparent 60%),
+                     radial-gradient(at 100% 0%, #0F1722 0px, transparent 60%),
+                     radial-gradient(at 50% 100%, #111923 0px, transparent 60%);
+
+      --primary: #FF7A00;
+      --primary-hover: #F97316;
+      --primary-light: rgba(255, 122, 0, 0.15);
+      --primary-glow: 0 6px 18px rgba(255, 122, 0, 0.3);
+
+      --cta-dark: #FFFFFF;
+      --cta-dark-hover: #F1F5F9;
+
+      --glass: rgba(23, 29, 38, 0.75);
+      --glass-strong: #1A222D;
+      --glass-surface: rgba(30, 38, 50, 0.5);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --glass-blur: blur(30px) saturate(200%);
+      --liquid-bevel: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3);
+      --liquid-reflection: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 50%, rgba(255, 255, 255, 0.04) 100%);
+      --glass-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5);
+      --glass-shadow-lg: 0 24px 56px -12px rgba(0, 0, 0, 0.7);
+
+      --ink: #F8FAFC;
+      --ink-secondary: #94A3B8;
+      --ink-muted: #64748B;
+      --separator: rgba(255, 255, 255, 0.07);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background: var(--bg);
+      background-image: var(--bg-gradient);
+      background-attachment: fixed;
+      color: var(--ink);
+      min-height: 100dvh;
+      position: relative;
+      overflow-x: hidden;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    .tnum { font-variant-numeric: tabular-nums; }
+
+    /* WALLPAPER SUBTLE SLATE/PERIWINKLE ORBS */
+    .wallpaper {
+      position: fixed; inset: 0;
+      z-index: 0; pointer-events: none;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(120px);
+      transition: all 0.6s ease;
+      animation: floatOrb 20s ease-in-out infinite alternate;
+    }
+    .orb-1 {
+      width: 540px; height: 540px; top: -140px; left: -120px;
+      background: radial-gradient(circle, rgba(203, 213, 225, 0.45) 0%, rgba(203, 213, 225, 0.1) 70%, transparent 100%);
+      animation-duration: 22s;
+    }
+    .orb-2 {
+      width: 600px; height: 600px; bottom: 8%; right: -120px;
+      background: radial-gradient(circle, rgba(219, 234, 254, 0.5) 0%, rgba(219, 234, 254, 0.1) 70%, transparent 100%);
+      animation-duration: 26s; animation-delay: -8s;
+    }
+    .orb-3 {
+      width: 440px; height: 440px; top: 40%; left: 30%;
+      background: radial-gradient(circle, rgba(226, 232, 240, 0.4) 0%, rgba(226, 232, 240, 0.05) 70%, transparent 100%);
+      animation-duration: 18s; animation-delay: -14s;
+    }
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(25px, 35px) scale(1.06); }
+      100% { transform: translate(-20px, -25px) scale(0.96); }
+    }
+
+    /* LAYOUT */
+    .main {
+      position: relative; z-index: 1;
+      max-width: 820px; margin: 0 auto;
+      padding: 24px 20px 130px;
+    }
+
+    .scr { display: none; }
+    .scr.on { display: block; animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* HEADER */
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 22px;
+    }
+    .top-title { font-size: 19px; font-weight: 700; color: var(--ink); text-align: center; flex: 1; letter-spacing: -0.02em; }
+    .avatar {
+      width: 44px; height: 44px; border-radius: 16px;
+      background: var(--glass-strong);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: var(--ink);
+      overflow: hidden; font-size: 15px;
+    }
+    .icon-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--glass-strong);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink); cursor: pointer;
+      position: relative; transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+    }
+    .icon-btn:active { transform: scale(0.93); }
+    .icon-btn svg { width: 20px; height: 20px; stroke-width: 1.8; }
+
+    /* CLEAN MILKY FROSTED CARD */
+    .gc {
+      background: var(--liquid-reflection), var(--glass);
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--liquid-bevel), var(--glass-shadow);
+      border-radius: var(--r-card);
+      padding: 24px; margin-bottom: 16px;
+      position: relative; overflow: hidden;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+    }
+    .gc::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8) 50%, transparent);
+      pointer-events: none;
+    }
+    .gc-row { display: flex; align-items: center; justify-content: space-between; }
+
+    /* TYPOGRAPHY & PILLS */
+    .sec-title {
+      font-size: 14px; font-weight: 700; color: var(--ink);
+      margin-bottom: 12px; letter-spacing: -0.01em;
+    }
+    
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: var(--r-pill);
+      background: var(--glass-strong);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      font-size: 13px; font-weight: 600; color: var(--ink);
+      cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .pill:active { transform: scale(0.95); }
+    .pill.active {
+      background: #FFFFFF;
+      color: var(--ink);
+      font-weight: 700;
+      border-color: rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    }
+    .pill-accent {
+      background: #FFF5EB !important;
+      color: #D96000 !important;
+      border: 1px solid rgba(255, 122, 0, 0.2) !important;
+    }
+    .pill-sm { padding: 5px 12px; font-size: 12px; }
+
+    /* CIRCULAR NEUTRAL PERIOD BADGE (EXACTLY AS IN REFERENCE '00' AGENDA PILL) */
+    .badge-period {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: #F1F4F8; color: #1E252D;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+      flex-shrink: 0;
+    }
+
+    /* SEGMENTED CONTROL (REFERENCE IMAGE PILL GROUP) */
+    .segmented-control {
+      display: flex;
+      background: rgba(226, 232, 240, 0.55);
+      padding: 4px;
+      border-radius: var(--r-pill);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      margin-bottom: 16px;
+    }
+    .segment-btn {
+      flex: 1;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-secondary);
+      border-radius: var(--r-pill);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .segment-btn.active {
+      background: #FFFFFF;
+      color: var(--ink);
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    }
+    
+    /* BIG METRICS */
+    .metric-value { font-size: 46px; font-weight: 800; color: var(--ink); letter-spacing: -0.04em; line-height: 1; }
+    .metric-sub { font-size: 14px; font-weight: 500; color: var(--ink-secondary); margin-top: 4px; }
+
+    /* WEEK STRIP (EXACTLY AS IN REFERENCE IMAGE) */
+    .week-strip {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      border-radius: var(--r-card); padding: 8px 10px;
+      margin-bottom: 18px;
+    }
+    .day-col {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 10px 0; width: 44px; border-radius: 16px; cursor: pointer; transition: all 0.2s;
+    }
+    .day-col .dw { font-size: 12px; font-weight: 500; color: var(--ink-muted); }
+    .day-col .dn { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .day-col.sel {
+      background: #FFFFFF;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+    .day-col.sel .dw { color: var(--ink-secondary); font-weight: 600; }
+    .day-col.sel .dn { color: var(--ink); font-weight: 800; }
+
+    /* LIST GROUP & AGENDA CARDS */
+    .list-group {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      overflow: visible; margin-bottom: 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .list-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; cursor: pointer;
+      background: #FFFFFF; border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.025);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .list-row:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,0.04); }
+    .lr-left { display: flex; align-items: center; gap: 16px; }
+    .lr-icon {
+      width: 44px; height: 44px; border-radius: 14px;
+      background: var(--bg);
+      border: 1px solid rgba(0, 0, 0, 0.03);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink);
+    }
+    .lr-icon svg { width: 20px; height: 20px; stroke-width: 1.8; }
+    .list-row h4 { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+    .list-row p { font-size: 13px; color: var(--ink-secondary); }
+    .lr-right { color: var(--ink-muted); font-size: 13px; font-weight: 600; }
+
+    /* SLEEK DARK GRAPHITE BUTTONS (MINIMAL ORANGE ACCENTS) */
+    .btn-main {
+      width: 100%; height: 52px; border-radius: var(--r-inner);
+      background: var(--cta-dark);
+      color: #FFFFFF; font-size: 15px; font-weight: 600; border: none;
+      box-shadow: 0 8px 22px -4px rgba(30, 37, 45, 0.22);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: transform 0.15s, opacity 0.2s, background 0.2s;
+    }
+    .btn-main:hover { background: var(--cta-dark-hover); }
+    .btn-main:active { transform: scale(0.97); }
+    .btn-main:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* SECONDARY CLEAN WHITE BUTTON */
+    .btn-clean {
+      height: 52px; border-radius: var(--r-inner);
+      background: #FFFFFF; color: var(--ink);
+      font-size: 14px; font-weight: 600;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      cursor: pointer; padding: 0 20px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.15s;
+    }
+    .btn-clean:active { transform: scale(0.97); }
+
+    /* FLOATING BOTTOM DOCK (EXACTLY AS IN REFERENCE IMAGE) */
+    .tabbar-wrap {
+      position: fixed; bottom: 24px; left: 0; right: 0; z-index: 90;
+      display: flex; justify-content: center; pointer-events: none;
+    }
+    .tabbar {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      border-radius: var(--r-pill);
+      padding: 6px 10px; display: flex; gap: 8px; align-items: center;
+      box-shadow: 0 16px 40px -8px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(0,0,0,0.03);
+      pointer-events: auto;
+    }
+    .tab {
+      width: 48px; height: 48px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #64748B; cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+    .tab svg { width: 22px; height: 22px; stroke-width: 1.8; }
+    .tab:active { transform: scale(0.92); }
+    /* ACTIVE TAB: THE SINGLE VIBRANT ORANGE CIRCLE AS IN REFERENCE IMAGE */
+    .tab.on {
+      background: var(--primary);
+      color: #FFFFFF;
+      box-shadow: var(--primary-glow);
+    }
+
+    /* PROGRESS CIRCLE (MINIMAL ORANGE ACCENT ARC) */
+    .circ-wrap { position: relative; width: 88px; height: 88px; }
+    .circ-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .circ-wrap circle { fill: none; stroke-width: 7; }
+    .circ-bg { stroke: rgba(0, 0, 0, 0.06); }
+    .circ-fg { stroke: var(--primary); stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
+    .circ-val {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      font-size: 16px; font-weight: 800; color: var(--ink);
+    }
+
+    /* PROGRESS BAR */
+    .pb-wrap { height: 6px; background: rgba(0, 0, 0, 0.05); border-radius: 100px; overflow: hidden; margin-top: 8px; }
+    .pb-fill { height: 100%; background: var(--primary); border-radius: 100px; transition: width 0.4s ease; }
+
+    /* STATS GRID */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px;
+    }
+    .stat-item h5 { font-size: 12px; font-weight: 600; color: var(--ink-secondary); margin-bottom: 4px; }
+    .stat-item p { font-size: 17px; font-weight: 800; color: var(--ink); }
+
+    /* ROSTER ROW WITH CRYSTAL BUTTONS */
+    .roster-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px;
+      background: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 20px; margin-bottom: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.025);
+      transition: transform 0.15s;
+    }
+    .r-act { display: flex; gap: 8px; }
+    .rb {
+      width: 42px; height: 42px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center; font-weight: 700;
+      background: var(--bg);
+      border: 1px solid rgba(0, 0, 0, 0.04); color: var(--ink-muted);
+      cursor: pointer; transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+      font-size: 14px;
+    }
+    .rb:active { transform: scale(0.9); }
+    .rb.on-p {
+      background: var(--success); color: #fff; border-color: var(--success);
+      box-shadow: 0 6px 16px rgba(16,185,129,0.3);
+    }
+    .rb.on-a {
+      background: var(--danger); color: #fff; border-color: var(--danger);
+      box-shadow: 0 6px 16px rgba(239,68,68,0.3);
+    }
+    .rb.on-od {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+      box-shadow: var(--primary-glow);
+    }
+
+    /* INPUTS */
+    .input-grp { margin-bottom: 18px; }
+    .input-grp label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-secondary); margin-bottom: 8px; }
+    .input-field {
+      width: 100%; padding: 14px 18px; border-radius: var(--r-inner);
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      font-size: 15px; color: var(--ink); outline: none;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);
+      font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-field:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light), inset 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    /* SHEETS / MODALS */
+    .sheet-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 100; display: none; align-items: flex-end; justify-content: center;
+    }
+    .sheet-overlay.open { display: flex; }
+    .sheet-content {
+      width: 100%; max-width: 580px; max-height: 85vh; overflow-y: auto;
+      background: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      border-radius: 32px 32px 0 0; padding: 14px 24px 38px;
+      box-shadow: 0 -12px 48px rgba(15, 23, 42, 0.12);
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sheet-handle { width: 44px; height: 5px; border-radius: 4px; background: var(--ink-muted); margin: 0 auto 20px; opacity: 0.45; }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    /* ERROR BANNER */
+    .error-banner {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #DC2626; padding: 14px 18px; border-radius: var(--r-inner);
+      font-size: 13px; font-weight: 500; margin-bottom: 16px; display: none;
+    }
+
+    /* INSTITUTIONAL BREAK BANNER (MIRRORS UPGRADE TO PREMIUM CARD IN REFERENCE) */
+    .break-banner {
+      background: linear-gradient(105deg, rgba(254, 243, 199, 0.65) 0%, rgba(224, 242, 254, 0.65) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.03);
+      border-radius: var(--r-inner); padding: 16px 20px; margin: 14px 0;
+      display: flex; align-items: center; gap: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BACKGROUND WALLPAPER ORBS -->
+  <div class="wallpaper">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="main">
+    
+    <!-- ==================== 1. LOGIN SCREEN ==================== -->
+    <div class="scr on" id="v-login">
+      <div style="text-align: center; margin: 46px 0 30px;">
+        <div class="avatar" style="width: 74px; height: 74px; margin: 0 auto 16px; background:#FFFFFF; color: #1E252D; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06); border: 1px solid rgba(255, 255, 255, 0.95);">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <h1 style="font-size: 26px; font-weight: 800; letter-spacing: -0.02em;">Attendance Marker</h1>
+        <p style="color: var(--ink-secondary); margin-top: 6px; font-size: 14px;">Sign in to your college account</p>
+      </div>
+
+      <div class="gc">
+        <div id="login-err" class="error-banner"></div>
+        <div class="input-grp">
+          <label>Register Number / Employee ID / Username</label>
+          <input type="text" class="input-field" id="iu" value="fac01" placeholder="e.g. fac01 or 721025149003" autocomplete="username">
+        </div>
+        <div class="input-grp">
+          <label>Password</label>
+          <input type="password" class="input-field" id="ip" value="7Z21lYE!" placeholder="Enter your password" autocomplete="current-password">
+        </div>
+        <button class="btn-main" id="lbtn" onclick="doLiveLogin()" style="margin-top: 20px;">
+          <span>Sign In</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      
+      <div style="text-align:center; margin-top: 18px;">
+        <p style="font-size:12px; color:var(--ink-muted); margin-bottom:10px;">PREFILL OFFICIAL CREDENTIALS</p>
+        <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:8px;">
+          <div class="pill pill-sm" onclick="prefill('advisor')">Class Advisor (FAC01)</div>
+          <div class="pill pill-sm" onclick="prefill('faculty')">Faculty (FAC02)</div>
+          <div class="pill pill-sm" onclick="prefill('student')">Student (Class 1)</div>
+          <div class="pill pill-sm" onclick="prefill('admin')">Admin</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 2. STUDENT DASHBOARD ==================== -->
+    <div class="scr" id="v-sdash">
+      <div class="topbar">
+        <div class="avatar" id="s-avatar">S</div>
+        <div class="top-title" id="s-name">Student Dashboard</div>
+        <div class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </div>
+      </div>
+
+      <!-- Student Profile Card -->
+      <div class="gc" style="padding: 18px 22px;">
+        <div class="gc-row">
+          <div>
+            <h3 style="font-size: 17px; font-weight: 700;" id="s-card-name">Student Name</h3>
+            <p style="font-size: 12px; color: var(--ink-secondary); margin-top: 3px;" id="s-card-sub">Reg: 721025149003 | Class 1</p>
+          </div>
+          <div class="pill pill-sm" style="background:#ECFDF5; color:#059669; border:none; font-weight:600;" id="s-status-badge">ACTIVE</div>
+        </div>
+      </div>
+
+      <!-- Overall Attendance Gauge Card -->
+      <div class="gc">
+        <div class="sec-title">Overall Attendance Status</div>
+        <div class="gc-row">
+          <div>
+            <div class="metric-value tnum" id="s-pct">--<span style="font-size:24px">%</span></div>
+            <div class="metric-sub tnum" id="s-attended-total">0 / 0 Attended</div>
+          </div>
+          <div class="circ-wrap">
+            <svg viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" class="circ-bg"/>
+              <circle cx="50" cy="50" r="42" class="circ-fg" id="s-circ-fg" stroke-dasharray="0 264"/>
+            </svg>
+            <div class="circ-val" id="s-circ-val">0%</div>
+          </div>
+        </div>
+
+        <!-- Metric Bars -->
+        <div class="stats-grid">
+          <div class="stat-item">
+            <h5>Present</h5>
+            <p class="tnum" style="color:var(--success)" id="s-cnt-p">0</p>
+            <div class="pb-wrap"><div class="pb-fill" id="s-pb-p" style="width:0%; background:var(--success)"></div></div>
+          </div>
+          <div class="stat-item">
+            <h5>Absent</h5>
+            <p class="tnum" style="color:var(--danger)" id="s-cnt-a">0</p>
+            <div class="pb-wrap"><div class="pb-fill" id="s-pb-a" style="width:0%; background:var(--danger)"></div></div>
+          </div>
+          <div class="stat-item">
+            <h5>On Duty</h5>
+            <p class="tnum" style="color:var(--primary)" id="s-cnt-od">0</p>
+            <div class="pb-wrap"><div class="pb-fill" id="s-pb-od" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <!-- Half-Day Metrics Row -->
+        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--separator); display:flex; justify-content:space-around;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <span style="font-size:12px; color:var(--ink-secondary)">Half-Day Present:</span>
+            <strong class="tnum" style="color:var(--success)" id="s-hd-p">0</strong>
+          </div>
+          <div style="width:1px; background:var(--separator)"></div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <span style="font-size:12px; color:var(--ink-secondary)">Half-Day Absent:</span>
+            <strong class="tnum" style="color:var(--danger)" id="s-hd-a">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Institutional Lunch Break Banner (Matches reference 'Upgrade to Premium' card style) -->
+      <div class="break-banner">
+        <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.85); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.03); flex-shrink:0;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+        </div>
+        <div style="flex:1;">
+          <strong style="color:var(--ink); font-size:13.5px; font-weight:700;">College Lunch Break: 12:50 PM – 01:40 PM</strong>
+          <p style="color:var(--ink-secondary); font-size:12px; margin-top:2px;">Institutional interval — strictly excluded from attendance and denominators.</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+
+      <!-- Daily Attendance History List -->
+      <div class="sec-title" style="margin-top:20px;">Daily Attendance History & Period Matrix</div>
+      <div id="s-history-list"></div>
+    </div>
+
+    <!-- ==================== 3. STUDENT TIMETABLE ==================== -->
+    <div class="scr" id="v-stt">
+      <div class="topbar">
+        <div class="icon-btn" onclick="go('sdash')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="top-title">Class Timetable</div>
+        <div style="width:44px"></div>
+      </div>
+
+      <div class="week-strip" id="stt-days">
+        <div class="day-col sel" onclick="selectTtDay('Monday')"><span class="dw">Mo</span><span class="dn">P1</span></div>
+        <div class="day-col" onclick="selectTtDay('Tuesday')"><span class="dw">Tu</span><span class="dn">P2</span></div>
+        <div class="day-col" onclick="selectTtDay('Wednesday')"><span class="dw">We</span><span class="dn">P3</span></div>
+        <div class="day-col" onclick="selectTtDay('Thursday')"><span class="dw">Th</span><span class="dn">P4</span></div>
+        <div class="day-col" onclick="selectTtDay('Friday')"><span class="dw">Fr</span><span class="dn">P5</span></div>
+        <div class="day-col" onclick="selectTtDay('Saturday')"><span class="dw">Sa</span><span class="dn">P6</span></div>
+      </div>
+
+      <div class="sec-title" id="stt-day-title">Monday Classes</div>
+      <div class="list-group" id="stt-list">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- ==================== 4. STUDENT BIOMETRICS ==================== -->
+    <div class="scr" id="v-sbio">
+      <div class="topbar">
+        <div class="icon-btn" onclick="go('sdash')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="top-title">Live Face Verification</div>
+        <div style="width:44px"></div>
+      </div>
+
+      <div class="gc" style="text-align:center;">
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <div class="pill active" id="p1" style="flex:1; justify-content:center">Front</div>
+          <div class="pill" id="p2" style="flex:1; justify-content:center">Left</div>
+          <div class="pill" id="p3" style="flex:1; justify-content:center">Right</div>
+        </div>
+        
+        <div style="width:100%; height:260px; border-radius:var(--r-inner); background:#000; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; margin:16px 0;">
+          <div id="ov" style="width:140px; height:180px; border-radius:50%; border:2px dashed var(--glass-strong); transition:all 0.3s;"></div>
+          <div style="position:absolute; bottom:14px; display:flex; gap:10px;">
+            <div class="pill pill-sm" style="background:rgba(255,255,255,0.2); color:#fff; border:none;" id="ty">Yaw 0°</div>
+            <div class="pill pill-sm" style="background:rgba(255,255,255,0.2); color:#fff; border:none;" id="tq">Quality 98%</div>
+          </div>
+        </div>
+        
+        <p style="font-size:14px; color:var(--ink-secondary); margin-bottom:20px;" id="pt">Position your face inside the oval frame.</p>
+        
+        <button class="btn-main" onclick="capPose()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Capture Pose
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 5. FACULTY DASHBOARD ==================== -->
+    <div class="scr" id="v-fdash">
+      <div class="topbar">
+        <div class="avatar" id="f-avatar">F</div>
+        <div class="top-title" id="f-name">Faculty Portal</div>
+        <div class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </div>
+      </div>
+
+      <!-- Class Advisor Dedicated Card (If Advisor) -->
+      <div class="gc" id="advisor-banner-card" style="display:none;">
+        <div class="gc-row" style="margin-bottom:10px;">
+          <div class="pill pill-sm" style="background:#FFF5EB; color:#D96000; border:1px solid rgba(255,122,0,0.18); font-weight:600;">Class Advisor Role</div>
+          <span class="tnum" style="font-weight:700; color:var(--ink)" id="adv-card-class">Class 1</span>
+        </div>
+        <h3 style="font-size:19px; font-weight:700; margin-bottom:6px;" id="adv-card-title">II Year CSE Cyber Security - Class 1</h3>
+        <p style="color:var(--ink-secondary); font-size:13px; margin-bottom:16px;">
+          Authoritative attendance rights for every period (P1–P7) of your advised section across all subjects.
+        </p>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-main" style="flex:1" onclick="go('advisor'); loadClassAdvisorPeriods();">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Manage Advisor Attendance
+          </button>
+          <button class="btn-clean" onclick="openClassDailySummary()" style="height:52px; padding:0 18px;">
+            Daily Summary
+          </button>
+        </div>
+      </div>
+
+      <!-- Ongoing / Active Session Card -->
+      <div class="gc">
+        <div class="gc-row" style="margin-bottom:10px;">
+          <div class="pill pill-sm" id="f-session-status">Scheduled</div>
+          <span class="tnum" style="font-weight:600; color:var(--ink-secondary)" id="f-session-time">Today</span>
+        </div>
+        <h3 style="font-size:19px; font-weight:700; margin-bottom:4px;" id="f-session-subject">Loading Schedule...</h3>
+        <p style="color:var(--ink-secondary); font-size:13px; margin-bottom:16px;" id="f-session-sub">Class Section</p>
+        <button class="btn-main" id="f-take-btn" onclick="openFacultyAvailablePeriods()">
+          Take Attendance
+        </button>
+      </div>
+
+      <!-- Institutional Lunch Break Card (Matches reference card style) -->
+      <div class="break-banner">
+        <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.85); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.03); flex-shrink:0;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+        </div>
+        <div style="flex:1;">
+          <strong style="color:var(--ink); font-size:13.5px; font-weight:700;">College Lunch Break: 12:50 PM – 01:40 PM</strong>
+          <p style="color:var(--ink-secondary); font-size:12px; margin-top:2px;">Institutional interval — strictly excluded from attendance and denominators.</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+
+      <div class="sec-title">Today's Schedule</div>
+      <div class="list-group" id="f-schedule-list">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- ==================== 6. CLASS ADVISOR MANAGEMENT SCREEN ==================== -->
+    <div class="scr" id="v-advisor">
+      <div class="topbar">
+        <div class="icon-btn" onclick="go('fdash')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="top-title">Class Advisor Attendance</div>
+        <div class="icon-btn" onclick="openClassDailySummary()" title="Daily Summary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+      </div>
+
+      <div class="gc" style="padding:18px 22px;">
+        <h4 style="font-size:16px; font-weight:700;" id="adv-portal-title">Advised Class Section</h4>
+        <p style="font-size:12px; color:var(--ink-secondary); margin-top:2px;">
+          P1–P7 attendance management for today's completed periods & yesterday's scheduled periods.
+        </p>
+      </div>
+
+      <!-- TODAY / YESTERDAY Segmented Control (Reference Style) -->
+      <div class="segmented-control">
+        <button class="segment-btn active" id="btn-tab-today" onclick="switchAdvisorDay('TODAY')">TODAY</button>
+        <button class="segment-btn" id="btn-tab-yesterday" onclick="switchAdvisorDay('YESTERDAY')">YESTERDAY</button>
+      </div>
+
+      <!-- Periods Container -->
+      <div id="adv-periods-list"></div>
+
+      <!-- Day End Footnote -->
+      <div style="text-align:center; padding:18px 0; color:var(--ink-muted); font-size:12px;">
+        Institutional Note: Official college day ends at 04:10 PM.
+      </div>
+    </div>
+
+    <!-- ==================== 7. ATTENDANCE ROSTER ENTRY SCREEN ==================== -->
+    <div class="scr" id="v-froster">
+      <div class="topbar">
+        <div class="icon-btn" onclick="returnFromRoster()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="top-title" id="roster-header-title">Period Attendance</div>
+        <div class="icon-btn" onclick="markAllPresent()" title="Mark All Present"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>
+
+      <!-- Period Info Card -->
+      <div class="gc" style="padding: 16px 20px;">
+        <div class="gc-row">
+          <div>
+            <h4 style="font-size: 16px; font-weight: 700;" id="roster-subject-name">Subject Name</h4>
+            <p style="font-size: 12px; color: var(--ink-secondary); margin-top: 3px;" id="roster-meta-info">Period 1 · 09:10 - 10:00</p>
+          </div>
+          <div class="pill pill-sm" style="background:#F1F4F8; color:#475569; border:none; font-weight:600;" id="roster-class-pill">Class 1</div>
+        </div>
+      </div>
+
+      <!-- Counters Strip -->
+      <div class="week-strip" style="justify-content: space-around; padding: 12px 6px;">
+        <div style="text-align:center">
+          <p style="font-size:11px; color:var(--ink-secondary)">Total</p>
+          <p class="tnum" style="font-size:18px; font-weight:700" id="cnt-total">0</p>
+        </div>
+        <div style="text-align:center">
+          <p style="font-size:11px; color:var(--ink-secondary)">Present</p>
+          <p class="tnum" style="font-size:18px; font-weight:700; color:var(--success)" id="cnt-p">0</p>
+        </div>
+        <div style="text-align:center">
+          <p style="font-size:11px; color:var(--ink-secondary)">Absent</p>
+          <p class="tnum" style="font-size:18px; font-weight:700; color:var(--danger)" id="cnt-a">0</p>
+        </div>
+        <div style="text-align:center">
+          <p style="font-size:11px; color:var(--ink-secondary)">OD</p>
+          <p class="tnum" style="font-size:18px; font-weight:700; color:var(--primary)" id="cnt-od">0</p>
+        </div>
+      </div>
+
+      <!-- Students Roster List -->
+      <div id="roster-students-container"></div>
+
+      <!-- Submit Button -->
+      <button class="btn-main" id="btn-submit-roster" onclick="submitCurrentRoster()" style="margin-top:20px;">
+        Submit Attendance
+      </button>
+    </div>
+
+    <!-- ==================== 8. PROFILE SCREEN ==================== -->
+    <div class="scr" id="v-sprof">
+      <div class="topbar">
+        <div class="avatar" id="prof-top-avatar">U</div>
+        <div class="top-title">Account Profile</div>
+        <div class="icon-btn" onclick="openSh('server')" title="API Config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      </div>
+
+      <div class="gc" style="text-align: center; padding: 32px 20px;">
+        <div class="avatar" style="width:84px; height:84px; font-size:26px; margin:0 auto 16px;" id="prof-avatar">U</div>
+        <h2 style="font-size:20px; font-weight:700;" id="prof-name">User Name</h2>
+        <p style="color:var(--ink-secondary); font-size:13px; margin-top:4px;" id="prof-sub">Role · Identifier</p>
+      </div>
+
+      <div class="list-group">
+        <div class="list-row" onclick="openSh('pass')">
+          <div class="lr-left">
+            <div class="lr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+            <div><h4>Security & Password</h4><p>Change your account password</p></div>
+          </div>
+          <div class="lr-right"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+        <div class="list-row" onclick="openSh('server')">
+          <div class="lr-left">
+            <div class="lr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div><h4>API Endpoint Config</h4><p id="curr-endpoint-lbl">http://127.0.0.1:8000</p></div>
+          </div>
+          <div class="lr-right"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+        <div class="list-row" onclick="doLogout()">
+          <div class="lr-left">
+            <div class="lr-icon" style="color:var(--danger)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></div>
+            <div><h4 style="color:var(--danger)">Sign Out</h4><p>End your session safely</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FLOATING TAB BAR -->
+  <div class="tabbar-wrap" id="tbar" style="display:none;">
+    <div class="tabbar" id="tabbar-inner">
+      <div class="tab on" id="t0" onclick="tn(0)" title="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+      <div class="tab" id="t1" onclick="tn(1)" title="Schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <div class="tab" id="t2" onclick="tn(2)" title="Attendance / Verification"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+      <div class="tab" id="t3" onclick="tn(3)" title="Profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM SHEETS -->
+
+  <!-- Password Change Sheet -->
+  <div class="sheet-overlay" id="sh-pass">
+    <div class="sheet-content">
+      <div class="sheet-handle"></div>
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:18px; text-align:center;">Change Password</h3>
+      <div class="input-grp">
+        <label>Current Password</label>
+        <input type="password" class="input-field" id="old-pw">
+      </div>
+      <div class="input-grp">
+        <label>New Password (min 8 chars)</label>
+        <input type="password" class="input-field" id="new-pw">
+      </div>
+      <div class="input-grp">
+        <label>Confirm New Password</label>
+        <input type="password" class="input-field" id="cnf-pw">
+      </div>
+      <button class="btn-main" onclick="submitChangePassword()" style="margin-top:20px;">
+        Update Password
+      </button>
+      <button class="pill" onclick="closeSh('pass')" style="width:100%; justify-content:center; margin-top:10px;">
+        Cancel
+      </button>
+    </div>
+  </div>
+  
+  <!-- Server Config Sheet -->
+  <div class="sheet-overlay" id="sh-server">
+    <div class="sheet-content">
+      <div class="sheet-handle"></div>
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:18px; text-align:center;">API Endpoint Configuration</h3>
+      <div class="input-grp">
+        <label>Backend URL</label>
+        <input type="text" class="input-field" id="server-url" value="http://127.0.0.1:8000">
+      </div>
+      <div style="display:flex; gap:12px; margin-top:20px;">
+        <button class="pill" style="flex:1; justify-content:center; height:50px;" onclick="testServerConnection()">Test</button>
+        <button class="btn-main" style="flex:1; height:50px;" onclick="saveServerUrl()">Save</button>
+      </div>
+      <button class="pill" onclick="closeSh('server')" style="width:100%; justify-content:center; margin-top:10px;">
+        Close
+      </button>
+    </div>
+  </div>
+
+  <!-- Class Advisor Daily Summary Modal -->
+  <div class="sheet-overlay" id="sh-summary">
+    <div class="sheet-content" style="max-width:680px;">
+      <div class="sheet-handle"></div>
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:6px; text-align:center;">Class Advisor Daily Summary</h3>
+      <p style="text-align:center; font-size:12px; color:var(--ink-secondary); margin-bottom:16px;" id="sum-date-lbl">Date: 2026-09-30</p>
+      
+      <div class="break-banner" style="margin-bottom:16px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+        <span style="font-size:12px; color:#F59E0B;">Lunch Break: 12:50 PM - 01:40 PM (Excluded from totals)</span>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--separator); color:var(--ink-secondary);">
+              <th style="padding:8px 6px;">Student</th>
+              <th style="padding:8px 6px;">Morning</th>
+              <th style="padding:8px 6px;">Afternoon</th>
+              <th style="padding:8px 6px;">Daily Status</th>
+            </tr>
+          </thead>
+          <tbody id="summary-table-body"></tbody>
+        </table>
+      </div>
+
+      <button class="pill" onclick="closeSh('summary')" style="width:100%; justify-content:center; margin-top:20px; height:48px;">
+        Close Summary
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== LOGIC & API INTEGRATION ==================== -->
+  <script>
+    let API_BASE = localStorage.getItem('am_server_url') || (window.location.origin.includes('3000') ? 'http://127.0.0.1:8000' : window.location.origin);
+    let currentUser = null;
+    let currentToken = localStorage.getItem('am_token') || null;
+    let userRole = 'STUDENT';
+    let currentAdvisorDay = 'TODAY';
+    let currentRosterData = null;
+    let rosterStudentStatuses = {}; // student_id -> {status, od_reason}
+    let lastRosterUpdatedTimestamp = null;
+    let currentStudentTimetable = [];
+
+    // Theme Management
+    function toggleTheme() {
+      const d = document.documentElement;
+      const nextTheme = d.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      d.setAttribute('data-theme', nextTheme);
+      localStorage.setItem('am_theme', nextTheme);
+    }
+    const savedTheme = localStorage.getItem('am_theme');
+    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+
+    // Navigation
+    function go(screenId) {
+      document.querySelectorAll('.scr').forEach(s => s.classList.remove('on'));
+      const target = document.getElementById('v-' + screenId);
+      if (target) target.classList.add('on');
+      document.getElementById('tbar').style.display = (screenId === 'login') ? 'none' : 'flex';
+      syncTabBar(screenId);
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function syncTabBar(screenId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+      if (screenId === 'sdash' || screenId === 'fdash') {
+        const t = document.getElementById('t0'); if (t) t.classList.add('on');
+      } else if (screenId === 'stt' || screenId === 'advisor') {
+        const t = document.getElementById('t1'); if (t) t.classList.add('on');
+      } else if (screenId === 'sbio' || screenId === 'froster') {
+        const t = document.getElementById('t2'); if (t) t.classList.add('on');
+      } else if (screenId === 'sprof') {
+        const t = document.getElementById('t3'); if (t) t.classList.add('on');
+      }
+    }
+
+    function tn(index) {
+      if (userRole === 'STUDENT') {
+        const screens = ['sdash', 'stt', 'sbio', 'sprof'];
+        go(screens[index]);
+      } else {
+        // Faculty / Advisor
+        const screens = ['fdash', 'advisor', 'advisor', 'sprof'];
+        go(screens[index]);
+        if (screens[index] === 'advisor') loadClassAdvisorPeriods();
+      }
+    }
+
+    // Prefill Credentials
+    function prefill(type) {
+      const u = document.getElementById('iu');
+      const p = document.getElementById('ip');
+      if (type === 'advisor') {
+        u.value = 'fac01';
+        p.value = '7Z21lYE!';
+      } else if (type === 'faculty') {
+        u.value = 'fac02';
+        p.value = 'x3KPc&1k';
+      } else if (type === 'student') {
+        u.value = '721025149003';
+        p.value = 'eg@6wF**';
+      } else if (type === 'admin') {
+        u.value = 'admin';
+        p.value = 'admin123';
+      }
+    }
+
+    // Live Authentication
+    async function doLiveLogin() {
+      const u = document.getElementById('iu').value.trim();
+      const p = document.getElementById('ip').value;
+      const btn = document.getElementById('lbtn');
+      const err = document.getElementById('login-err');
+      err.style.display = 'none';
+
+      if (!u || !p) {
+        showError('Please enter both identifier and password.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.querySelector('span').textContent = 'Verifying...';
+
+      try {
+        let resp;
+        const isStudentId = /^\d{12}$/.test(u);
+        if (isStudentId) {
+          resp = await fetch(`${API_BASE}/api/v1/auth/student/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: u, password: p })
+          });
+        } else {
+          resp = await fetch(`${API_BASE}/api/v1/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username_or_email: u, password: p })
+          });
+          if (resp.status === 401) {
+            // Fallback attempt with student login
+            const studentResp = await fetch(`${API_BASE}/api/v1/auth/student/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ identifier: u, password: p })
+            });
+            if (studentResp.ok) {
+              resp = studentResp;
+            }
+          }
+        }
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || 'Authentication failed. Please check credentials.');
+        }
+
+        currentToken = data.access_token;
+        localStorage.setItem('am_token', currentToken);
+        
+        // Fetch current user details
+        await loadCurrentUserProfile();
+      } catch (e) {
+        showError(e.message);
+      } finally {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Sign In';
+      }
+    }
+
+    function showError(msg) {
+      const err = document.getElementById('login-err');
+      err.textContent = msg;
+      err.style.display = 'block';
+    }
+
+    async function loadCurrentUserProfile() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/auth/me`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!resp.ok) throw new Error('Session invalid');
+        currentUser = await resp.json();
+        userRole = currentUser.role;
+
+        // Update profile screen labels
+        document.getElementById('prof-name').textContent = currentUser.full_name || currentUser.username;
+        document.getElementById('prof-sub').textContent = `${currentUser.role} · ${currentUser.username}`;
+        document.getElementById('prof-avatar').textContent = (currentUser.full_name ? currentUser.full_name[0] : 'U').toUpperCase();
+        document.getElementById('prof-top-avatar').textContent = (currentUser.full_name ? currentUser.full_name[0] : 'U').toUpperCase();
+
+        if (userRole === 'STUDENT') {
+          await loadStudentDashboardData();
+          go('sdash');
+        } else {
+          // FACULTY or ADMIN
+          await loadFacultyDashboardData();
+          go('fdash');
+        }
+      } catch (e) {
+        doLogout();
+      }
+    }
+
+    // STUDENT DATA LOADING
+    async function loadStudentDashboardData() {
+      try {
+        const meResp = await fetch(`${API_BASE}/api/v1/student/me`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const summary = await meResp.json();
+
+        // Update student cards
+        document.getElementById('s-name').textContent = 'Student Portal';
+        document.getElementById('s-card-name').textContent = summary.full_name;
+        document.getElementById('s-card-sub').textContent = `Reg: ${summary.register_number} | ${summary.class_name || 'Class'}`;
+        document.getElementById('s-status-badge').textContent = summary.attendance_status || 'OK';
+        document.getElementById('s-pct').innerHTML = `${summary.percentage.toFixed(1)}<span style="font-size:24px">%</span>`;
+        document.getElementById('s-attended-total').textContent = `${summary.present} / ${summary.total} Attended`;
+
+        // Circular gauge
+        const dash = (summary.percentage / 100 * 264).toFixed(0);
+        document.getElementById('s-circ-fg').setAttribute('stroke-dasharray', `${dash} 264`);
+        document.getElementById('s-circ-val').textContent = `${Math.round(summary.percentage)}%`;
+
+        // Present, Absent, OD
+        document.getElementById('s-cnt-p').textContent = summary.present;
+        document.getElementById('s-cnt-a').textContent = summary.absent;
+        document.getElementById('s-cnt-od').textContent = summary.od;
+        const tot = summary.total > 0 ? summary.total : 1;
+        document.getElementById('s-pb-p').style.width = `${(summary.present / tot * 100).toFixed(0)}%`;
+        document.getElementById('s-pb-a').style.width = `${(summary.absent / tot * 100).toFixed(0)}%`;
+        document.getElementById('s-pb-od').style.width = `${(summary.od / tot * 100).toFixed(0)}%`;
+
+        // Half-Day Metrics
+        document.getElementById('s-hd-p').textContent = summary.half_day_present || 0;
+        document.getElementById('s-hd-a').textContent = summary.half_day_absent || 0;
+
+        // Load History & Timetable
+        loadStudentHistory();
+        loadStudentTimetable();
+      } catch (e) {
+        console.error('Error loading student data:', e);
+      }
+    }
+
+    async function loadStudentHistory() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/student/attendance`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await resp.json();
+        const container = document.getElementById('s-history-list');
+        container.innerHTML = '';
+
+        const dateWise = data.date_wise || [];
+        if (dateWise.length === 0) {
+          container.innerHTML = `<div class="gc" style="text-align:center; color:var(--ink-muted); padding:20px;">No attendance history recorded yet.</div>`;
+          return;
+        }
+
+        dateWise.forEach(item => {
+          const res = item.daily_result || 'NOT ENTERED';
+          let badgeColor = 'var(--ink-muted)';
+          let badgeBg = 'rgba(255,255,255,0.06)';
+
+          if (res === 'FULL DAY PRESENT') {
+            badgeColor = 'var(--success)';
+            badgeBg = 'rgba(16,185,129,0.15)';
+          } else if (res === 'HALF-DAY PRESENT') {
+            badgeColor = 'var(--warning)';
+            badgeBg = 'rgba(245,158,11,0.15)';
+          } else if (res === 'FULL DAY ABSENT') {
+            badgeColor = 'var(--danger)';
+            badgeBg = 'rgba(239,68,68,0.15)';
+          } else if (res === 'OD') {
+            badgeColor = 'var(--primary)';
+            badgeBg = 'var(--primary-light)';
+          }
+
+          let periodHtml = (item.periods || []).map(p => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--separator); font-size:12px;">
+              <div><strong>P${p.period_number}</strong> · ${p.subject_name || p.subject_code || 'Class'}</div>
+              <span class="pill pill-sm" style="font-size:11px;">${p.status}</span>
+            </div>
+          `).join('');
+
+          const card = document.createElement('div');
+          card.className = 'gc';
+          card.style.padding = '18px 20px';
+          card.innerHTML = `
+            <div class="gc-row" style="margin-bottom:8px;">
+              <strong>${item.date}</strong>
+              <div class="pill pill-sm" style="background:${badgeBg}; color:${badgeColor}; border-color:${badgeColor};">${res}</div>
+            </div>
+            <div style="display:flex; gap:16px; font-size:12px; color:var(--ink-secondary); margin-bottom:10px;">
+              <span>Morning: <strong>${item.morning_status || 'N/A'}</strong></span>
+              <span>Afternoon: <strong>${item.afternoon_status || 'N/A'}</strong></span>
+            </div>
+            <div style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); border-radius:10px; padding:6px 12px; font-size:11px; color:#F59E0B; margin-bottom:8px;">
+              Institutional Lunch Break: 12:50 PM - 01:40 PM (Not Counted)
+            </div>
+            ${periodHtml}
+          `;
+          container.appendChild(card);
+        });
+      } catch (e) {
+        console.error('History load error:', e);
+      }
+    }
+
+    async function loadStudentTimetable() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/student/timetable`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await resp.json();
+        currentStudentTimetable = data.timetable || [];
+        renderStudentTimetableDay('Monday');
+      } catch (e) {
+        console.error('Timetable load error:', e);
+      }
+    }
+
+    function selectTtDay(dayName) {
+      document.querySelectorAll('#stt-days .day-col').forEach(c => c.classList.remove('sel'));
+      event.currentTarget.classList.add('sel');
+      renderStudentTimetableDay(dayName);
+    }
+
+    function renderStudentTimetableDay(dayName) {
+      document.getElementById('stt-day-title').textContent = `${dayName} Classes`;
+      const container = document.getElementById('stt-list');
+      container.innerHTML = '';
+
+      const daySlots = currentStudentTimetable.filter(item => item.day_of_week.toLowerCase() === dayName.toLowerCase());
+      if (daySlots.length === 0) {
+        container.innerHTML = `<div class="list-row"><div class="lr-left"><p>No scheduled classes for this day.</p></div></div>`;
+        return;
+      }
+
+      daySlots.sort((a,b) => (a.period_number || 0) - (b.period_number || 0));
+      daySlots.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'list-row';
+        row.innerHTML = `
+          <div class="lr-left">
+            <div class="lr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div>
+              <h4>P${s.period_number} · ${s.subject_name || s.subject_code}</h4>
+              <p>${s.faculty_name || 'Faculty'} · ${s.start_time} - ${s.end_time}</p>
+            </div>
+          </div>
+          <div class="lr-right tnum">${s.start_time}</div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    // FACULTY & CLASS ADVISOR DATA LOADING
+    async function loadFacultyDashboardData() {
+      try {
+        const activeResp = await fetch(`${API_BASE}/api/v1/faculty/active-class`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const activeData = await activeResp.json();
+
+        document.getElementById('f-name').textContent = activeData.faculty_name || 'Faculty Portal';
+        document.getElementById('f-avatar').textContent = (activeData.faculty_name ? activeData.faculty_name[0] : 'F').toUpperCase();
+
+        // Class Advisor Banner Card
+        const isAdvisor = activeData.is_class_advisor === true;
+        const advBanner = document.getElementById('advisor-banner-card');
+        if (isAdvisor && activeData.advised_class) {
+          advBanner.style.display = 'block';
+          document.getElementById('adv-card-class').textContent = activeData.advised_class.name || 'Advised Class';
+          document.getElementById('adv-card-title').textContent = activeData.advised_class.name || 'Advised Class Section';
+          document.getElementById('adv-portal-title').textContent = activeData.advised_class.name || 'Advised Class Section';
+        } else {
+          advBanner.style.display = 'none';
+        }
+
+        // Active Session
+        if (activeData.has_active_slot && activeData.active_slot) {
+          const s = activeData.active_slot;
+          document.getElementById('f-session-status').textContent = 'Ongoing Session';
+          document.getElementById('f-session-status').classList.add('active');
+          document.getElementById('f-session-time').textContent = `${s.start_time} - ${s.end_time}`;
+          document.getElementById('f-session-subject').textContent = s.subject_name || s.subject_code;
+          document.getElementById('f-session-sub').textContent = `${s.class_name} · Room: ${s.room || 'LH'}`;
+        } else {
+          document.getElementById('f-session-status').textContent = 'No Active Slot';
+          document.getElementById('f-session-status').classList.remove('active');
+          document.getElementById('f-session-time').textContent = 'Campus Hours';
+          document.getElementById('f-session-subject').textContent = 'Next Scheduled Class';
+          document.getElementById('f-session-sub').textContent = 'Check available periods or advisor portal below';
+        }
+
+        // Today's schedule
+        loadFacultySchedule();
+      } catch (e) {
+        console.error('Faculty dashboard load error:', e);
+      }
+    }
+
+    async function loadFacultySchedule() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/faculty/schedule`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const schedule = await resp.json();
+        const container = document.getElementById('f-schedule-list');
+        container.innerHTML = '';
+
+        if (!schedule || schedule.length === 0) {
+          container.innerHTML = `<div class="list-row"><div class="lr-left"><p>No schedule records found.</p></div></div>`;
+          return;
+        }
+
+        schedule.slice(0, 5).forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'list-row';
+          row.innerHTML = `
+            <div class="lr-left">
+              <div class="lr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <div>
+                <h4>${item.subject_name || item.subject_code}</h4>
+                <p>${item.class_name} · ${item.start_time} - ${item.end_time}</p>
+              </div>
+            </div>
+            <div class="lr-right tnum">${item.start_time}</div>
+          `;
+          container.appendChild(row);
+        });
+      } catch (e) {
+        console.error('Faculty schedule load error:', e);
+      }
+    }
+
+    // CLASS ADVISOR PERIODS
+    let advisorPeriodsData = null;
+
+    async function openFacultyAvailablePeriods() {
+      if (currentUser && currentUser.is_class_advisor) {
+        go('advisor');
+        loadClassAdvisorPeriods();
+      } else {
+        alert('Attendance window: You can take attendance during your scheduled session.');
+      }
+    }
+
+    async function loadClassAdvisorPeriods() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/faculty/class-advisor/available-periods`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!resp.ok) throw new Error('Advisor periods unavailable');
+        advisorPeriodsData = await resp.json();
+        renderAdvisorPeriods();
+      } catch (e) {
+        console.error('Advisor periods error:', e);
+      }
+    }
+
+    function switchAdvisorDay(day) {
+      currentAdvisorDay = day;
+      if (day === 'TODAY') {
+        document.getElementById('btn-tab-today').classList.add('active');
+        document.getElementById('btn-tab-yesterday').classList.remove('active');
+      } else {
+        document.getElementById('btn-tab-yesterday').classList.add('active');
+        document.getElementById('btn-tab-today').classList.remove('active');
+      }
+      renderAdvisorPeriods();
+    }
+
+    function renderAdvisorPeriods() {
+      if (!advisorPeriodsData) return;
+      const container = document.getElementById('adv-periods-list');
+      container.innerHTML = '';
+
+      const periods = (currentAdvisorDay === 'TODAY') 
+        ? (advisorPeriodsData.today_periods || []) 
+        : (advisorPeriodsData.yesterday_periods || []);
+
+      if (periods.length === 0) {
+        container.innerHTML = `<div class="gc" style="text-align:center; color:var(--ink-muted); padding:24px;">No periods available for ${currentAdvisorDay.toLowerCase()}.</div>`;
+        return;
+      }
+
+      // Sort periods by period_number
+      periods.sort((a,b) => a.period_number - b.period_number);
+
+      // Render periods, inserting lunch break between P4 and P5
+      periods.forEach(p => {
+        // If Period 5, insert Institutional Lunch Break banner before it
+        if (p.period_number === 5) {
+          const lb = document.createElement('div');
+          lb.className = 'break-banner';
+          lb.innerHTML = `
+            <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.85); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.03); flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+            </div>
+            <div style="flex:1;">
+              <strong style="color:var(--ink); font-size:13.5px; font-weight:700;">College Lunch Break: 12:50 PM – 01:40 PM</strong>
+              <p style="color:var(--ink-secondary); font-size:12px; margin-top:2px;">Institutional interval — strictly excluded from attendance and denominators.</p>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          `;
+          container.appendChild(lb);
+        }
+
+        const isAvailable = p.status === 'AVAILABLE' || p.can_mark === true;
+        const isMarked = p.status === 'ALREADY_MARKED';
+        let statusBadge = isMarked 
+          ? `<span class="pill pill-sm" style="background:#ECFDF5; color:#059669; border:none; font-weight:600;">COMPLETED</span>`
+          : (isAvailable 
+              ? `<span class="pill pill-sm" style="background:#F1F4F8; color:#475569; border:none; font-weight:600;">AVAILABLE</span>` 
+              : `<span class="pill pill-sm" style="background:#F8FAFC; color:#94A3B8; border:none;">LOCKED</span>`);
+
+        const card = document.createElement('div');
+        card.className = 'gc';
+        card.style.cursor = isAvailable ? 'pointer' : 'default';
+        card.style.opacity = isAvailable ? '1' : '0.85';
+        card.style.padding = '16px 20px';
+        card.innerHTML = `
+          <div class="gc-row" style="margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div class="badge-period">P${p.period_number}</div>
+              <div>
+                <strong style="font-size:15px; color:var(--ink);">${p.subject_name || p.subject_code}</strong>
+                <p style="font-size:12px; color:var(--ink-secondary); margin-top:2px;">${p.startTime || p.start_time} - ${p.endTime || p.end_time} · Faculty: ${p.subject_faculty_name || 'Assigned'}</p>
+              </div>
+            </div>
+            ${statusBadge}
+          </div>
+          ${isAvailable ? `
+          <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+            <button class="btn-clean" style="height:32px; padding:0 16px; font-size:12px; border-radius:100px;">Take Attendance</button>
+          </div>` : ''}
+        `;
+
+        if (isAvailable) {
+          card.onclick = () => openPeriodRoster(p);
+        }
+        container.appendChild(card);
+      });
+    }
+
+    // ROSTER & ATTENDANCE SUBMISSION
+    async function openPeriodRoster(period) {
+      currentRosterData = period;
+      document.getElementById('roster-header-title').textContent = `Period ${period.period_number} Attendance`;
+      document.getElementById('roster-subject-name').textContent = period.subject_name || period.subject_code;
+      document.getElementById('roster-meta-info').textContent = `Period ${period.period_number} · ${period.start_time} - ${period.end_time} · ${period.date}`;
+      document.getElementById('roster-class-pill').textContent = period.class_name || 'Class';
+
+      go('froster');
+      const container = document.getElementById('roster-students-container');
+      container.innerHTML = `<div style="text-align:center; padding:30px;"><div class="pill active">Loading Roster...</div></div>`;
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/faculty/class-advisor/roster/${period.timetable_entry_id}?date=${period.date}`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!resp.ok) throw new Error('Unable to fetch roster');
+        const data = await resp.json();
+        lastRosterUpdatedTimestamp = data.last_updated_at;
+
+        rosterStudentStatuses = {};
+        container.innerHTML = '';
+
+        const students = data.roster || [];
+        document.getElementById('cnt-total').textContent = students.length;
+
+        students.forEach((s, idx) => {
+          const initialStatus = s.attendance_status === 'UNMARKED' ? 'PRESENT' : (s.attendance_status || 'PRESENT');
+          rosterStudentStatuses[s.student_id] = {
+            status: initialStatus,
+            od_reason: s.od_reason || null
+          };
+
+          const row = document.createElement('div');
+          row.className = 'roster-row';
+          row.id = `r-row-${s.student_id}`;
+          row.innerHTML = `
+            <div>
+              <h4 style="font-size:15px; font-weight:700; margin-bottom:2px;">${idx + 1}. ${s.full_name}</h4>
+              <p style="font-size:12px; color:var(--ink-secondary);">${s.roll_number} ${s.od_reason ? '· OD: ' + s.od_reason : ''}</p>
+            </div>
+            <div class="r-act">
+              <div class="rb on-p" id="rb-p-${s.student_id}" onclick="setStudentStatus(${s.student_id}, 'PRESENT')">P</div>
+              <div class="rb" id="rb-a-${s.student_id}" onclick="setStudentStatus(${s.student_id}, 'ABSENT')">A</div>
+              <div class="rb" id="rb-od-${s.student_id}" onclick="setStudentStatus(${s.student_id}, 'OD')">OD</div>
+            </div>
+          `;
+          container.appendChild(row);
+
+          // Apply initial visual state
+          updateRowVisual(s.student_id, initialStatus);
+        });
+
+        updateRosterCounters();
+      } catch (e) {
+        container.innerHTML = `<div class="error-banner" style="display:block;">${e.message}</div>`;
+      }
+    }
+
+    function setStudentStatus(studentId, status) {
+      if (status === 'OD') {
+        const reason = prompt('Enter On Duty (OD) Reason (optional):', rosterStudentStatuses[studentId]?.od_reason || 'Academic Activity');
+        rosterStudentStatuses[studentId] = { status: 'OD', od_reason: reason || 'Academic Duty' };
+      } else {
+        rosterStudentStatuses[studentId] = { status: status, od_reason: null };
+      }
+      updateRowVisual(studentId, status);
+      updateRosterCounters();
+    }
+
+    function updateRowVisual(studentId, status) {
+      const p = document.getElementById(`rb-p-${studentId}`);
+      const a = document.getElementById(`rb-a-${studentId}`);
+      const od = document.getElementById(`rb-od-${studentId}`);
+      if (!p || !a || !od) return;
+
+      p.className = 'rb' + (status === 'PRESENT' ? ' on-p' : '');
+      a.className = 'rb' + (status === 'ABSENT' ? ' on-a' : '');
+      od.className = 'rb' + (status === 'OD' ? ' on-od' : '');
+    }
+
+    function updateRosterCounters() {
+      let p = 0, a = 0, od = 0;
+      for (const id in rosterStudentStatuses) {
+        const st = rosterStudentStatuses[id].status;
+        if (st === 'PRESENT') p++;
+        else if (st === 'ABSENT') a++;
+        else if (st === 'OD') od++;
+      }
+      document.getElementById('cnt-p').textContent = p;
+      document.getElementById('cnt-a').textContent = a;
+      document.getElementById('cnt-od').textContent = od;
+    }
+
+    function markAllPresent() {
+      for (const id in rosterStudentStatuses) {
+        rosterStudentStatuses[id] = { status: 'PRESENT', od_reason: null };
+        updateRowVisual(id, 'PRESENT');
+      }
+      updateRosterCounters();
+    }
+
+    function returnFromRoster() {
+      go('advisor');
+      loadClassAdvisorPeriods();
+    }
+
+    async function submitCurrentRoster() {
+      if (!currentRosterData) return;
+      const btn = document.getElementById('btn-submit-roster');
+      btn.disabled = true;
+      btn.textContent = 'Submitting Attendance...';
+
+      const records = Object.keys(rosterStudentStatuses).map(id => ({
+        student_id: parseInt(id),
+        status: rosterStudentStatuses[id].status,
+        od_reason: rosterStudentStatuses[id].od_reason
+      }));
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/faculty/class-advisor/submit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({
+            timetable_entry_id: currentRosterData.timetable_entry_id,
+            date: currentRosterData.date,
+            records: records,
+            expected_last_updated: lastRosterUpdatedTimestamp
+          })
+        });
+
+        const data = await resp.json();
+        if (resp.status === 409) {
+          alert('Concurrency Warning: This attendance was modified recently by another user or session. Refreshing roster...');
+          openPeriodRoster(currentRosterData);
+          return;
+        }
+
+        if (!resp.ok) throw new Error(data.detail || 'Submission failed');
+
+        alert(`Attendance Submitted Successfully!\nTotal: ${data.total_submitted} (P: ${data.present_count}, A: ${data.absent_count}, OD: ${data.od_count})`);
+        returnFromRoster();
+      } catch (e) {
+        alert('Error submitting attendance: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Attendance';
+      }
+    }
+
+    // DAILY SUMMARY MODAL
+    async function openClassDailySummary() {
+      openSh('summary');
+      const tbody = document.getElementById('summary-table-body');
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--ink-muted);">Loading daily summary...</td></tr>`;
+
+      try {
+        const todayDate = advisorPeriodsData?.today_date || new Date().toISOString().split('T')[0];
+        document.getElementById('sum-date-lbl').textContent = `Date: ${todayDate}`;
+
+        const resp = await fetch(`${API_BASE}/api/v1/faculty/class-advisor/daily-summary?date=${todayDate}`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!resp.ok) throw new Error('Daily summary unavailable');
+        const data = await resp.json();
+
+        tbody.innerHTML = '';
+        (data.students || []).forEach(st => {
+          let badgeColor = 'var(--ink-muted)';
+          if (st.daily_result === 'FULL DAY PRESENT') badgeColor = 'var(--success)';
+          else if (st.daily_result === 'HALF-DAY PRESENT') badgeColor = 'var(--warning)';
+          else if (st.daily_result === 'FULL DAY ABSENT') badgeColor = 'var(--danger)';
+          else if (st.daily_result === 'OD') badgeColor = 'var(--primary)';
+
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid var(--separator)';
+          tr.innerHTML = `
+            <td style="padding:10px 6px;"><strong>${st.full_name}</strong><br><span style="color:var(--ink-muted); font-size:10px;">${st.roll_number}</span></td>
+            <td style="padding:10px 6px;">${st.morning_status}</td>
+            <td style="padding:10px 6px;">${st.afternoon_status}</td>
+            <td style="padding:10px 6px;"><span class="pill pill-sm" style="color:${badgeColor}; border-color:${badgeColor}; font-size:10px;">${st.daily_result}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--danger); padding:16px;">${e.message}</td></tr>`;
+      }
+    }
+
+    // FACE BIOMETRICS SIMULATION
+    let capPoseIndex = 1;
+    function capPose() {
+      const ov = document.getElementById('ov');
+      ov.style.borderColor = 'var(--primary)';
+      setTimeout(() => {
+        ov.style.borderColor = 'var(--glass-strong)';
+        if (capPoseIndex === 1) {
+          capPoseIndex = 2;
+          document.getElementById('p1').classList.remove('active');
+          document.getElementById('p2').classList.add('active');
+          document.getElementById('ty').textContent = 'Yaw 15°';
+          document.getElementById('pt').textContent = 'Turn head slightly to the left.';
+        } else if (capPoseIndex === 2) {
+          capPoseIndex = 3;
+          document.getElementById('p2').classList.remove('active');
+          document.getElementById('p3').classList.add('active');
+          document.getElementById('ty').textContent = 'Yaw -15°';
+          document.getElementById('pt').textContent = 'Turn head slightly to the right.';
+        } else {
+          alert('Face Verification Complete! Verification quality: 99.2%.');
+          capPoseIndex = 1;
+          document.getElementById('p3').classList.remove('active');
+          document.getElementById('p1').classList.add('active');
+          document.getElementById('ty').textContent = 'Yaw 0°';
+          document.getElementById('pt').textContent = 'Position your face inside the oval frame.';
+          go('sdash');
+        }
+      }, 350);
+    }
+
+    // BOTTOM SHEET HELPERS
+    function openSh(id) { document.getElementById('sh-' + id).classList.add('open'); }
+    function closeSh(id) { document.getElementById('sh-' + id).classList.remove('open'); }
+
+    async function submitChangePassword() {
+      const oldPw = document.getElementById('old-pw').value;
+      const newPw = document.getElementById('new-pw').value;
+      const cnfPw = document.getElementById('cnf-pw').value;
+
+      if (!oldPw || !newPw || !cnfPw) {
+        alert('Please fill all password fields.');
+        return;
+      }
+      if (newPw !== cnfPw) {
+        alert('New passwords do not match.');
+        return;
+      }
+      if (newPw.length < 8) {
+        alert('New password must be at least 8 characters long.');
+        return;
+      }
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/auth/change-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({ old_password: oldPw, new_password: newPw, confirm_password: cnfPw })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Password update failed');
+        alert('Password updated successfully!');
+        closeSh('pass');
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function saveServerUrl() {
+      const val = document.getElementById('server-url').value.trim();
+      if (val) {
+        API_BASE = val;
+        localStorage.setItem('am_server_url', val);
+        document.getElementById('curr-endpoint-lbl').textContent = val;
+        alert('Server URL saved: ' + val);
+        closeSh('server');
+      }
+    }
+
+    async function testServerConnection() {
+      const val = document.getElementById('server-url').value.trim();
+      try {
+        const res = await fetch(`${val}/health`);
+        const data = await res.json();
+        alert(`Server Reachable! (${data.project} v${data.version})`);
+      } catch (e) {
+        alert('Connection Failed: Could not reach ' + val);
+      }
+    }
+
+    function doLogout() {
+      localStorage.removeItem('am_token');
+      currentToken = null;
+      currentUser = null;
+      document.getElementById('tbar').style.display = 'none';
+      go('login');
+    }
+
+    // Auto-login on load if token exists
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('server-url').value = API_BASE;
+      document.getElementById('curr-endpoint-lbl').textContent = API_BASE;
+      if (currentToken) {
+        loadCurrentUserProfile();
+      }
+    });
+  </script>
+</body>
+</html>

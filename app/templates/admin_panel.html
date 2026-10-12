@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Marker — Production Admin Panel</title>
+    <!-- Modern Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Admin Panel Custom Stylesheet -->
+    <link rel="stylesheet" href="/static/css/admin_style.css">
+</head>
+<body class="dark-theme">
+    <div class="admin-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-graduation-cap brand-icon"></i>
+                <div class="brand-text">
+                    <h2>Attendance Marker</h2>
+                    <span class="brand-sub">College Admin System</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="#dashboard" class="menu-item active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#students" class="menu-item" data-tab="students">
+                    <i class="fa-solid fa-user-graduate"></i>
+                    <span>Students</span>
+                </a>
+                <a href="#faculty" class="menu-item" data-tab="faculty">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                    <span>Faculty</span>
+                </a>
+                <a href="#attendance" class="menu-item" data-tab="attendance">
+                    <i class="fa-solid fa-clipboard-user"></i>
+                    <span>Attendance Records</span>
+                </a>
+                <a href="#sessions" class="menu-item" data-tab="sessions">
+                    <i class="fa-solid fa-video"></i>
+                    <span>Class Sessions</span>
+                </a>
+                <a href="#biometrics" class="menu-item" data-tab="biometrics">
+                    <i class="fa-solid fa-fingerprint"></i>
+                    <span>Biometric Face Profiles</span>
+                </a>
+                <a href="#academic" class="menu-item" data-tab="academic">
+                    <i class="fa-solid fa-school"></i>
+                    <span>Classes & Subjects</span>
+                </a>
+                <a href="#timetable" class="menu-item" data-tab="timetable">
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <span>Periods & Timetable</span>
+                </a>
+                <a href="#assignments" class="menu-item" data-tab="assignments">
+                    <i class="fa-solid fa-link"></i>
+                    <span>Faculty Assignments</span>
+                </a>
+                <a href="#users" class="menu-item" data-tab="users">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span>User Accounts</span>
+                </a>
+                <a href="#settings" class="menu-item" data-tab="settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Policy & Settings</span>
+                </a>
+                <a href="#notifications" class="menu-item" data-tab="notifications">
+                    <i class="fa-solid fa-bell"></i>
+                    <span>Notifications</span>
+                </a>
+                <a href="#bulk-import" class="menu-item" data-tab="bulk-import">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Bulk Import</span>
+                </a>
+                <a href="#password-control" class="menu-item" data-tab="password-control">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Password & Support</span>
+                </a>
+                <a href="#audit" class="menu-item" data-tab="audit">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Audit Trail</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-badge">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <div class="user-info">
+                        <span class="user-role">Administrator</span>
+                        <span class="user-status"><i class="fa-solid fa-circle text-success"></i> Session Active</span>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="btn btn-outline-danger btn-block mt-2">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="admin-main">
+            <!-- Persistent Support Mode Banner -->
+            <div id="supportBanner" class="support-mode-banner hidden">
+                <div class="support-banner-content">
+                    <div class="support-banner-info">
+                        <i class="fa-solid fa-user-secret"></i>
+                        <strong>ADMIN SUPPORT MODE</strong> &mdash; <span id="supportTargetDesc">Inspecting Account</span>
+                        <span class="support-timer badge badge-warning ml-2" id="supportCountdown">15:00</span>
+                    </div>
+                    <div class="support-banner-actions">
+                        <button class="btn btn-sm btn-info mr-2" onclick="inspectSupportCurrentTarget()"><i class="fa-solid fa-eye"></i> View Target Data</button>
+                        <button class="btn btn-sm btn-danger" onclick="exitSupportMode()"><i class="fa-solid fa-door-open"></i> Exit Support Mode</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Header Bar -->
+            <header class="admin-header">
+                <div class="header-title">
+                    <h1 id="pageTitle">System Overview</h1>
+                    <p id="pageSubtitle" class="text-muted">Real-time college attendance analytics and control</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="refreshCurrentTab()">
+                        <i class="fa-solid fa-rotate-right"></i> Refresh
+                    </button>
+                </div>
+            </header>
+
+            <!-- Notification Banner / Toast Container -->
+            <div id="toastContainer" class="toast-container"></div>
+
+            <!-- Tab 1: Dashboard -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="card-icon bg-primary-glow"><i class="fa-solid fa-user-graduate"></i></div>
+                        <div class="card-data">
+                            <h3 id="statStudents">--</h3>
+                            <span>Total Students</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-info-glow"><i class="fa-solid fa-chalkboard-user"></i></div>
+                        <div class="card-data">
+                            <h3 id="statFaculty">--</h3>
+                            <span>Total Faculty</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-purple-glow"><i class="fa-solid fa-door-open"></i></div>
+                        <div class="card-data">
+                            <h3 id="statClasses">--</h3>
+                            <span>Class Sections</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-primary-glow"><i class="fa-solid fa-book"></i></div>
+                        <div class="card-data">
+                            <h3 id="statSubjects">--</h3>
+                            <span>Subjects</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-info-glow"><i class="fa-solid fa-calendar-days"></i></div>
+                        <div class="card-data">
+                            <h3 id="statTimetable">--</h3>
+                            <span>Timetable Slots</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-success-glow"><i class="fa-solid fa-video"></i></div>
+                        <div class="card-data">
+                            <h3 id="statTodaySessions">--</h3>
+                            <span>Today's Sessions</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-purple-glow"><i class="fa-solid fa-clipboard-user"></i></div>
+                        <div class="card-data">
+                            <h3 id="statTodayAttendance">--</h3>
+                            <span>Today's Attendance</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-warning-glow"><i class="fa-solid fa-fingerprint"></i></div>
+                        <div class="card-data">
+                            <h3 id="statBiometricEnrolled">--</h3>
+                            <span>Biometric Enrolled</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid mt-4">
+                    <!-- Attendance Performance Summary -->
+                    <div class="panel-card col-span-2">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-chart-bar"></i> Overall Attendance Metrics</h3>
+                            <span class="badge badge-success" id="badgeMinReq">Min Required: 75%</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="stats-breakdown-row">
+                                <div class="stat-pill">
+                                    <span class="stat-value text-success" id="statPresent">--</span>
+                                    <span class="stat-label">Present Records</span>
+                                </div>
+                                <div class="stat-pill">
+                                    <span class="stat-value text-danger" id="statAbsent">--</span>
+                                    <span class="stat-label">Absent Records</span>
+                                </div>
+                                <div class="stat-pill">
+                                    <span class="stat-value text-warning" id="statOD">--</span>
+                                    <span class="stat-label">On Duty (OD)</span>
+                                </div>
+                                <div class="stat-pill">
+                                    <span class="stat-value text-primary" id="statOverallPct">--%</span>
+                                    <span class="stat-label">Overall Rate</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Audit Activity -->
+                    <div class="panel-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-list-check"></i> Recent Audit Events</h3>
+                        </div>
+                        <div class="card-body scrollable-panel">
+                            <ul id="recentAuditList" class="audit-list-compact">
+                                <li class="text-muted">Loading audit log...</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 2: Students Management -->
+            <section id="tab-students" class="tab-content">
+                <div class="panel-card">
+                    <div class="card-header justify-between flex-wrap gap-2">
+                        <div class="search-filter-box flex-wrap gap-2">
+                            <input type="text" id="studentSearch" placeholder="Search student name or roll number..." class="form-control" style="min-width: 240px;">
+                            <select id="studentClassFilter" class="form-control">
+                                <option value="">All Class Sections</option>
+                            </select>
+                            <select id="studentStatusFilter" class="form-control">
+                                <option value="">All Status</option>
+                                <option value="true">Active Only</option>
+                                <option value="false">Disabled Only</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="capacity-pill" id="studentCapacityBadge">
+                                <i class="fa-solid fa-user-graduate"></i>
+                                <span>Students: <strong id="studentCapCurrent">--</strong> / 130</span>
+                                <span class="badge badge-info" id="studentCapRemaining">Remaining: --</span>
+                            </div>
+                            <button id="btnAddStudent" class="btn btn-success" onclick="openCreateStudentModal()">
+                                <i class="fa-solid fa-user-plus"></i> Add Student
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="studentsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Roll Number</th>
+                                        <th>Full Name</th>
+                                        <th>Email</th>
+                                        <th>Class Section</th>
+                                        <th>Department / Semester</th>
+                                        <th>Account Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="7" class="text-center">Loading students...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: Faculty Management -->
+            <section id="tab-faculty" class="tab-content">
+                <div class="panel-card">
+                    <div class="card-header justify-between flex-wrap gap-2">
+                        <div class="search-filter-box flex-wrap gap-2">
+                            <input type="text" id="facultySearch" placeholder="Search faculty name, ID or department..." class="form-control" style="min-width: 240px;">
+                            <select id="facultyDeptFilter" class="form-control">
+                                <option value="">All Departments</option>
+                            </select>
+                            <select id="facultyStatusFilter" class="form-control">
+                                <option value="">All Status</option>
+                                <option value="true">Active Only</option>
+                                <option value="false">Disabled Only</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="capacity-pill" id="facultyCapacityBadge">
+                                <i class="fa-solid fa-chalkboard-user"></i>
+                                <span>Faculty: <strong id="facultyCapCurrent">--</strong> / 15</span>
+                                <span class="badge badge-info" id="facultyCapRemaining">Remaining: --</span>
+                            </div>
+                            <button id="btnAddFaculty" class="btn btn-success" onclick="openCreateFacultyModal()">
+                                <i class="fa-solid fa-user-plus"></i> Add Faculty Member
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="facultyTable">
+                                <thead>
+                                    <tr>
+                                        <th>Employee ID</th>
+                                        <th>Full Name</th>
+                                        <th>Department</th>
+                                        <th>Email / Username</th>
+                                        <th>Account Type</th>
+                                        <th>Account Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="7" class="text-center">Loading faculty...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Attendance Records Management -->
+            <section id="tab-attendance" class="tab-content">
+                <div class="panel-card">
+                    <div class="card-header justify-between flex-wrap gap-2">
+                        <div class="search-filter-box flex-wrap gap-2">
+                            <input type="text" id="attendanceSearch" placeholder="Search student name or roll..." class="form-control" style="min-width: 220px;">
+                            <select id="attendanceClassFilter" class="form-control">
+                                <option value="">All Classes</option>
+                            </select>
+                            <select id="attendanceSubjectFilter" class="form-control">
+                                <option value="">All Subjects</option>
+                            </select>
+                            <select id="attendanceStatusFilter" class="form-control">
+                                <option value="">All Statuses</option>
+                                <option value="PRESENT">PRESENT</option>
+                                <option value="ABSENT">ABSENT</option>
+                                <option value="OD">ON DUTY (OD)</option>
+                                <option value="UNCERTAIN">UNCERTAIN</option>
+                            </select>
+                            <input type="date" id="attendanceDateFilter" class="form-control" style="width: auto;">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-success" onclick="openManualAttendanceModal()">
+                                <i class="fa-solid fa-plus"></i> Add Manual Record
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="loadAttendanceTab()">
+                                <i class="fa-solid fa-rotate-right"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="attendanceTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Roll Number</th>
+                                        <th>Student Name</th>
+                                        <th>Class</th>
+                                        <th>Subject</th>
+                                        <th>Status</th>
+                                        <th>Source</th>
+                                        <th>OD Reason</th>
+                                        <th>Marked By</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="10" class="text-center text-muted py-4"><i class="fa-solid fa-inbox mr-2"></i> No attendance records yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Class Sessions Management -->
+            <section id="tab-sessions" class="tab-content">
+                <div class="panel-card">
+                    <div class="card-header justify-between flex-wrap gap-2">
+                        <div class="search-filter-box flex-wrap gap-2">
+                            <input type="date" id="sessionDateFilter" class="form-control" style="width: auto;">
+                            <select id="sessionClassFilter" class="form-control">
+                                <option value="">All Classes</option>
+                            </select>
+                            <select id="sessionStatusFilter" class="form-control">
+                                <option value="">All Statuses</option>
+                                <option value="SCHEDULED">SCHEDULED</option>
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="COMPLETED">COMPLETED</option>
+                                <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-success" onclick="openCreateSessionModal()">
+                                <i class="fa-solid fa-plus"></i> Create Session
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="loadSessionsTab()">
+                                <i class="fa-solid fa-rotate-right"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="sessionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Session ID</th>
+                                        <th>Date</th>
+                                        <th>Class Section</th>
+                                        <th>Subject</th>
+                                        <th>Faculty</th>
+                                        <th>Status</th>
+                                        <th>Attendance</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="8" class="text-center text-muted py-4"><i class="fa-solid fa-inbox mr-2"></i> No class sessions yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Biometrics & Face Enrollment -->
+            <section id="tab-biometrics" class="tab-content">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="card-icon bg-primary-glow"><i class="fa-solid fa-brain"></i></div>
+                        <div class="card-data">
+                            <h3 id="bioEngineName">--</h3>
+                            <span>Active AI Engine</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-info-glow"><i class="fa-solid fa-fingerprint"></i></div>
+                        <div class="card-data">
+                            <h3 id="bioDimension">--</h3>
+                            <span>Feature Dimension</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-success-glow"><i class="fa-solid fa-user-check"></i></div>
+                        <div class="card-data">
+                            <h3 id="bioEnrolledCount">--</h3>
+                            <span>Enrolled Students (&ge;3)</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-warning-glow"><i class="fa-solid fa-user-clock"></i></div>
+                        <div class="card-data">
+                            <h3 id="bioPendingCount">--</h3>
+                            <span>Pending Enrollment</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-card mt-4">
+                    <div class="card-header justify-between flex-wrap gap-2">
+                        <div class="search-filter-box flex-wrap gap-2">
+                            <input type="text" id="bioSearch" placeholder="Search student name or roll..." class="form-control" style="min-width: 240px;">
+                            <select id="bioStatusFilter" class="form-control">
+                                <option value="">All Statuses</option>
+                                <option value="true">Enrolled Only (&ge;3)</option>
+                                <option value="false">Pending Only (&lt;3)</option>
+                            </select>
+                            <select id="bioClassFilter" class="form-control">
+                                <option value="">All Classes</option>
+                            </select>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-outline-secondary" onclick="loadBiometricsTab()">
+                                <i class="fa-solid fa-rotate-right"></i> Refresh
+                            </button>
+                            <button class="btn btn-primary" onclick="openAdminFolderEnrollModal()">
+                                <i class="fa-solid fa-folder-open"></i> Upload Student Face Folder
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="biometricsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Roll Number</th>
+                                        <th>Full Name</th>
+                                        <th>Class Section</th>
+                                        <th>Enrollment Status</th>
+                                        <th>Templates Count</th>
+                                        <th>AI Model & Detector</th>
+                                        <th>Last Enrolled</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="8" class="text-center">Loading biometric profiles...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 4: Classes & Subjects -->
+            <section id="tab-academic" class="tab-content">
+                <div class="grid-2-col">
+                    <!-- Class Sections Panel -->
+                    <div class="panel-card">
+                        <div class="card-header justify-between">
+                            <h3><i class="fa-solid fa-door-open"></i> Class Sections</h3>
+                            <button class="btn btn-primary btn-sm" onclick="openCreateClassModal()">
+                                <i class="fa-solid fa-plus"></i> Add Class
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table" id="classesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Class Name</th>
+                                        <th>Grade / Year</th>
+                                        <th>Academic Year</th>
+                                        <th>Student Count</th>
+                                        <th>Class Advisor</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="6" class="text-center">Loading classes...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Subjects Panel -->
+                    <div class="panel-card">
+                        <div class="card-header justify-between">
+                            <h3><i class="fa-solid fa-book"></i> Subjects</h3>
+                            <button class="btn btn-primary btn-sm" onclick="openCreateSubjectModal()">
+                                <i class="fa-solid fa-plus"></i> Create Subject
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table" id="subjectsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Subject Name</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="4" class="text-center">Loading subjects...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 5: Periods & Timetable -->
+            <section id="tab-timetable" class="tab-content">
+                <!-- Development Timetable Notice Banner -->
+                <div class="dev-banner mb-4">
+                    <div class="dev-banner-icon">
+                        <i class="fa-solid fa-flask-vial"></i>
+                    </div>
+                    <div class="dev-banner-content">
+                        <strong>TEMPORARY DEVELOPMENT TIMETABLE</strong>
+                        <p>This timetable is temporary development data for local testing. The Admin Panel is the authoritative source of truth. All customizations are live and synchronized across student and faculty views.</p>
+                    </div>
+                    <div class="dev-banner-actions">
+                        <button class="btn btn-outline-warning btn-sm" onclick="confirmResetDevTimetable()">
+                            <i class="fa-solid fa-rotate-left"></i> Reset Dev Timetable
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Timetable Management Card -->
+                <div class="panel-card mb-4">
+                    <div class="card-header justify-between flex-wrap gap-2">
+                        <div class="d-flex align-center gap-3">
+                            <h3><i class="fa-solid fa-calendar-days text-primary"></i> Class Timetable Grid</h3>
+                            <select id="timetableClassSelect" class="form-control mw-280">
+                                <option value="">Loading Class Sections...</option>
+                            </select>
+                        </div>
+                        <div class="d-flex align-center gap-2">
+                            <button class="btn btn-success" onclick="openCreateTimetableModal()">
+                                <i class="fa-solid fa-calendar-plus"></i> Add Timetable Slot
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="togglePeriodsCollapse()">
+                                <i class="fa-solid fa-clock"></i> Period Timings
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Weekly Grid Matrix Container -->
+                        <div class="timetable-grid-wrapper table-responsive" id="timetableGridWrapper">
+                            <div id="timetableGridContainer">
+                                <p class="text-center text-muted p-4">Select a class section to view and edit its timetable.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collapsible Periods Configuration Card -->
+                <div class="panel-card hidden" id="periodsConfigPanel">
+                    <div class="card-header justify-between">
+                        <h3><i class="fa-solid fa-clock"></i> Configurable Periods (Timings)</h3>
+                        <button class="btn btn-primary btn-sm" onclick="openCreatePeriodModal()">
+                            <i class="fa-solid fa-plus"></i> Add Period
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="data-table" id="periodsTable">
+                            <thead>
+                                <tr>
+                                    <th>P#</th>
+                                    <th>Name</th>
+                                    <th>Timing (24hr)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="4" class="text-center">Loading periods...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 6: Faculty Assignments -->
+            <section id="tab-assignments" class="tab-content">
+                <div class="panel-card">
+                    <div class="card-header justify-between flex-wrap gap-2">
+                        <div class="search-filter-box flex-wrap gap-2">
+                            <input type="text" id="assignmentSearch" placeholder="Search class, subject code/name, faculty..." class="form-control" style="min-width: 240px;">
+                            <select id="assignmentClassFilter" class="form-control">
+                                <option value="">All Classes</option>
+                            </select>
+                            <select id="assignmentSubjectFilter" class="form-control">
+                                <option value="">All Subjects</option>
+                            </select>
+                            <select id="assignmentFacultyFilter" class="form-control">
+                                <option value="">All Faculty</option>
+                            </select>
+                            <select id="assignmentStatusFilter" class="form-control">
+                                <option value="">All Statuses</option>
+                                <option value="true">Assigned Only</option>
+                                <option value="false">Unassigned Only</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-success" onclick="openAssignFacultyModal()">
+                                <i class="fa-solid fa-user-check"></i> Assign Faculty to Subject
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="loadAssignmentsTab()">
+                                <i class="fa-solid fa-rotate-right"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="assignmentsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Class Section</th>
+                                        <th>Subject Code</th>
+                                        <th>Subject Name</th>
+                                        <th>Assigned Faculty</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="5" class="text-center">Loading assignments...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Central User Accounts -->
+            <section id="tab-users" class="tab-content">
+                <div class="panel-card">
+                    <div class="card-header justify-between flex-wrap gap-2">
+                        <div class="search-filter-box flex-wrap gap-2">
+                            <input type="text" id="userSearch" placeholder="Search username, login ID, email..." class="form-control" style="min-width: 240px;">
+                            <select id="userRoleFilter" class="form-control">
+                                <option value="">All Roles</option>
+                                <option value="ADMIN">ADMIN</option>
+                                <option value="FACULTY">FACULTY</option>
+                                <option value="STUDENT">STUDENT</option>
+                            </select>
+                            <select id="userStatusFilter" class="form-control">
+                                <option value="">All Statuses</option>
+                                <option value="true">Active Only</option>
+                                <option value="false">Disabled Only</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-outline-secondary" onclick="loadUsersTab()">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="usersTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Username / Login ID</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Force PW Change</th>
+                                        <th>Lock Status</th>
+                                        <th>Created At</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="9" class="text-center">Loading user accounts...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 7: Policy & Settings -->
+            <section id="tab-settings" class="tab-content">
+                <div class="settings-grid">
+                    <!-- Attendance Policy Settings -->
+                    <div class="panel-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-scale-balanced"></i> Attendance Policy Settings</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="policyForm">
+                                <div class="form-group">
+                                    <label>Minimum Required Attendance (%)</label>
+                                    <input type="number" id="policyMinPct" class="form-control" min="0" max="100" step="0.1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Calculation Mode</label>
+                                    <select id="policyCalcMode" class="form-control">
+                                        <option value="RECORD_BASED">Record Based</option>
+                                        <option value="IMPACT_BASED">Impact Based</option>
+                                    </select>
+                                </div>
+                                <div class="form-row-3">
+                                    <div class="form-group">
+                                        <label>Period Absent Loss</label>
+                                        <input type="number" id="policyPeriodLoss" class="form-control" min="0" step="0.1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Class Absent Loss</label>
+                                        <input type="number" id="policyClassLoss" class="form-control" min="0" step="0.1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Day Absent Loss</label>
+                                        <input type="number" id="policyDayLoss" class="form-control" min="0" step="0.1">
+                                    </div>
+                                </div>
+                                <div class="form-group-checkbox mt-2">
+                                    <label><input type="checkbox" id="policyAllowOD"> Allow On Duty (OD) Marking</label>
+                                </div>
+                                <div class="form-group-checkbox">
+                                    <label><input type="checkbox" id="policyODPresent"> Count OD as Present</label>
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-3"><i class="fa-solid fa-floppy-disk"></i> Save Policy</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Auth & AI System Settings -->
+                    <div class="panel-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-sliders"></i> System & AI Configuration</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="systemSettingsForm">
+                                <h4 class="settings-subhead"><i class="fa-solid fa-lock"></i> Authentication Policy</h4>
+                                <div class="form-group">
+                                    <label>Faculty Login Method</label>
+                                    <input type="text" id="settingFacultyAuth" class="form-control" placeholder="USERNAME / FACULTY_ID / EMAIL">
+                                </div>
+                                <div class="form-group">
+                                    <label>Student Login Method</label>
+                                    <input type="text" id="settingStudentAuth" class="form-control" placeholder="REGISTER_NUMBER / USERNAME / EMAIL">
+                                </div>
+                                <div class="form-row-2">
+                                    <div class="form-group">
+                                        <label>Max Failed Attempts</label>
+                                        <input type="number" id="settingMaxFailed" class="form-control" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Lockout Duration (mins)</label>
+                                        <input type="number" id="settingLockMins" class="form-control" min="0">
+                                    </div>
+                                </div>
+
+                                <h4 class="settings-subhead mt-3"><i class="fa-solid fa-brain"></i> AI & Face Recognition</h4>
+                                <div class="form-row-2">
+                                    <div class="form-group">
+                                        <label>Recognition Distance Threshold <small class="text-muted">(Dlib baseline: Euclidean &le; 0.45)</small></label>
+                                        <input type="number" id="settingAIThreshold" class="form-control" step="0.01">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Performance Mode</label>
+                                        <select id="settingAIPerf" class="form-control">
+                                            <option value="BALANCED">BALANCED</option>
+                                            <option value="ACCURACY">ACCURACY</option>
+                                            <option value="SPEED">SPEED</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-3"><i class="fa-solid fa-floppy-disk"></i> Save System Settings</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 8: Bulk Import Center -->
+            <section id="tab-bulk-import" class="tab-content">
+                <div class="panel-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-file-import"></i> College Data & Seed Import Center</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="import-options-grid">
+                            <!-- Official College Seed Bundle Import -->
+                            <div class="import-box border-highlight">
+                                <h4><i class="fa-solid fa-building-columns text-primary"></i> Official College Seed Bundle</h4>
+                                <p class="text-muted">Import official II Year CSE Cyber Security college data package from <code>college_seed/</code>.</p>
+                                <button class="btn btn-primary btn-block mt-3" onclick="triggerSeedImport()">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Import Official College Seed
+                                </button>
+                            </div>
+
+                            <!-- Students Import -->
+                            <div class="import-box">
+                                <h4><i class="fa-solid fa-user-graduate"></i> Import Students (JSON)</h4>
+                                <textarea id="importStudentsJSON" class="form-control code-input" rows="4" placeholder='[{"roll_number": "STU001", "full_name": "John Doe", "class_name": "Class 1"}]'></textarea>
+                                <button class="btn btn-secondary btn-block mt-2" onclick="submitImport('students')">Import Students</button>
+                            </div>
+
+                            <!-- Faculty Import -->
+                            <div class="import-box">
+                                <h4><i class="fa-solid fa-chalkboard-user"></i> Import Faculty (JSON)</h4>
+                                <textarea id="importFacultyJSON" class="form-control code-input" rows="4" placeholder='[{"username": "prof_smith", "email": "smith@college.edu", "employee_id": "FAC001", "full_name": "Dr. Smith"}]'></textarea>
+                                <button class="btn btn-secondary btn-block mt-2" onclick="submitImport('faculty')">Import Faculty</button>
+                            </div>
+
+                            <!-- Classes & Subjects Import -->
+                            <div class="import-box">
+                                <h4><i class="fa-solid fa-book"></i> Import Subjects / Classes (JSON)</h4>
+                                <textarea id="importSubjectsJSON" class="form-control code-input" rows="4" placeholder='[{"code": "FDS", "name": "Foundations of Data Science"}]'></textarea>
+                                <button class="btn btn-secondary btn-block mt-2" onclick="submitImport('subjects')">Import Subjects</button>
+                            </div>
+                        </div>
+
+                        <!-- Import Results Output Modal/Box -->
+                        <div id="importResultsBox" class="panel-card bg-darker mt-4 hidden">
+                            <div class="card-header">
+                                <h4><i class="fa-solid fa-square-poll-vertical"></i> Import Execution Summary</h4>
+                            </div>
+                            <div class="card-body">
+                                <pre id="importResultJSON" class="json-display"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 10: Password Control & Support -->
+            <section id="tab-password-control" class="tab-content">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="card-icon bg-warning-glow"><i class="fa-solid fa-user-graduate"></i></div>
+                        <div class="card-data">
+                            <h3 id="statStudentsPwChange">--</h3>
+                            <span>Students Requiring PW Change</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-info-glow"><i class="fa-solid fa-chalkboard-user"></i></div>
+                        <div class="card-data">
+                            <h3 id="statFacultyPwChange">--</h3>
+                            <span>Faculty Requiring PW Change</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-success-glow"><i class="fa-solid fa-calendar-check"></i></div>
+                        <div class="card-data">
+                            <h3 id="statActivePwWindows">--</h3>
+                            <span>Active Change Windows</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-purple-glow"><i class="fa-solid fa-key"></i></div>
+                        <div class="card-data">
+                            <h3 id="statTotalPwWindows">--</h3>
+                            <span>Total Windows Configured</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-card mt-4">
+                    <div class="card-header justify-between">
+                        <h3><i class="fa-solid fa-clock-rotate-left"></i> Password Change Windows</h3>
+                        <button class="btn btn-primary" onclick="openCreatePasswordWindowModal()">
+                            <i class="fa-solid fa-plus"></i> Create Window
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">Configure scheduled or scope-based password change windows. Accounts in active windows will be prompted for mandatory password updates upon their next login.</p>
+                        <div class="table-responsive mt-3">
+                            <table class="data-table" id="passwordWindowsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Target Scope</th>
+                                        <th>Target Details</th>
+                                        <th>Schedule Window</th>
+                                        <th>Status</th>
+                                        <th>Linked Accounts</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="7" class="text-center">Loading windows...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 9: Audit Logs -->
+            <section id="tab-audit" class="tab-content">
+                <div class="panel-card">
+                    <div class="card-header justify-between">
+                        <h3><i class="fa-solid fa-shield-halved"></i> Security & Action Audit Trail</h3>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="loadAuditLogs()">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh Logs
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="auditTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Timestamp</th>
+                                        <th>User ID / Actor</th>
+                                        <th>Action Code</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="5" class="text-center">Loading audit log...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 11: Notification Center & Class Reminders -->
+            <section id="tab-notifications" class="tab-content">
+                <!-- Top Notification Metric Cards -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="card-icon bg-info-glow"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                        <div class="card-data">
+                            <h3 id="statNotifDevices">--</h3>
+                            <span>Active Device Tokens</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-success-glow"><i class="fa-solid fa-user-graduate"></i></div>
+                        <div class="card-data">
+                            <h3 id="statNotifStudentStatus">--</h3>
+                            <span>Student Reminders</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-warning-glow"><i class="fa-solid fa-chalkboard-user"></i></div>
+                        <div class="card-data">
+                            <h3 id="statNotifFacultyStatus">--</h3>
+                            <span>Faculty Reminders</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-icon bg-purple-glow"><i class="fa-solid fa-paper-plane"></i></div>
+                        <div class="card-data">
+                            <h3 id="statNotifTotalLogs">--</h3>
+                            <span>Total Dispatched Logs</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-grid">
+                    <!-- Card 1: Next-Class Reminder Engine Settings -->
+                    <div class="panel-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-clock"></i> Next-Class Reminder Engine</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3" style="font-size: 0.88rem;">
+                                Configures automated background schedule reminders (Asia/Kolkata). Morning Breaks (10:50-11:10) and Lunch (12:50-13:40) are strictly excluded.
+                            </p>
+                            <form id="notificationSettingsForm">
+                                <h4 class="settings-subhead"><i class="fa-solid fa-user-graduate text-success"></i> Student Next-Class Alerts</h4>
+                                <div class="form-group mb-2">
+                                    <label class="checkbox-container">
+                                        <input type="checkbox" id="notifStudentEnabled">
+                                        <span class="ml-2 font-weight-500">Enable automated next-class alerts for students</span>
+                                    </label>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label>Student Reminder Lead Time</label>
+                                    <select id="notifStudentLead" class="form-control">
+                                        <option value="5">5 minutes before class starts</option>
+                                        <option value="10">10 minutes before class starts (Recommended)</option>
+                                        <option value="15">15 minutes before class starts</option>
+                                        <option value="20">20 minutes before class starts</option>
+                                        <option value="30">30 minutes before class starts</option>
+                                        <option value="45">45 minutes before class starts</option>
+                                        <option value="60">60 minutes before class starts</option>
+                                    </select>
+                                </div>
+
+                                <h4 class="settings-subhead mt-3"><i class="fa-solid fa-chalkboard-user text-warning"></i> Faculty Teaching Reminders</h4>
+                                <div class="form-group mb-2">
+                                    <label class="checkbox-container">
+                                        <input type="checkbox" id="notifFacultyEnabled">
+                                        <span class="ml-2 font-weight-500">Enable automated teaching reminders for faculty</span>
+                                    </label>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label>Faculty Reminder Lead Time</label>
+                                    <select id="notifFacultyLead" class="form-control">
+                                        <option value="5">5 minutes before class starts</option>
+                                        <option value="10">10 minutes before class starts</option>
+                                        <option value="15">15 minutes before class starts (Recommended)</option>
+                                        <option value="20">20 minutes before class starts</option>
+                                        <option value="30">30 minutes before class starts</option>
+                                        <option value="45">45 minutes before class starts</option>
+                                        <option value="60">60 minutes before class starts</option>
+                                    </select>
+                                </div>
+
+                                <h4 class="settings-subhead mt-3"><i class="fa-solid fa-bell-concierge text-info"></i> Additional Notification Channels</h4>
+                                <div class="form-group mb-2">
+                                    <label class="checkbox-container">
+                                        <input type="checkbox" id="notifAttendanceEnabled">
+                                        <span class="ml-2 font-weight-500">Enable live attendance marking notifications</span>
+                                    </label>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="checkbox-container">
+                                        <input type="checkbox" id="notifAnnouncementsEnabled">
+                                        <span class="ml-2 font-weight-500">Enable custom campus broadcast announcements</span>
+                                    </label>
+                                </div>
+
+                                <div class="d-flex align-center gap-2 mt-3">
+                                    <button type="submit" id="btnSaveNotifSettings" class="btn btn-primary">
+                                        <i class="fa-solid fa-floppy-disk mr-1"></i> Save Reminder Settings
+                                    </button>
+                                </div>
+                            </form>
+
+                            <hr style="border-color: var(--border-color); margin: 24px 0;">
+
+                            <!-- On-Demand Simulator -->
+                            <div class="simulation-box">
+                                <h4 class="settings-subhead"><i class="fa-solid fa-bolt text-warning"></i> On-Demand Reminder Check</h4>
+                                <p class="text-muted" style="font-size: 0.82rem;">Trigger an immediate evaluation of the reminder window without waiting for the 60s background tick.</p>
+                                <div class="d-flex align-center gap-2 mt-2">
+                                    <input type="text" id="notifSimulateTime" class="form-control" placeholder="Optional HH:MM (e.g. 09:00)" style="max-width: 220px;">
+                                    <button type="button" class="btn btn-outline-warning" onclick="triggerManualReminderCheck()">
+                                        <i class="fa-solid fa-play mr-1"></i> Run Evaluation
+                                    </button>
+                                </div>
+                                <div id="manualReminderResult" class="alert hidden mt-3" style="font-size: 0.85rem;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Custom Broadcast Composer -->
+                    <div class="panel-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-paper-plane"></i> Broadcast Notification Composer</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="customNotificationForm">
+                                <div class="form-row-2">
+                                    <div class="form-group">
+                                        <label><i class="fa-solid fa-bullseye mr-1"></i> Target Audience</label>
+                                        <select id="notifAudience" class="form-control" onchange="handleAudienceChange()">
+                                            <option value="STUDENT">Students Only</option>
+                                            <option value="FACULTY">Faculty Only</option>
+                                            <option value="ALL">Everyone (Campus-wide)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label><i class="fa-solid fa-filter mr-1"></i> Targeting Scope</label>
+                                        <select id="notifTargetType" class="form-control" onchange="handleTargetTypeChange()">
+                                            <option value="ALL">Entire Selected Audience</option>
+                                            <option value="CLASS">Specific Class Section</option>
+                                            <option value="USER">Specific User ID / Username</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group hidden" id="notifClassGroup">
+                                    <label><i class="fa-solid fa-school mr-1"></i> Select Class Section</label>
+                                    <select id="notifTargetClass" class="form-control">
+                                        <option value="">Select class section...</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group hidden" id="notifUserGroup">
+                                    <label><i class="fa-solid fa-user mr-1"></i> Enter User Identifier</label>
+                                    <input type="text" id="notifTargetUser" class="form-control" placeholder="e.g. 721025149001, fac01, or numeric ID">
+                                </div>
+
+                                <div class="form-row-2">
+                                    <div class="form-group">
+                                        <label><i class="fa-solid fa-tower-broadcast mr-1"></i> Priority Channel</label>
+                                        <select id="notifChannel" class="form-control">
+                                            <option value="GO_ON_ADMIN">GO_ON_ADMIN (High-Importance Heads-Up)</option>
+                                            <option value="GO_ON_ATTENDANCE">GO_ON_ATTENDANCE (Attendance Alerts)</option>
+                                            <option value="GO_ON_NEXT_CLASS">GO_ON_NEXT_CLASS (Timetable)</option>
+                                            <option value="GO_ON_GENERAL">GO_ON_GENERAL (Standard Notice)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label><i class="fa-solid fa-triangle-exclamation mr-1"></i> Priority Level</label>
+                                        <select id="notifPriority" class="form-control">
+                                            <option value="NORMAL">NORMAL (Standard Banner)</option>
+                                            <option value="HIGH" selected>HIGH (Instant Heads-Up Popup)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> In-App Deep Link Destination</label>
+                                    <select id="notifRoute" class="form-control">
+                                        <option value="dashboard">Main Dashboard</option>
+                                        <option value="student_timetable">Student Timetable</option>
+                                        <option value="faculty_timetable">Faculty Timetable</option>
+                                        <option value="faculty_attendance">Faculty Attendance</option>
+                                        <option value="reports">Attendance Reports</option>
+                                        <option value="profile">User Profile</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label><i class="fa-solid fa-heading mr-1"></i> Notification Title</label>
+                                    <input type="text" id="notifTitle" class="form-control" placeholder="e.g. Academic Notice: {{subject}} for {{class_name}}" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label><i class="fa-solid fa-message mr-1"></i> Notification Body</label>
+                                    <textarea id="notifBody" class="form-control" rows="3" placeholder="e.g. Dear {{name}}, please note that your period {{period}} class on {{date}} has been rescheduled." required></textarea>
+                                </div>
+
+                                <!-- Dynamic Variable Chips -->
+                                <div class="form-group">
+                                    <label class="text-muted" style="font-size: 0.8rem; display: block; margin-bottom: 4px;">
+                                        Click to insert live template variables:
+                                    </label>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertNotifVar('{{name}}')">
+                                            <i class="fa-solid fa-plus text-primary"></i> <code>{{name}}</code>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertNotifVar('{{subject}}')">
+                                            <i class="fa-solid fa-plus text-primary"></i> <code>{{subject}}</code>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertNotifVar('{{class_name}}')">
+                                            <i class="fa-solid fa-plus text-primary"></i> <code>{{class_name}}</code>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertNotifVar('{{period}}')">
+                                            <i class="fa-solid fa-plus text-primary"></i> <code>{{period}}</code>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="insertNotifVar('{{date}}')">
+                                            <i class="fa-solid fa-plus text-primary"></i> <code>{{date}}</code>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Delivery Timing Options -->
+                                <div class="form-group mt-3">
+                                    <label><i class="fa-solid fa-calendar-days mr-1"></i> Delivery Timing</label>
+                                    <div class="d-flex align-center gap-3 mb-2">
+                                        <label class="radio-container">
+                                            <input type="radio" name="deliveryTiming" id="timingImmediate" value="immediate" checked onchange="toggleTimingPicker()">
+                                            <span class="ml-1 font-weight-500">Send Immediately</span>
+                                        </label>
+                                        <label class="radio-container">
+                                            <input type="radio" name="deliveryTiming" id="timingSchedule" value="schedule" onchange="toggleTimingPicker()">
+                                            <span class="ml-1 font-weight-500">Schedule for Later</span>
+                                        </label>
+                                    </div>
+                                    <div id="notifSchedulePicker" class="hidden mt-2">
+                                        <input type="datetime-local" id="notifScheduledAt" class="form-control" style="max-width: 280px;">
+                                        <small class="text-muted">Enter target time in Asia/Kolkata timezone.</small>
+                                    </div>
+                                </div>
+
+                                <div id="notifComposerResult" class="alert hidden mb-3"></div>
+
+                                <button type="submit" id="btnSendNotif" class="btn btn-primary btn-block mt-3">
+                                    <i class="fa-solid fa-paper-plane mr-1"></i> Dispatch Broadcast Notification
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Pending Scheduled Broadcasts -->
+                <div class="panel-card mt-4">
+                    <div class="card-header justify-between">
+                        <h3><i class="fa-solid fa-calendar-check"></i> Pending Scheduled Broadcasts</h3>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="loadScheduledNotifications()">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh Queue
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="scheduledNotificationsTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Scheduled For (UTC / Local)</th>
+                                        <th>Title</th>
+                                        <th>Audience & Target</th>
+                                        <th>Channel</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="7" class="text-center text-muted">Loading scheduled queue...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Notification Delivery & Audit History -->
+                <div class="panel-card mt-4">
+                    <div class="card-header justify-between">
+                        <h3><i class="fa-solid fa-list-check"></i> Notification Delivery & Audit Logs</h3>
+                        <div class="d-flex align-center gap-2">
+                            <select id="notifLogTypeFilter" class="form-control form-control-sm" style="width: 200px;" onchange="loadNotificationLogs()">
+                                <option value="">All Notification Types</option>
+                                <option value="ADMIN">ADMIN (Broadcasts)</option>
+                                <option value="NEXT_CLASS_STUDENT">NEXT_CLASS_STUDENT</option>
+                                <option value="NEXT_CLASS_FACULTY">NEXT_CLASS_FACULTY</option>
+                                <option value="ATTENDANCE">ATTENDANCE</option>
+                                <option value="ACCOUNT">ACCOUNT</option>
+                            </select>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="loadNotificationLogs()">
+                                <i class="fa-solid fa-rotate-right"></i> Refresh Logs
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="notificationLogsTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Timestamp</th>
+                                        <th>Recipient User ID</th>
+                                        <th>Type & Channel</th>
+                                        <th>Title & Body</th>
+                                        <th>Delivery Status</th>
+                                        <th>Payload</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="7" class="text-center text-muted">Loading notification logs...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Generic Modal Container for Actions -->
+    <div id="adminModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modalTitle">Modal Title</h3>
+                <button class="close-btn" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Admin Authentication Modal Overlay -->
+    <div id="adminLoginModal" class="modal-overlay hidden" style="background: rgba(10, 15, 29, 0.96); z-index: 99999; backdrop-filter: blur(8px);">
+        <div class="modal-card" style="max-width: 440px; margin: auto; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; background: #131b2e; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 24px; text-align: center; display: block;">
+                <div style="width: 56px; height: 56px; margin: 0 auto 16px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; color: white;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h2 style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin: 0 0 6px;">Admin Management Console</h2>
+                <p style="color: #94a3b8; font-size: 0.88rem; margin: 0;">Authorized Administrative Sign In</p>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <div id="adminLoginAlert" class="alert alert-danger hidden" style="margin-bottom: 16px; font-size: 0.88rem;"></div>
+                <form id="adminLoginForm">
+                    <div class="form-group mb-3">
+                        <label style="color: #cbd5e1; font-weight: 500; font-size: 0.88rem; margin-bottom: 6px; display: block;"><i class="fa-solid fa-user mr-1"></i> Username</label>
+                        <input type="text" id="adminUsername" class="form-control" placeholder="admin" value="admin" required autocomplete="username" style="background: #0b1120; border: 1px solid #334155; color: #f8fafc; padding: 10px 14px; border-radius: 8px; width: 100%;">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label style="color: #cbd5e1; font-weight: 500; font-size: 0.88rem; margin-bottom: 6px; display: block;"><i class="fa-solid fa-lock mr-1"></i> Password</label>
+                        <input type="password" id="adminPassword" class="form-control" placeholder="••••••••" value="admin123" required autocomplete="current-password" style="background: #0b1120; border: 1px solid #334155; color: #f8fafc; padding: 10px 14px; border-radius: 8px; width: 100%;">
+                    </div>
+                    <button type="submit" id="adminLoginSubmitBtn" class="btn btn-primary btn-block" style="width: 100%; padding: 12px; font-weight: 600; border-radius: 8px; background: #2563eb; border: none; margin-top: 10px;">
+                        <i class="fa-solid fa-right-to-bracket mr-2"></i> Sign In as Administrator
+                    </button>
+                    <div style="margin-top: 14px; text-align: center;">
+                        <button type="button" class="btn btn-link btn-sm" onclick="prefillAdminCreds()" style="color: #60a5fa; font-size: 0.82rem; text-decoration: none; cursor: pointer; background: transparent; border: none;">
+                            <i class="fa-solid fa-key"></i> Fill Default Credentials (admin / admin123)
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Client Logic -->
+    <script src="/static/js/admin_app.js"></script>
+</body>
+</html>

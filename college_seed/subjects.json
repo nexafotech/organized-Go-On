@@ -1,0 +1,110 @@
+[
+  {
+    "code": "FDS",
+    "name": "Foundations of Data Science"
+  },
+  {
+    "code": "DMC",
+    "name": "Discrete Mathematics for Computing"
+  },
+  {
+    "code": "FDS LAB",
+    "name": "Foundations of Data Science Laboratory"
+  },
+  {
+    "code": "DPCO",
+    "name": "Digital Principles & Computer Organization"
+  },
+  {
+    "code": "OOPS",
+    "name": "Object Oriented Programming Systems"
+  },
+  {
+    "code": "DS",
+    "name": "Data Structures"
+  },
+  {
+    "code": "ACE-I",
+    "name": "Aptitude & Communication Enhancement I"
+  },
+  {
+    "code": "UHV",
+    "name": "Universal Human Values"
+  },
+  {
+    "code": "IKS",
+    "name": "Indian Knowledge System"
+  },
+  {
+    "code": "DS LAB",
+    "name": "Data Structures Laboratory"
+  },
+  {
+    "code": "IIC",
+    "name": "Innovation & Incubation Cell"
+  },
+  {
+    "code": "JAVA LAB",
+    "name": "Java Programming Laboratory"
+  },
+  {
+    "code": "TWM",
+    "name": "Tutor Ward Meeting"
+  },
+  {
+    "code": "LIB",
+    "name": "Library Hour"
+  },
+  {
+    "code": "ASSOC",
+    "name": "Department Association Hour"
+  },
+  {
+    "code": "AIML",
+    "name": "Artificial Intelligence & Machine Learning"
+  },
+  {
+    "code": "LP",
+    "name": "Linux Programming"
+  },
+  {
+    "code": "SDBMS",
+    "name": "Secure Database Management Systems"
+  },
+  {
+    "code": "ESSS",
+    "name": "Engineering Secure Software Systems"
+  },
+  {
+    "code": "SDBMS LAB",
+    "name": "Secure Database Management Systems Lab"
+  },
+  {
+    "code": "CC",
+    "name": "Cloud Computing"
+  },
+  {
+    "code": "E&I",
+    "name": "Entrepreneurship and Innovation"
+  },
+  {
+    "code": "CC-I",
+    "name": "Campus to Corporate-I"
+  },
+  {
+    "code": "LINUX LAB",
+    "name": "Linux Laboratory"
+  },
+  {
+    "code": "ESSS LAB",
+    "name": "Engineering Secure Software Systems Laboratory"
+  },
+  {
+    "code": "CF",
+    "name": "Cyber Forensics"
+  },
+  {
+    "code": "CF LAB",
+    "name": "Cyber Forensics Laboratory"
+  }
+]
