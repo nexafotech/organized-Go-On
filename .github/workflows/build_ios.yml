@@ -26,6 +26,10 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Create Build Directories
+        working-directory: mobile
+        run: mkdir -p build/ios/SourcePackages
+
       - name: Install Dependencies
         working-directory: mobile
         run: flutter pub get
