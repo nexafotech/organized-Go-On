@@ -31,13 +31,13 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create Build Directories
+      - name: Disable SPM and Install Dependencies
         working-directory: mobile
-        run: mkdir -p build/ios/SourcePackages
-
-      - name: Install Dependencies
-        working-directory: mobile
-        run: flutter pub get
+        run: |
+          flutter config --no-enable-swift-package-manager
+          mkdir -p build/ios/SourcePackages
+          flutter pub get
+          cd ios && pod install --repo-update && cd ..
 
       - name: Build iOS (No Codesign)
         working-directory: mobile
