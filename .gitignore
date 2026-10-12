@@ -1,5 +1,6 @@
 # Root .gitignore for Go-On repository
-models/
+/models/
+!mobile/lib/models/
 *.onnx
 *.db
 *.sqlite
