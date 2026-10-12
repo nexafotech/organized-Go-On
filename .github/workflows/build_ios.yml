@@ -8,13 +8,19 @@ on:
 jobs:
   build-ios:
     name: Build iOS Runner IPA
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Inspect Xcode and SDKs
+      - name: Select Xcode 16.1 or 16.2
         run: |
+          ls -d /Applications/Xcode*
+          if [ -d "/Applications/Xcode_16.2.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.2.app
+          elif [ -d "/Applications/Xcode_16.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          fi
           xcodebuild -version
           xcodebuild -showsdks
 
