@@ -1,0 +1,22 @@
+# Root .gitignore for Go-On repository
+models/
+*.onnx
+*.db
+*.sqlite
+*.sqlite3
+data/
+*.ipa
+*.exe
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+
+# Mobile build & non-iOS folders
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins-dependencies
+mobile/*.png
+mobile/web/
+mobile/android/
+mobile/test/
