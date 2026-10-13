@@ -9,7 +9,7 @@ class ApiConfig {
       }
       return 'http://127.0.0.1:8000';
     }
-    return 'http://192.168.0.114:8000';
+    return 'http://10.50.3.40:8000';
   }
 
   static const String hotspotUrl = 'http://10.254.103.195:8000';
