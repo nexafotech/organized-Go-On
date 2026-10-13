@@ -27,7 +27,11 @@ __pycache__/
 scratch/
 scratch_*.txt
 prompt_dump.txt
-*.xml
+*_dump.xml
+scripts/*.xml
+temp_*.xml
+login_ui.xml
+window_dump.xml
 
 # Ephemeral test automation screenshots (keep mobile assets and web icons)
 /*.png
