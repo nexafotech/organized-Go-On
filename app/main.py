@@ -80,10 +80,15 @@ app.include_router(admin_web_router)
 def health_check():
     return {"status": "ok", "project": settings.PROJECT_NAME, "version": settings.VERSION}
 
-@app.get("/", response_class=HTMLResponse)
-def index(request: Request):
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
-    if os.path.exists(template_path):
-        with open(template_path, "r", encoding="utf-8") as f:
-            return f.read()
-    return "<h1>Go-On Attendance System API Backend</h1><p>Visit <a href='/docs'>/docs</a> for API documentation.</p>"
+# Mount Flutter Web Application (if built)
+flutter_web_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mobile", "build", "web")
+if os.path.exists(flutter_web_dir):
+    app.mount("/", StaticFiles(directory=flutter_web_dir, html=True), name="flutter_web")
+else:
+    @app.get("/", response_class=HTMLResponse)
+    def index(request: Request):
+        template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+        if os.path.exists(template_path):
+            with open(template_path, "r", encoding="utf-8") as f:
+                return f.read()
+        return "<h1>Go-On Attendance System API Backend</h1><p>Visit <a href='/docs'>/docs</a> for API documentation.</p>"

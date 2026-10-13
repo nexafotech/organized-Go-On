@@ -3,9 +3,12 @@ import 'package:flutter/foundation.dart';
 class ApiConfig {
   static String get defaultUrl {
     if (kIsWeb) {
-      final host = Uri.base.host;
-      if (host.isNotEmpty) {
-        return 'http://$host:8000';
+      final origin = Uri.base.origin;
+      if (origin.isNotEmpty && !origin.startsWith('file://')) {
+        if (Uri.base.port == 3000) {
+          return '${Uri.base.scheme}://${Uri.base.host}:8000';
+        }
+        return origin;
       }
       return 'http://127.0.0.1:8000';
     }

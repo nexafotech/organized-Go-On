@@ -15,6 +15,7 @@ data/
 # Temporary Packages & Binaries
 *.ipa
 *.exe
+tools/
 mobile/artifact.zip
 
 # Python caches & logs
@@ -27,6 +28,7 @@ __pycache__/
 scratch/
 scratch_*.txt
 prompt_dump.txt
+~$*
 *_dump.xml
 scripts/*.xml
 temp_*.xml
