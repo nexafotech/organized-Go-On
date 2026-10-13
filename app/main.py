@@ -86,4 +86,4 @@ def index(request: Request):
     if os.path.exists(template_path):
         with open(template_path, "r", encoding="utf-8") as f:
             return f.read()
-    return "<h1>Class Attendance System API Backend</h1><p>Visit <a href='/docs'>/docs</a> for API documentation.</p>"
+    return "<h1>Go-On Attendance System API Backend</h1><p>Visit <a href='/docs'>/docs</a> for API documentation.</p>"

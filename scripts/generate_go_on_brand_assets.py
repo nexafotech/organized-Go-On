@@ -224,7 +224,38 @@ def main() -> None:
     # 4. Backend report badge (small: keeps PDF / XLSX light).
     save_png(badge(logo_trim, 256, 0.72, 0.20), BACKEND_BRAND_DIR / "go_on_badge.png")
 
-    # 5. Fidelity check: re-compositing over the original backdrop must match.
+    # 5. iOS AppIcon set & LaunchImage
+    ios_xcassets = MOBILE / "ios" / "Runner" / "Assets.xcassets"
+    appicon_dir = ios_xcassets / "AppIcon.appiconset"
+    contents_file = appicon_dir / "Contents.json"
+    if contents_file.exists():
+        import json
+        with open(contents_file, "r", encoding="utf-8") as f:
+            contents = json.load(f)
+        for img_info in contents.get("images", []):
+            size_parts = [float(x) for x in img_info["size"].split("x")]
+            scale_val = float(img_info["scale"].rstrip("x"))
+            px_w = round(size_parts[0] * scale_val)
+            px_h = round(size_parts[1] * scale_val)
+            fn = img_info["filename"]
+            # iOS App Icons MUST be opaque (no alpha channel).
+            # Render on solid Espresso (#2B1A13) background, centered logo at 75% scale.
+            icon_img = badge(logo_trim, max(px_w, px_h), 0.75, None).convert("RGB")
+            if icon_img.size != (px_w, px_h):
+                icon_img = icon_img.resize((px_w, px_h), Image.LANCZOS)
+            save_png(icon_img, appicon_dir / fn)
+        print("  generated all iOS AppIcon.appiconset icons")
+
+    launch_dir = ios_xcassets / "LaunchImage.imageset"
+    if launch_dir.exists():
+        # Clean Go-On logo on transparent or Espresso background for launch screen
+        for scale, fn in [(1, "LaunchImage.png"), (2, "LaunchImage@2x.png"), (3, "LaunchImage@3x.png")]:
+            dim = 180 * scale
+            launch_img = badge(logo_trim, dim, 0.75, None).convert("RGB")
+            save_png(launch_img, launch_dir / fn)
+        print("  generated iOS LaunchImage assets")
+
+    # 6. Fidelity check: re-compositing over the original backdrop must match.
     src = np.asarray(Image.open(SOURCE_COPY).convert("RGB")).astype(np.float32)
     bg = np.median(np.concatenate([src[:16].reshape(-1, 3), src[-16:].reshape(-1, 3)]), axis=0)
     comp = Image.new("RGBA", full.size, tuple(int(v) for v in bg) + (255,))

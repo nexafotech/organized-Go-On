@@ -1,7 +1,7 @@
 name: attendance_marker_mobile
 description: "Go-On mobile application for Students and Faculty"
 publish_to: "none"
-version: 2.0.0+5
+version: 2.0.0+6
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

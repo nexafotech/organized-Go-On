@@ -1,8 +1,8 @@
 import os
 
 class Settings:
-    PROJECT_NAME: str = "Class Attendance Management System"
-    VERSION: str = "1.0.0"
+    PROJECT_NAME: str = "Go-On Attendance System"
+    VERSION: str = "2.0.0"
     API_V1_STR: str = "/api/v1"
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production-class-attendance-2026")

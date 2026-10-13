@@ -56,8 +56,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Future<void> _loadSavedPreferences() async {
     final savedUrl = await _prefsService.getCustomBackendUrl();
-    if (savedUrl != null && savedUrl.isNotEmpty) {
+    if (savedUrl != null &&
+        savedUrl.isNotEmpty &&
+        savedUrl != 'http://192.168.0.114:8000' &&
+        savedUrl != 'http://192.168.1.100:8000') {
       ApiConfig.setBaseUrl(savedUrl);
+    } else {
+      ApiConfig.setBaseUrl(ApiConfig.defaultUrl);
     }
     final savedTab = await _prefsService.getSelectedRoleTab();
     if (savedTab == 'FACULTY') {
@@ -852,7 +857,7 @@ class _ServerConfigDialogState extends State<_ServerConfigDialog> {
                 children: [
                   ActionChip(
                     avatar: Icon(Icons.wifi_rounded, size: 14, color: colors.info),
-                    label: const Text('WiFi (192.168.0.114)', style: TextStyle(fontSize: 11)),
+                    label: Text('WiFi (${Uri.tryParse(ApiConfig.defaultUrl)?.host ?? "10.50.3.40"})', style: const TextStyle(fontSize: 11)),
                     backgroundColor: colors.surfaceMuted,
                     side: BorderSide(color: colors.glassBorder),
                     shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
@@ -885,7 +890,7 @@ class _ServerConfigDialogState extends State<_ServerConfigDialog> {
                 controller: _urlController,
                 decoration: InputDecoration(
                   labelText: 'Server Base URL',
-                  hintText: 'http://192.168.0.114:8000',
+                  hintText: ApiConfig.defaultUrl,
                   prefixIcon: const Icon(Icons.link_rounded),
                   filled: true,
                   fillColor: colors.surfaceMuted.withValues(alpha: 0.5),
