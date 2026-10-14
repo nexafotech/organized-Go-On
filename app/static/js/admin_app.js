@@ -440,12 +440,14 @@ async function updateCapacityBadges() {
         
         // Students Badge
         const stCountEl = document.getElementById('studentCapCurrent');
+        const stMaxEl = document.getElementById('studentCapMax');
         const stRemEl = document.getElementById('studentCapRemaining');
         const stBadge = document.getElementById('studentCapacityBadge');
         const btnAddStudent = document.getElementById('btnAddStudent');
 
         if (stCountEl && stats.students) {
             stCountEl.innerText = stats.students.current;
+            if (stMaxEl) stMaxEl.innerText = stats.students.max;
             stRemEl.innerText = `Remaining: ${stats.students.remaining}`;
             stBadge.classList.remove('cap-warning', 'cap-full');
             if (stats.students.remaining === 0) {
@@ -453,7 +455,7 @@ async function updateCapacityBadges() {
                 stRemEl.className = 'badge badge-danger';
                 if (btnAddStudent) {
                     btnAddStudent.disabled = true;
-                    btnAddStudent.title = "Student capacity reached (130/130)";
+                    btnAddStudent.title = `Student capacity reached (${stats.students.max}/${stats.students.max})`;
                 }
             } else if (stats.students.remaining <= 5) {
                 stBadge.classList.add('cap-warning');
@@ -467,12 +469,14 @@ async function updateCapacityBadges() {
 
         // Faculty Badge
         const facCountEl = document.getElementById('facultyCapCurrent');
+        const facMaxEl = document.getElementById('facultyCapMax');
         const facRemEl = document.getElementById('facultyCapRemaining');
         const facBadge = document.getElementById('facultyCapacityBadge');
         const btnAddFaculty = document.getElementById('btnAddFaculty');
 
         if (facCountEl && stats.faculty) {
             facCountEl.innerText = stats.faculty.current;
+            if (facMaxEl) facMaxEl.innerText = stats.faculty.max;
             facRemEl.innerText = `Remaining: ${stats.faculty.remaining}`;
             facBadge.classList.remove('cap-warning', 'cap-full');
             if (stats.faculty.remaining === 0) {
@@ -480,7 +484,7 @@ async function updateCapacityBadges() {
                 facRemEl.className = 'badge badge-danger';
                 if (btnAddFaculty) {
                     btnAddFaculty.disabled = true;
-                    btnAddFaculty.title = "Faculty capacity reached (15/15)";
+                    btnAddFaculty.title = `Faculty capacity reached (${stats.faculty.max}/${stats.faculty.max})`;
                 }
             } else if (stats.faculty.remaining <= 3) {
                 facBadge.classList.add('cap-warning');
@@ -523,7 +527,16 @@ async function loadStudentsTab() {
     }
 }
 
-function renderStudentsTable() {
+let studentCurrentPage = 1;
+const studentPageSize = 50;
+
+function changeStudentPage(newPage) {
+    studentCurrentPage = newPage;
+    renderStudentsTable(false);
+}
+
+function renderStudentsTable(resetPage = true) {
+    if (resetPage) studentCurrentPage = 1;
     const searchVal = (document.getElementById('studentSearch')?.value || '').toLowerCase().trim();
     const classVal = document.getElementById('studentClassFilter')?.value;
     const statusVal = document.getElementById('studentStatusFilter')?.value;
@@ -538,14 +551,39 @@ function renderStudentsTable() {
     });
 
     const tbody = document.querySelector('#studentsTable tbody');
+    const pageInfo = document.getElementById('studentsPageInfo');
+    const pageControls = document.getElementById('studentsPageControls');
     if (!tbody) return;
 
-    if (filtered.length === 0) {
+    const totalRecords = filtered.length;
+    const totalPages = Math.ceil(totalRecords / studentPageSize) || 1;
+    if (studentCurrentPage > totalPages) studentCurrentPage = totalPages;
+    if (studentCurrentPage < 1) studentCurrentPage = 1;
+
+    if (totalRecords === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No matching student records found.</td></tr>';
+        if (pageInfo) pageInfo.innerText = 'Showing 0 of 0 students';
+        if (pageControls) pageControls.innerHTML = '';
         return;
     }
 
-    tbody.innerHTML = filtered.map(s => {
+    const startIdx = (studentCurrentPage - 1) * studentPageSize;
+    const pageItems = filtered.slice(startIdx, startIdx + studentPageSize);
+
+    if (pageInfo) {
+        pageInfo.innerText = `Showing ${startIdx + 1}–${Math.min(startIdx + studentPageSize, totalRecords)} of ${totalRecords.toLocaleString()} students (Page ${studentCurrentPage} of ${totalPages})`;
+    }
+    if (pageControls) {
+        pageControls.innerHTML = `
+            <button class="btn btn-sm btn-outline-secondary" ${studentCurrentPage <= 1 ? 'disabled' : ''} onclick="changeStudentPage(1)" title="First Page">«</button>
+            <button class="btn btn-sm btn-outline-secondary" ${studentCurrentPage <= 1 ? 'disabled' : ''} onclick="changeStudentPage(${studentCurrentPage - 1})" title="Previous Page">‹ Prev</button>
+            <span class="btn btn-sm btn-outline-secondary active" style="pointer-events:none; font-weight:600;">${studentCurrentPage} / ${totalPages}</span>
+            <button class="btn btn-sm btn-outline-secondary" ${studentCurrentPage >= totalPages ? 'disabled' : ''} onclick="changeStudentPage(${studentCurrentPage + 1})" title="Next Page">Next ›</button>
+            <button class="btn btn-sm btn-outline-secondary" ${studentCurrentPage >= totalPages ? 'disabled' : ''} onclick="changeStudentPage(${totalPages})" title="Last Page">»</button>
+        `;
+    }
+
+    tbody.innerHTML = pageItems.map(s => {
         const classObj = cachedClasses.find(c => c.id === s.class_id);
         const className = classObj ? classObj.name : (s.class_name || '<span class="text-muted">Unassigned</span>');
         const deptSem = [s.department || '', s.semester ? `Sem ${s.semester}` : ''].filter(Boolean).join(' • ') || '<span class="text-muted">—</span>';
@@ -901,7 +939,16 @@ async function loadFacultyTab() {
     }
 }
 
-function renderFacultyTable() {
+let facultyCurrentPage = 1;
+const facultyPageSize = 25;
+
+function changeFacultyPage(newPage) {
+    facultyCurrentPage = newPage;
+    renderFacultyTable(false);
+}
+
+function renderFacultyTable(resetPage = true) {
+    if (resetPage) facultyCurrentPage = 1;
     const searchVal = (document.getElementById('facultySearch')?.value || '').toLowerCase().trim();
     const deptVal = document.getElementById('facultyDeptFilter')?.value;
     const statusVal = document.getElementById('facultyStatusFilter')?.value;
@@ -917,14 +964,39 @@ function renderFacultyTable() {
     });
 
     const tbody = document.querySelector('#facultyTable tbody');
+    const pageInfo = document.getElementById('facultyPageInfo');
+    const pageControls = document.getElementById('facultyPageControls');
     if (!tbody) return;
 
-    if (filtered.length === 0) {
+    const totalRecords = filtered.length;
+    const totalPages = Math.ceil(totalRecords / facultyPageSize) || 1;
+    if (facultyCurrentPage > totalPages) facultyCurrentPage = totalPages;
+    if (facultyCurrentPage < 1) facultyCurrentPage = 1;
+
+    if (totalRecords === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No faculty members found.</td></tr>';
+        if (pageInfo) pageInfo.innerText = 'Showing 0 of 0 faculty';
+        if (pageControls) pageControls.innerHTML = '';
         return;
     }
 
-    tbody.innerHTML = filtered.map(f => {
+    const startIdx = (facultyCurrentPage - 1) * facultyPageSize;
+    const pageItems = filtered.slice(startIdx, startIdx + facultyPageSize);
+
+    if (pageInfo) {
+        pageInfo.innerText = `Showing ${startIdx + 1}–${Math.min(startIdx + facultyPageSize, totalRecords)} of ${totalRecords.toLocaleString()} faculty (Page ${facultyCurrentPage} of ${totalPages})`;
+    }
+    if (pageControls) {
+        pageControls.innerHTML = `
+            <button class="btn btn-sm btn-outline-secondary" ${facultyCurrentPage <= 1 ? 'disabled' : ''} onclick="changeFacultyPage(1)" title="First Page">«</button>
+            <button class="btn btn-sm btn-outline-secondary" ${facultyCurrentPage <= 1 ? 'disabled' : ''} onclick="changeFacultyPage(${facultyCurrentPage - 1})" title="Previous Page">‹ Prev</button>
+            <span class="btn btn-sm btn-outline-secondary active" style="pointer-events:none; font-weight:600;">${facultyCurrentPage} / ${totalPages}</span>
+            <button class="btn btn-sm btn-outline-secondary" ${facultyCurrentPage >= totalPages ? 'disabled' : ''} onclick="changeFacultyPage(${facultyCurrentPage + 1})" title="Next Page">Next ›</button>
+            <button class="btn btn-sm btn-outline-secondary" ${facultyCurrentPage >= totalPages ? 'disabled' : ''} onclick="changeFacultyPage(${totalPages})" title="Last Page">»</button>
+        `;
+    }
+
+    tbody.innerHTML = pageItems.map(f => {
         const activeBadge = f.is_active
             ? '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Active</span>'
             : '<span class="badge badge-danger"><i class="fa-solid fa-ban"></i> Disabled</span>';
@@ -5525,14 +5597,18 @@ async function handleSendCustomNotification(e) {
         });
 
         if (resAlert) {
-            resAlert.className = 'alert alert-success mb-3';
             if (res.status === 'SCHEDULED') {
-                resAlert.innerHTML = `<strong><i class="fa-solid fa-calendar-check mr-1"></i> Scheduled Successfully:</strong> ${escapeHtml(res.message || 'Queued for delivery')}`;
+                resAlert.className = 'alert alert-info mb-3';
+                resAlert.innerHTML = `<strong><i class="fa-solid fa-calendar-check mr-1"></i> Scheduled:</strong> ${escapeHtml(res.message || 'Queued for delivery')}`;
+            } else if (res.devices_sent > 0) {
+                resAlert.className = 'alert alert-success mb-3';
+                resAlert.innerHTML = `<strong><i class="fa-solid fa-circle-check mr-1"></i> Push Sent:</strong> Recorded for ${res.recipients_count} recipient(s) &amp; dispatched ${res.devices_sent} push notification(s) (${res.devices_failed || 0} failed).`;
             } else {
-                resAlert.innerHTML = `<strong><i class="fa-solid fa-circle-check mr-1"></i> Sent Successfully:</strong> Dispatched to ${res.recipients_count} recipient(s).`;
+                resAlert.className = 'alert alert-warning mb-3';
+                resAlert.innerHTML = `<strong><i class="fa-solid fa-box-archive mr-1"></i> Stored in In-App Inbox:</strong> Stored for ${res.recipients_count} recipient(s). No active push device tokens registered for these recipients.`;
             }
         }
-        showToast(res.status === 'SCHEDULED' ? "Notification scheduled" : `Broadcast dispatched (${res.recipients_count} recipients)`, "success");
+        showToast(res.status === 'SCHEDULED' ? "Notification scheduled" : `Broadcast processed: ${res.recipients_count} in-app, ${res.devices_sent || 0} pushed`, "success");
 
         document.getElementById('notifTitle').value = '';
         document.getElementById('notifBody').value = '';
@@ -5629,9 +5705,19 @@ async function loadNotificationLogs() {
             const dateStr = dt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
             
             let statusBadge = '<span class="badge badge-status-sent">SENT</span>';
-            if (l.status === 'FAILED') statusBadge = '<span class="badge badge-status-failed">FAILED</span>';
-            else if (l.status === 'SKIPPED') statusBadge = '<span class="badge badge-status-skipped">SKIPPED</span>';
-            else if (l.status === 'SCHEDULED') statusBadge = '<span class="badge badge-status-scheduled">SCHEDULED</span>';
+            if (l.status === 'PROVIDER_ACCEPTED') {
+                statusBadge = '<span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3);"><i class="fa-solid fa-check-double mr-1"></i>FCM ACCEPTED</span>';
+            } else if (l.status === 'STORED') {
+                statusBadge = '<span class="badge" style="background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3);"><i class="fa-solid fa-box-archive mr-1"></i>IN-APP ONLY</span>';
+            } else if (l.status === 'SIMULATED') {
+                statusBadge = '<span class="badge" style="background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3);"><i class="fa-solid fa-flask mr-1"></i>SIMULATED</span>';
+            } else if (l.status === 'FAILED') {
+                statusBadge = '<span class="badge badge-status-failed"><i class="fa-solid fa-xmark mr-1"></i>FAILED</span>';
+            } else if (l.status === 'SKIPPED') {
+                statusBadge = '<span class="badge badge-status-skipped"><i class="fa-solid fa-forward-step mr-1"></i>SKIPPED</span>';
+            } else if (l.status === 'SCHEDULED') {
+                statusBadge = '<span class="badge badge-status-scheduled"><i class="fa-solid fa-clock mr-1"></i>SCHEDULED</span>';
+            }
 
             const payloadSafe = l.data_payload ? encodeURIComponent(l.data_payload) : '';
 

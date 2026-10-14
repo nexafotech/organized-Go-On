@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -66,6 +66,35 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is disabled",
         )
+
+    # Check session revocation / active session validity
+    if user.session_token == "REVOKED":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked or logged out",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check password invalidation window: tokens issued prior to password change are invalidated,
+    # unless it is the active user.session_token that was retained during password change.
+    if user.password_changed_at and user.session_token != token:
+        iat = payload.get("iat")
+        if iat is not None:
+            if isinstance(iat, (int, float)):
+                token_issued_at = datetime.fromtimestamp(iat, tz=timezone.utc)
+            elif isinstance(iat, datetime):
+                token_issued_at = normalize_utc_datetime(iat)
+            else:
+                token_issued_at = None
+
+            pwd_changed = normalize_utc_datetime(user.password_changed_at)
+            # If token was issued before the password change, invalidate it
+            if token_issued_at and pwd_changed and token_issued_at <= pwd_changed:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Password was changed; please log in again",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
 
     # M4: Check account lock
     locked_until = normalize_utc_datetime(user.locked_until)

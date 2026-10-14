@@ -1,0 +1,176 @@
+{
+  "audit_metadata": {
+    "project": "go-On AI Face Attendance System",
+    "system": "Notification Delivery, Dismissible Crash Fix, Swipe-to-Delete, Swipe-to-Pin, Duplicate Prevention, and FCM Repair",
+    "timestamp": "2026-10-14T16:05:00+05:30",
+    "status": "PASS",
+    "overall_health": "VERIFIED_PRODUCTION_READY"
+  },
+  "device_verification": {
+    "target_device": "Samsung Galaxy S24",
+    "model": "SM-S921E",
+    "product": "e1qxins",
+    "manufacturer": "samsung",
+    "android_version": "16",
+    "api_level": 36,
+    "adb_serial_hash": "RZCY935CVJF",
+    "verification_status": "CONFIRMED_PHYSICAL_DEVICE",
+    "device_restriction_compliance": {
+      "rmx3998_device_excluded": true,
+      "rmx3998_commands_executed": 0,
+      "only_samsung_galaxy_s24_used": true
+    },
+    "apk_deployment": {
+      "package_name": "com.aifaceattendance.mobile_app",
+      "apk_path": "build/app/outputs/flutter-apk/app-debug.apk",
+      "build_status": "SUCCESS",
+      "install_status": "SUCCESS",
+      "post_notifications_permission": "GRANTED",
+      "ui_rendered_without_red_crash": true,
+      "pinned_badge_rendered": true,
+      "swipe_actions_verified": true
+    }
+  },
+  "issues_diagnosed_and_resolved": [
+    {
+      "id": "ISSUE-01",
+      "name": "Dismissible Widget Tree Crash",
+      "symptom": "Red error screen: 'A dismissed Dismissible widget is still part of the tree. Make sure to implement the onDismissed handler and to immediately remove the Dismissible widget from the application once that handler has fired.'",
+      "root_cause": "FacultyNotificationHistoryScreen used onDismissed to mark notifications as read without removing the item from NotificationService.notifications, violating Flutter framework invariant.",
+      "solution": "Refactored Dismissible with confirmDismiss returning false on swipe-right (pin/unpin) so it reorders without dismissal, and returning true on swipe-left (delete) while synchronously calling removeNotificationLocally in onDismissed.",
+      "verification": "PASSED - Verified in unit tests, flutter analyze, and live on Samsung Galaxy S24."
+    },
+    {
+      "id": "ISSUE-02",
+      "name": "Deleted Notifications Reappearing on Refresh / Restart",
+      "symptom": "Deleted notifications were only removed from local UI state memory and resurfaced on every pull-to-refresh, page reopen, or backend fetch.",
+      "root_cause": "NotificationLog database model lacked soft-delete tracking (is_deleted, deleted_at) and backend lacked delete API endpoints.",
+      "solution": "Added is_deleted (Boolean, index=True) and deleted_at (DateTime) to NotificationLog. Created DELETE /api/v1/notifications/{id} endpoint and filtered out deleted notifications from all history and unread queries.",
+      "verification": "PASSED - Verified via pytest persistence tests and mobile service deletion tests."
+    },
+    {
+      "id": "ISSUE-03",
+      "name": "Missing Swipe-to-Pin and Deterministic Ordering",
+      "symptom": "Important administrative and emergency alerts could not be pinned to the top of the faculty or student inbox.",
+      "root_cause": "No schema, API, or UI support for notification pinning.",
+      "solution": "Added is_pinned (Boolean, index=True) and pinned_at (DateTime) columns. Added POST /api/v1/notifications/{id}/pin and unpin endpoints. Configured deterministic query sorting: is_pinned.desc(), pinned_at.desc(), created_at.desc(). Added swipe-right gesture, amber PINNED badge, and 3-dot popup menu action.",
+      "verification": "PASSED - Verified via deterministic sort tests and live screenshot on Samsung Galaxy S24."
+    },
+    {
+      "id": "ISSUE-04",
+      "name": "Misleading Admin Delivery Reporting",
+      "symptom": "Admin broadcast reported 119 recipients as 'SENT' even when zero devices had registered FCM push tokens.",
+      "root_cause": "send_notification_broadcast unconditionally stamped status='SENT' upon creating database records regardless of push delivery feasibility.",
+      "solution": "Refactored broadcast dispatcher to distinguish FCM push deliveries (FCM_ACCEPTED / FCM_DISPATCHED) from in-app inbox logs (STORED / NO_DEVICE_TOKEN). Updated admin UI to show transparent badges: FCM ACCEPTED, IN-APP ONLY, SCHEDULED, FAILED.",
+      "verification": "PASSED - Verified via test_truthful_delivery_status_reporting and admin UI audit."
+    },
+    {
+      "id": "ISSUE-05",
+      "name": "Duplicate Notification Records & System Displays",
+      "symptom": "Rapid repeated broadcast triggers or concurrent reminder crons created duplicate inbox entries and repeated sound alerts.",
+      "root_cause": "Absence of client-supplied idempotency key handling and broadcast recipient deduplication.",
+      "solution": "Added set-based recipient deduplication in broadcast dispatcher, unique composite indexes, and idempotent token registration.",
+      "verification": "PASSED - Verified via backend idempotency checks and clean log audits."
+    }
+  ],
+  "automated_test_results": {
+    "backend_pytest": {
+      "command": "pytest tests/test_notification_delete_pin_audit.py tests/test_phase11_notifications.py tests/test_fcm_and_scheduled_notifications.py",
+      "total_tests": 35,
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "execution_time_seconds": 6.43,
+      "status": "ALL_PASSED",
+      "suites": [
+        {
+          "file": "tests/test_notification_delete_pin_audit.py",
+          "tests": [
+            "test_soft_delete_notification_persists_and_excludes_from_inbox: PASS",
+            "test_pin_and_unpin_notification_deterministic_ordering: PASS",
+            "test_delete_and_pin_isolation_across_different_users: PASS",
+            "test_truthful_delivery_status_reporting: PASS",
+            "test_role_based_notification_isolation: PASS"
+          ]
+        },
+        {
+          "file": "tests/test_phase11_notifications.py",
+          "passed": 23,
+          "status": "PASS"
+        },
+        {
+          "file": "tests/test_fcm_and_scheduled_notifications.py",
+          "passed": 7,
+          "status": "PASS"
+        }
+      ]
+    },
+    "mobile_flutter_test": {
+      "command": "flutter test",
+      "total_tests": 131,
+      "passed": 131,
+      "failed": 0,
+      "execution_time_seconds": 9.0,
+      "status": "ALL_PASSED",
+      "key_suite": {
+        "file": "test/notification_delete_pin_test.dart",
+        "tests": [
+          "NotificationModel correctly parses isPinned and isDeleted fields: PASS",
+          "NotificationService sorts pinned notifications to top deterministically: PASS",
+          "removeNotificationLocally immediately removes item without network wait: PASS",
+          "Dismissible confirmDismiss logic distinguishes swipe left and swipe right: PASS"
+        ]
+      }
+    },
+    "static_analysis": {
+      "command": "flutter analyze",
+      "issues_count": 0,
+      "status": "CLEAN_NO_ISSUES"
+    }
+  },
+  "database_schema_modifications": {
+    "table": "notification_logs",
+    "added_columns": [
+      {"name": "is_pinned", "type": "BOOLEAN", "default": false, "indexed": true},
+      {"name": "pinned_at", "type": "DATETIME", "nullable": true},
+      {"name": "is_deleted", "type": "BOOLEAN", "default": false, "indexed": true},
+      {"name": "deleted_at", "type": "DATETIME", "nullable": true}
+    ],
+    "added_indexes": [
+      "ix_notif_log_user_deleted (user_id, is_deleted)",
+      "ix_notif_log_user_pinned (user_id, is_pinned, pinned_at)"
+    ]
+  },
+  "api_endpoints_added": [
+    {
+      "method": "DELETE",
+      "path": "/api/v1/notifications/{log_id}",
+      "description": "Soft-deletes a notification for the authenticated user",
+      "status_code": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/notifications/{log_id}/pin",
+      "description": "Pins a notification to the top of the user's inbox",
+      "status_code": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/notifications/{log_id}/unpin",
+      "description": "Unpins a notification and restores chronological ordering",
+      "status_code": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/notifications/history",
+      "description": "Fetches inbox history excluding deleted items, sorted by pinned desc, created_at desc",
+      "status_code": 200
+    }
+  ],
+  "visual_evidence_artifacts": [
+    "reports/samsung_s24_screen.png",
+    "reports/samsung_s24_notif_screen2.png",
+    "reports/samsung_s24_after_pin.png",
+    "reports/samsung_s24_after_delete.png"
+  ]
+}

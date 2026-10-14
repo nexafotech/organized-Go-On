@@ -272,6 +272,11 @@ def import_faculty(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
     seen_in_batch = set()
     current_faculty_count = db.query(Faculty).count()
 
+    existing_users = {u.username: u for u in db.query(User).all()}
+    existing_fac = {f.employee_id: f for f in db.query(Faculty).all()}
+    existing_emails = {u.email: u.id for u in db.query(User).filter(User.email.isnot(None)).all()}
+    pw_cache: Dict[str, str] = {}
+
     for idx, item in enumerate(items):
         username = item.get("username", "").strip()
         email = item.get("email", "").strip()
@@ -290,13 +295,13 @@ def import_faculty(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
         seen_in_batch.add(username)
         seen_in_batch.add(employee_id)
 
-        existing_user = db.query(User).filter(User.username == username).first()
-        existing_fac = db.query(Faculty).filter(Faculty.employee_id == employee_id).first()
+        existing_user = existing_users.get(username)
+        existing_faculty = existing_fac.get(employee_id)
 
-        if existing_user or existing_fac:
-            if existing_user and existing_fac and existing_user.id == existing_fac.user_id:
-                if existing_user.email == email and existing_fac.full_name == (full_name or username):
-                    skipped.append(existing_fac)
+        if existing_user or existing_faculty:
+            if existing_user and existing_faculty and existing_user.id == existing_faculty.user_id:
+                if existing_user.email == email and existing_faculty.full_name == (full_name or username):
+                    skipped.append(existing_faculty)
                     continue
             errors.append(f"Row {idx+1}: Faculty '{username}' / '{employee_id}' already exists with conflicting details")
             continue
@@ -305,10 +310,14 @@ def import_faculty(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
             errors.append(f"Maximum faculty capacity of {settings.MAX_FACULTY} has been reached.")
             break
 
+        if password not in pw_cache:
+            pw_cache[password] = get_password_hash(password)
+        hashed_pw = pw_cache[password]
+
         user = User(
             username=username,
             email=email,
-            hashed_password=get_password_hash(password),
+            hashed_password=hashed_pw,
             role=UserRole.FACULTY,
             is_active=True,
             login_identifier=employee_id
@@ -324,6 +333,11 @@ def import_faculty(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
         )
         db.add(fac)
         created.append(fac)
+
+        existing_users[username] = user
+        existing_fac[employee_id] = fac
+        if email:
+            existing_emails[email] = user.id
 
     if errors:
         db.rollback()
@@ -407,6 +421,12 @@ def import_students(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
     seen_in_batch = set()
     current_student_count = db.query(Student).count()
 
+    existing_students = {s.roll_number: s for s in db.query(Student).all()}
+    existing_users = {u.username: u for u in db.query(User).all()}
+    existing_emails = {u.email: u.id for u in db.query(User).filter(User.email.isnot(None)).all()}
+    class_map = {cs.name: cs.id for cs in db.query(ClassSection).all()}
+    pw_cache: Dict[str, str] = {}
+
     for idx, item in enumerate(items):
         roll_number = item.get("roll_number", "").strip()
         full_name = item.get("full_name", "").strip()
@@ -425,14 +445,17 @@ def import_students(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
 
         cs_id = None
         if class_name:
-            cs = db.query(ClassSection).filter(ClassSection.name == class_name).first()
-            if not cs:
-                errors.append(f"Row {idx+1}: Class section '{class_name}' not found")
-                continue
-            cs_id = cs.id
+            cs_id = class_map.get(class_name)
+            if not cs_id:
+                cs = db.query(ClassSection).filter(ClassSection.name == class_name).first()
+                if not cs:
+                    errors.append(f"Row {idx+1}: Class section '{class_name}' not found")
+                    continue
+                cs_id = cs.id
+                class_map[class_name] = cs_id
 
-        existing_st = db.query(Student).filter(Student.roll_number == roll_number).first()
-        existing_usr = db.query(User).filter(User.username == roll_number).first()
+        existing_st = existing_students.get(roll_number)
+        existing_usr = existing_users.get(roll_number)
 
         if existing_st or existing_usr:
             if existing_st and existing_usr and existing_st.user_id == existing_usr.id:
@@ -442,7 +465,7 @@ def import_students(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
             errors.append(f"Row {idx+1}: Student roll_number '{roll_number}' already exists")
             continue
 
-        if email and db.query(User).filter(User.email == email).first():
+        if email and email in existing_emails:
             errors.append(f"Row {idx+1}: User email '{email}' already exists")
             continue
 
@@ -450,10 +473,14 @@ def import_students(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
             errors.append(f"Maximum student capacity of {settings.MAX_STUDENTS} has been reached.")
             break
 
+        if password not in pw_cache:
+            pw_cache[password] = get_password_hash(password)
+        hashed_pw = pw_cache[password]
+
         user = User(
             username=roll_number,
             email=email or f"{roll_number.lower()}@student.college.edu",
-            hashed_password=get_password_hash(password),
+            hashed_password=hashed_pw,
             role=UserRole.STUDENT,
             is_active=True,
             login_identifier=roll_number
@@ -470,6 +497,11 @@ def import_students(db: Session, items: List[Dict[str, Any]]) -> Dict[str, Any]:
         )
         db.add(st)
         created.append(st)
+
+        existing_students[roll_number] = st
+        existing_users[roll_number] = user
+        assigned_email = email or f"{roll_number.lower()}@student.college.edu"
+        existing_emails[assigned_email] = user.id
 
     if errors:
         db.rollback()

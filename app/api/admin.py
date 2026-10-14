@@ -5,9 +5,9 @@ import uuid
 import json
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password
@@ -98,7 +98,7 @@ def _add_audit(db: Session, actor_user_id: int, action: str, details: str, targe
 
 @router.get("/capacity-stats", response_model=CapacityStatsOut)
 def get_capacity_stats(db: Session = Depends(get_db)):
-    """Returns real-time capacity statistics for Students (130 max) and Faculty (15 max)."""
+    """Returns real-time capacity statistics for Students and Faculty."""
     student_count = db.query(Student).count()
     faculty_count = db.query(Faculty).count()
     return CapacityStatsOut(
@@ -121,12 +121,17 @@ def get_capacity_stats(db: Session = Depends(get_db)):
 
 @router.get("/faculty", response_model=List[FacultyOut])
 def list_faculty(
+    response: Response,
     search: Optional[str] = None,
     department: Optional[str] = None,
     is_active: Optional[bool] = None,
+    skip: int = Query(0, ge=0),
+    limit: Optional[int] = Query(None, ge=1, le=10000),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Faculty).join(User, Faculty.user_id == User.id)
+    query = db.query(Faculty).join(User, Faculty.user_id == User.id).options(
+        joinedload(Faculty.user)
+    )
     
     if search:
         s = f"%{search.strip()}%"
@@ -140,6 +145,14 @@ def list_faculty(
         query = query.filter(Faculty.department == department)
     if is_active is not None:
         query = query.filter(User.is_active == is_active)
+
+    total_count = query.count()
+    if response:
+        response.headers["X-Total-Count"] = str(total_count)
+    if skip > 0:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
 
     faculties = query.all()
     result = []
@@ -450,6 +463,7 @@ def reset_faculty_password(
     user.failed_login_attempts = 0
     user.locked_until = None
     user.session_token = None  # Invalidate active sessions
+    user.password_changed_at = datetime.now(timezone.utc)
 
     _add_audit(db, current_user.id, "RESET_FACULTY_PASSWORD",
                f"Password reset for faculty ID {faculty_id} ({faculty.full_name})")
@@ -554,12 +568,19 @@ def delete_faculty(
 
 @router.get("/students", response_model=List[StudentOut])
 def list_students(
+    response: Response,
     search: Optional[str] = None,
     class_id: Optional[int] = None,
     is_active: Optional[bool] = None,
+    skip: int = Query(0, ge=0),
+    limit: Optional[int] = Query(None, ge=1, le=10000),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Student)
+    query = db.query(Student).options(
+        joinedload(Student.user),
+        joinedload(Student.class_section),
+        selectinload(Student.face_embeddings)
+    )
 
     if search:
         s = f"%{search.strip()}%"
@@ -572,6 +593,14 @@ def list_students(
         query = query.filter(Student.class_id == class_id)
     if is_active is not None:
         query = query.filter(Student.is_active == is_active)
+
+    total_count = query.count()
+    if response:
+        response.headers["X-Total-Count"] = str(total_count)
+    if skip > 0:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
 
     students = query.all()
     result = []
@@ -985,6 +1014,7 @@ def reset_student_password(
     user.failed_login_attempts = 0
     user.locked_until = None
     user.session_token = None  # Invalidate active sessions
+    user.password_changed_at = datetime.now(timezone.utc)
 
     _add_audit(db, current_user.id, "RESET_STUDENT_PASSWORD",
                f"Password reset for student {student.full_name} (ID {student_id})")
@@ -3190,7 +3220,7 @@ def update_admin_user(
     if data.is_active is not None and data.is_active != u.is_active:
         u.is_active = data.is_active
         if not data.is_active:
-            u.session_token = None
+            u.session_token = "REVOKED"
         changes.append(f"is_active -> {data.is_active}")
 
     if data.force_password_change is not None and data.force_password_change != u.force_password_change:
@@ -3204,7 +3234,7 @@ def update_admin_user(
 
     if data.new_password:
         u.hashed_password = get_password_hash(data.new_password)
-        u.session_token = None
+        u.session_token = "REVOKED"
         u.failed_login_attempts = 0
         u.locked_until = None
         u.password_changed_at = datetime.now(timezone.utc)
@@ -3282,7 +3312,7 @@ def admin_toggle_user_active(
 
     u.is_active = not u.is_active
     if not u.is_active:
-        u.session_token = None
+        u.session_token = "REVOKED"
 
     # Sync linked student or faculty if any
     if u.student_profile:

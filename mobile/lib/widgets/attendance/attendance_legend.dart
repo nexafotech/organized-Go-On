@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
-import '../common/app_card.dart';
 
 class AttendanceLegend extends StatelessWidget {
   final bool compact;
@@ -17,51 +16,51 @@ class AttendanceLegend extends StatelessWidget {
     String? note,
   }) {
     final colors = context.colors;
-    final typography = context.typography;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: colors.glassSurfaceSubtle,
-        borderRadius: AppRadius.smallBorder,
-        border: Border.all(color: colors.glassBorder),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.glassBorderStrong),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 22,
-            height: 22,
+            width: 24,
+            height: 24,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: color.withValues(alpha: 0.7), width: 1.1),
             ),
             child: Text(
               code,
-              style: typography.numericCell.copyWith(
+              style: TextStyle(
                 color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text(
             label,
-            style: typography.bodySmall.copyWith(
+            style: TextStyle(
               color: colors.textPrimary,
-              fontWeight: FontWeight.w600,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
           if (note != null && note.isNotEmpty) ...[
-            const SizedBox(width: 4),
+            const SizedBox(width: 5),
             Text(
               '($note)',
-              style: typography.caption.copyWith(
+              style: TextStyle(
                 color: colors.textMuted,
+                fontSize: 10,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -74,33 +73,40 @@ class AttendanceLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final typography = context.typography;
 
-    return GlassCard(
-      variant: GlassCardVariant.muted,
-      padding: const EdgeInsets.all(AppSpacing.md),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.glassSurfaceStrong,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: colors.glassBorderStrong,
+          width: 1.2,
+        ),
+        boxShadow: AppGlass.shadow,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.info_outline_rounded, size: AppIconSize.statusChip, color: colors.textMuted),
-              const SizedBox(width: 6),
+              Icon(Icons.info_outline_rounded, size: 16, color: colors.primary),
+              const SizedBox(width: 8),
               Text(
                 'ATTENDANCE STATUS LEGEND',
-                style: typography.caption.copyWith(
-                  color: colors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 2,
-            runSpacing: 2,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _buildLegendItem(
                 context,

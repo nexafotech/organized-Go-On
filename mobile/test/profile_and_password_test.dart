@@ -60,6 +60,8 @@ class MockAuthServiceForProfile extends ChangeNotifier implements AuthService {
   @override
   Future<Map<String, dynamic>> validateIdentifier(String identifier, {String role = 'FACULTY'}) async =>
       {'valid': true, 'role': role, 'message': null, 'is_network_error': false};
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class MockStudentServiceForProfile extends ChangeNotifier implements StudentService {
@@ -97,6 +99,8 @@ class MockStudentServiceForProfile extends ChangeNotifier implements StudentServ
   Future<void> fetchAttendanceReportFiltered({int? subjectId, String? startDate, String? endDate}) async {}
   @override
   Future<void> loadDashboardData() async {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {

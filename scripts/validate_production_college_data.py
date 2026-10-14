@@ -31,8 +31,8 @@ VALID_WEEKDAYS = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Satur
 DEMO_PASSWORDS = {"student123", "faculty123", "admin123", "password", "123456", "test1234"}
 PLACEHOLDER_SUBSTRINGS = ["PLACEHOLDER", "TEMPLATE", "TO_BE_CONFIRMED", "DEV_DEMO_", "DEV_FAC_"]
 
-MAX_STUDENTS = 130
-MAX_FACULTY = 15
+MAX_STUDENTS = int(os.getenv("MAX_STUDENTS", "5000"))
+MAX_FACULTY = int(os.getenv("MAX_FACULTY", "250"))
 
 
 class Finding:

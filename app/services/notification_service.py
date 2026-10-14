@@ -176,11 +176,137 @@ class NotificationService:
 
     @staticmethod
     def get_unread_count(db: Session, user_id: int) -> int:
-        """Returns the number of unread notifications for a user."""
+        """Returns the number of unread notifications for a user, excluding soft-deleted items."""
         return db.query(NotificationLog).filter(
             NotificationLog.user_id == user_id,
             NotificationLog.is_read == False,
+            NotificationLog.is_deleted == False,
         ).count()
+
+    @staticmethod
+    def get_user_notification_history(
+        db: Session,
+        user_id: int,
+        skip: int = 0,
+        limit: int = 50,
+        unread_only: bool = False,
+    ) -> List[NotificationLog]:
+        """
+        Returns notifications for the user, strictly excluding soft-deleted items.
+        Sorted deterministically:
+        1. Pinned notifications first (ordered by pinned_at.desc(), then created_at.desc())
+        2. Unpinned notifications (ordered by created_at.desc())
+        """
+        query = db.query(NotificationLog).filter(
+            NotificationLog.user_id == user_id,
+            NotificationLog.is_deleted == False,
+        )
+        if unread_only:
+            query = query.filter(NotificationLog.is_read == False)
+        return (
+            query
+            .order_by(
+                NotificationLog.is_pinned.desc(),
+                NotificationLog.pinned_at.desc(),
+                NotificationLog.created_at.desc(),
+            )
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    @staticmethod
+    def soft_delete_notification(db: Session, log_id: int, user_id: int) -> bool:
+        """
+        Soft-deletes a notification for the authenticated user so it never reappears
+        in the user's inbox, while preserving audit/admin history.
+        """
+        log = db.query(NotificationLog).filter(
+            NotificationLog.id == log_id,
+            NotificationLog.user_id == user_id,
+            NotificationLog.is_deleted == False,
+        ).first()
+        if not log:
+            return False
+        log.is_deleted = True
+        log.deleted_at = datetime.now(timezone.utc)
+        db.commit()
+        return True
+
+    @staticmethod
+    def delete_all_unpinned_notifications(db: Session, user_id: int) -> dict:
+        """
+        Transactional bulk soft-deletion of all unpinned notifications for the authenticated user.
+        Strictly preserves every pinned notification.
+        Preserves administrative audit history while ensuring unpinned notifications
+        never reappear in the user's inbox, counts, or history.
+        """
+        try:
+            now = datetime.now(timezone.utc)
+            pinned_count = db.query(NotificationLog).filter(
+                NotificationLog.user_id == user_id,
+                NotificationLog.is_deleted == False,
+                NotificationLog.is_pinned == True,
+            ).count()
+
+            unpinned_query = db.query(NotificationLog).filter(
+                NotificationLog.user_id == user_id,
+                NotificationLog.is_deleted == False,
+                NotificationLog.is_pinned == False,
+            )
+
+            deleted_count = unpinned_query.update(
+                {
+                    NotificationLog.is_deleted: True,
+                    NotificationLog.deleted_at: now,
+                },
+                synchronize_session="fetch",
+            )
+            db.commit()
+
+            return {
+                "success": True,
+                "deleted_count": deleted_count,
+                "pinned_preserved_count": pinned_count,
+                "message": f"Successfully deleted {deleted_count} unpinned notification(s). Kept {pinned_count} pinned notification(s).",
+            }
+        except Exception:
+            db.rollback()
+            raise
+
+    @staticmethod
+    def pin_notification(db: Session, log_id: int, user_id: int) -> bool:
+        """
+        Pins a notification to the top for the authenticated user.
+        """
+        log = db.query(NotificationLog).filter(
+            NotificationLog.id == log_id,
+            NotificationLog.user_id == user_id,
+            NotificationLog.is_deleted == False,
+        ).first()
+        if not log:
+            return False
+        log.is_pinned = True
+        log.pinned_at = datetime.now(timezone.utc)
+        db.commit()
+        return True
+
+    @staticmethod
+    def unpin_notification(db: Session, log_id: int, user_id: int) -> bool:
+        """
+        Unpins a notification for the authenticated user.
+        """
+        log = db.query(NotificationLog).filter(
+            NotificationLog.id == log_id,
+            NotificationLog.user_id == user_id,
+            NotificationLog.is_deleted == False,
+        ).first()
+        if not log:
+            return False
+        log.is_pinned = False
+        log.pinned_at = None
+        db.commit()
+        return True
 
     @staticmethod
     def mark_notification_as_read(db: Session, log_id: int, user_id: int) -> bool:
@@ -188,6 +314,7 @@ class NotificationService:
         log = db.query(NotificationLog).filter(
             NotificationLog.id == log_id,
             NotificationLog.user_id == user_id,
+            NotificationLog.is_deleted == False,
         ).first()
         if not log:
             return False
@@ -204,6 +331,7 @@ class NotificationService:
         updated = db.query(NotificationLog).filter(
             NotificationLog.user_id == user_id,
             NotificationLog.is_read == False,
+            NotificationLog.is_deleted == False,
         ).update({"is_read": True, "read_at": now})
         db.commit()
         return updated
@@ -516,6 +644,20 @@ class NotificationService:
                         "devices_notified": len(push_res),
                     })
 
+        try:
+            last_run_setting = db.query(SystemSetting).filter(SystemSetting.key == "notification.last_reminder_check_at").first()
+            if last_run_setting:
+                last_run_setting.value = now_dt.isoformat()
+            else:
+                db.add(SystemSetting(
+                    key="notification.last_reminder_check_at",
+                    value=now_dt.isoformat(),
+                    description="Last heartbeat timestamp of Next-Class Reminder Engine",
+                ))
+            db.commit()
+        except Exception:
+            pass
+
         return {
             "date": date_str,
             "current_time": now_dt.strftime("%H:%M"),
@@ -738,21 +880,34 @@ class NotificationService:
         now_dt = get_kolkata_now()
         base_vars.setdefault("date", now_dt.strftime("%d-%m-%Y"))
 
-        recipients_count = 0
+        recipients_count = len(recipient_users)
         date_str = now_dt.strftime("%Y-%m-%d")
 
-        for user in recipient_users:
-            user_vars = dict(base_vars)
-            user_vars.setdefault("name", user.username)
-            if user.role == UserRole.STUDENT and user.student_profile:
-                user_vars["name"] = user.student_profile.full_name
-                if user.student_profile.class_section:
-                    user_vars.setdefault("class_name", user.student_profile.class_section.name)
-            elif user.role == UserRole.FACULTY and user.faculty_profile:
-                user_vars["name"] = user.faculty_profile.full_name
+        devices_targeted_count = 0
+        devices_sent_count = 0
+        devices_failed_count = 0
+        deactivated_tokens_count = 0
 
-            resolved_title = substitute_template(title, user_vars)
-            resolved_body = substitute_template(body, user_vars)
+        # Pre-fetch all active device tokens for the recipient group in a single query
+        user_ids = [u.id for u in recipient_users]
+        active_tokens = (
+            db.query(DeviceToken)
+            .filter(DeviceToken.user_id.in_(user_ids), DeviceToken.is_active == True)
+            .all()
+        )
+        tokens_by_user: Dict[int, List[DeviceToken]] = {}
+        for dev in active_tokens:
+            tokens_by_user.setdefault(dev.user_id, []).append(dev)
+
+        # Check if personalized template substitution is needed
+        has_per_user_vars = any(tag in title or tag in body for tag in ["{{name}}", "{{class_name}}", "{{roll_number}}", "{{employee_id}}"])
+
+        logs_to_add: List[NotificationLog] = []
+
+        if not has_per_user_vars:
+            # Common broadcast message across all recipients
+            resolved_title = substitute_template(title, base_vars)
+            resolved_body = substitute_template(body, base_vars)
 
             data_payload = {
                 "type": "admin_custom",
@@ -761,50 +916,156 @@ class NotificationService:
                 "priority": "high" if is_high else "normal",
             }
 
-            push_results = FCMService.send_push_to_user_devices(
-                db=db,
-                user_id=user.id,
-                title=resolved_title,
-                body=resolved_body,
-                data=data_payload,
-                channel_id=channel,
-                high_importance=is_high,
-            )
+            all_token_strings = list({dev.token for dev in active_tokens if dev.token})
+            multicast_res = {
+                "total_tokens": 0,
+                "sent_count": 0,
+                "failed_count": 0,
+                "deactivated_tokens": 0,
+                "simulated": False,
+            }
+            if all_token_strings:
+                multicast_res = FCMService.send_multicast_push(
+                    db=db,
+                    tokens=all_token_strings,
+                    title=resolved_title,
+                    body=resolved_body,
+                    data=data_payload,
+                    channel_id=channel,
+                    high_importance=is_high,
+                )
 
-            # Determine delivery outcome
-            if not push_results:
-                delivery_status = NotificationDeliveryStatus.STORED.value
-                error_msg = "No registered push device tokens. Notification stored in database history."
-            elif any(r.get("simulated", False) for r in push_results):
-                delivery_status = NotificationDeliveryStatus.SIMULATED.value
-                error_msg = "Simulated push dispatch (Firebase credentials not configured)."
-            elif any(r.get("success", False) for r in push_results):
-                delivery_status = NotificationDeliveryStatus.PROVIDER_ACCEPTED.value
-                error_msg = None
-            else:
-                delivery_status = NotificationDeliveryStatus.FAILED.value
-                error_msg = "; ".join([r.get("error", "Push failed") for r in push_results if not r.get("success")])
+            devices_targeted_count = multicast_res.get("total_tokens", 0)
+            devices_sent_count = multicast_res.get("sent_count", 0)
+            devices_failed_count = multicast_res.get("failed_count", 0)
+            deactivated_tokens_count = multicast_res.get("deactivated_tokens", 0)
+            is_simulated = multicast_res.get("simulated", False)
 
-            log = NotificationLog(
-                user_id=user.id,
-                notification_type=NotificationType.ADMIN.value,
-                channel_id=channel,
-                title=resolved_title,
-                body=resolved_body,
-                data_payload=json.dumps(data_payload),
-                reference_date=date_str,
-                status=delivery_status,
-                error_message=error_msg,
-                is_read=False,
-            )
-            db.add(log)
-            recipients_count += 1
+            successful_tokens_set = set(multicast_res.get("successful_tokens", []))
+            failed_tokens_set = set(multicast_res.get("failed_tokens", []))
+
+            # Record notification log for each recipient
+            for user in recipient_users:
+                user_tokens = [dev.token for dev in tokens_by_user.get(user.id, []) if dev.token]
+                if not user_tokens:
+                    del_status = NotificationDeliveryStatus.STORED.value
+                    err_note = "No active device registered. Stored in notification history."
+                elif is_simulated:
+                    del_status = NotificationDeliveryStatus.SIMULATED.value
+                    err_note = "Simulated push dispatch."
+                elif any(t in successful_tokens_set for t in user_tokens):
+                    del_status = NotificationDeliveryStatus.PROVIDER_ACCEPTED.value
+                    err_note = None
+                elif all(t in failed_tokens_set for t in user_tokens):
+                    del_status = NotificationDeliveryStatus.FAILED.value
+                    err_note = "Push notification delivery failed for user device(s)."
+                else:
+                    del_status = NotificationDeliveryStatus.PROVIDER_ACCEPTED.value if devices_sent_count > 0 else NotificationDeliveryStatus.FAILED.value
+                    err_note = None if devices_sent_count > 0 else "Push delivery failed."
+
+                log = NotificationLog(
+                    user_id=user.id,
+                    notification_type=NotificationType.ADMIN.value,
+                    channel_id=channel,
+                    title=resolved_title,
+                    body=resolved_body,
+                    data_payload=json.dumps(data_payload),
+                    reference_date=date_str,
+                    status=del_status,
+                    error_message=err_note,
+                    is_read=False,
+                )
+                logs_to_add.append(log)
+                if len(logs_to_add) >= 250:
+                    db.add_all(logs_to_add)
+                    db.commit()
+                    logs_to_add.clear()
+        else:
+            # Personalized per-user messages
+            data_payload = {
+                "type": "admin_custom",
+                "route": safe_route,
+                "audience": audience,
+                "priority": "high" if is_high else "normal",
+            }
+            for user in recipient_users:
+                user_vars = dict(base_vars)
+                user_vars.setdefault("name", user.username)
+                if user.role == UserRole.STUDENT and user.student_profile:
+                    user_vars["name"] = user.student_profile.full_name
+                    if user.student_profile.class_section:
+                        user_vars.setdefault("class_name", user.student_profile.class_section.name)
+                elif user.role == UserRole.FACULTY and user.faculty_profile:
+                    user_vars["name"] = user.faculty_profile.full_name
+
+                resolved_title = substitute_template(title, user_vars)
+                resolved_body = substitute_template(body, user_vars)
+
+                user_devices = tokens_by_user.get(user.id, [])
+                push_results = []
+                for dev in user_devices:
+                    devices_targeted_count += 1
+                    res = FCMService.send_push_to_token(
+                        db=db,
+                        token=dev.token,
+                        title=resolved_title,
+                        body=resolved_body,
+                        data=data_payload,
+                        channel_id=channel,
+                        high_importance=is_high,
+                    )
+                    push_results.append(res)
+                    if res.get("success"):
+                        devices_sent_count += 1
+                    else:
+                        devices_failed_count += 1
+                    if res.get("deactivated"):
+                        deactivated_tokens_count += 1
+
+                if not push_results:
+                    delivery_status = NotificationDeliveryStatus.STORED.value
+                    error_msg = "No registered push device tokens. Notification stored in database history."
+                elif any(r.get("simulated", False) for r in push_results):
+                    delivery_status = NotificationDeliveryStatus.SIMULATED.value
+                    error_msg = "Simulated push dispatch (Firebase credentials not configured)."
+                elif any(r.get("success", False) for r in push_results):
+                    delivery_status = NotificationDeliveryStatus.PROVIDER_ACCEPTED.value
+                    error_msg = None
+                else:
+                    delivery_status = NotificationDeliveryStatus.FAILED.value
+                    error_msg = "; ".join([r.get("error", "Push failed") for r in push_results if not r.get("success")])
+
+                log = NotificationLog(
+                    user_id=user.id,
+                    notification_type=NotificationType.ADMIN.value,
+                    channel_id=channel,
+                    title=resolved_title,
+                    body=resolved_body,
+                    data_payload=json.dumps(data_payload),
+                    reference_date=date_str,
+                    status=delivery_status,
+                    error_message=error_msg,
+                    is_read=False,
+                )
+                logs_to_add.append(log)
+                if len(logs_to_add) >= 250:
+                    db.add_all(logs_to_add)
+                    db.commit()
+                    logs_to_add.clear()
+
+        if logs_to_add:
+            db.add_all(logs_to_add)
+            db.commit()
 
         admin_id = admin_user.id if admin_user else None
         audit = AuditLog(
             user_id=admin_id,
             action="SEND_ADMIN_NOTIFICATION",
-            details=f"Audience: {audience} | Target: {target_type} ({target_id or 'all'}) | Recipients: {recipients_count} | Channel: {channel} | Title: {title[:50]}",
+            details=(
+                f"Audience: {audience} | Target: {target_type} ({target_id or 'all'}) | "
+                f"Recipients: {recipients_count} | Devices: {devices_targeted_count} targeted, "
+                f"{devices_sent_count} sent, {devices_failed_count} failed | Channel: {channel} | Title: {title[:50]}"
+            ),
         )
         db.add(audit)
         db.commit()
@@ -812,13 +1073,18 @@ class NotificationService:
         return {
             "success": True,
             "recipients_count": recipients_count,
+            "devices_targeted": devices_targeted_count,
+            "devices_sent": devices_sent_count,
+            "devices_failed": devices_failed_count,
+            "deactivated_tokens": deactivated_tokens_count,
             "notification_type": NotificationType.ADMIN.value,
             "channel": channel,
             "title": title,
             "body": body,
             "status": "SENT",
-            "message": f"Successfully sent notification to {recipients_count} recipient(s)",
+            "message": f"Successfully processed notification for {recipients_count} recipient(s) ({devices_sent_count} push notifications dispatched)",
         }
+
 
     @staticmethod
     def send_custom_admin_notification(
@@ -843,6 +1109,34 @@ class NotificationService:
             now_utc = datetime.now(timezone.utc)
             target_utc = scheduled_at if scheduled_at.tzinfo else scheduled_at.replace(tzinfo=TIMEZONE_KOLKATA).astimezone(timezone.utc)
             if target_utc > now_utc + timedelta(seconds=30):
+                # Duplicate suppression for pending scheduled items
+                existing_sched = (
+                    db.query(ScheduledNotification)
+                    .filter(
+                        ScheduledNotification.admin_id == admin_user.id,
+                        ScheduledNotification.audience == audience.strip().upper(),
+                        ScheduledNotification.target_type == target_type.strip().upper(),
+                        ScheduledNotification.target_id == target_id,
+                        ScheduledNotification.title == title.strip(),
+                        ScheduledNotification.body == body.strip(),
+                        ScheduledNotification.status == "PENDING",
+                        ScheduledNotification.scheduled_at == target_utc,
+                    )
+                    .first()
+                )
+                if existing_sched:
+                    return {
+                        "success": True,
+                        "recipients_count": 0,
+                        "notification_type": NotificationType.ADMIN.value,
+                        "channel": channel,
+                        "title": title,
+                        "body": body,
+                        "status": "SCHEDULED",
+                        "scheduled_at": existing_sched.scheduled_at,
+                        "message": f"Notification already scheduled for {target_utc.strftime('%Y-%m-%d %H:%M:%S UTC')} (duplicate suppressed)",
+                    }
+
                 sched = ScheduledNotification(
                     admin_id=admin_user.id,
                     audience=audience.strip().upper(),
@@ -877,6 +1171,36 @@ class NotificationService:
                     "message": f"Notification successfully scheduled for {target_utc.strftime('%Y-%m-%d %H:%M:%S UTC')}",
                 }
 
+        # Duplicate broadcast suppression: check if an identical notification was sent by this admin within 10 seconds
+        ten_seconds_ago = datetime.now(timezone.utc) - timedelta(seconds=10)
+        recent_duplicate = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.user_id == (admin_user.id if admin_user else None),
+                AuditLog.action == "SEND_ADMIN_NOTIFICATION",
+                AuditLog.timestamp >= ten_seconds_ago,
+                AuditLog.details.like(f"%Audience: {audience.strip().upper()} | Target: {target_type.strip().upper()}%"),
+                AuditLog.details.like(f"%Title: {title.strip()[:50]}%"),
+            )
+            .first()
+        )
+        if recent_duplicate:
+            logger.info("Suppressed duplicate broadcast within 10s window: %s", recent_duplicate.details)
+            return {
+                "success": True,
+                "recipients_count": 0,
+                "devices_targeted": 0,
+                "devices_sent": 0,
+                "devices_failed": 0,
+                "deactivated_tokens": 0,
+                "notification_type": NotificationType.ADMIN.value,
+                "channel": channel,
+                "title": title,
+                "body": body,
+                "status": "DUPLICATE_SUPPRESSED",
+                "message": "Duplicate broadcast suppressed within 10-second deduplication window.",
+            }
+
         return NotificationService._dispatch_notification_to_recipients(
             db=db,
             admin_user=admin_user,
@@ -895,6 +1219,7 @@ class NotificationService:
     def process_due_scheduled_notifications(db: Session) -> int:
         """
         Processes and dispatches pending scheduled notifications whose scheduled_at time has arrived.
+        Uses atomic state transition to prevent concurrent scheduler workers from duplicate dispatch.
         """
         now_utc = datetime.now(timezone.utc)
         due_items = (
@@ -910,6 +1235,19 @@ class NotificationService:
 
         dispatched_count = 0
         for item in due_items:
+            # Atomic lock: transition status from PENDING to PROCESSING to prevent duplicate dispatch
+            updated = (
+                db.query(ScheduledNotification)
+                .filter(
+                    ScheduledNotification.id == item.id,
+                    ScheduledNotification.status == "PENDING",
+                )
+                .update({"status": "PROCESSING"})
+            )
+            db.commit()
+            if updated == 0:
+                continue  # Already claimed by another worker
+
             try:
                 admin_user = item.admin or db.query(User).filter(User.role == UserRole.ADMIN).first()
                 res = NotificationService._dispatch_notification_to_recipients(
@@ -930,8 +1268,9 @@ class NotificationService:
             except Exception as e:
                 logger.exception("Failed to dispatch scheduled notification ID %s: %s", item.id, e)
                 item.status = "FAILED"
-        db.commit()
+            db.commit()
         return dispatched_count
+
 
     @staticmethod
     def cancel_scheduled_notification(db: Session, sched_id: int, admin_user: User) -> bool:

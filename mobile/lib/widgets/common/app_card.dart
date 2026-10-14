@@ -94,18 +94,18 @@ class HeroCard extends StatelessWidget {
       width: double.infinity,
       padding: padding ?? const EdgeInsets.all(AppSpacing.heroCardInnerPadding),
       decoration: BoxDecoration(
-        color: colors.hero.withValues(alpha: 0.94),
+        color: colors.hero.withValues(alpha: 0.90),
         borderRadius: effectiveBorderRadius,
         border: Border.all(
-          color: colors.accent.withValues(alpha: 0.32),
-          width: 1.0,
+          color: Colors.white.withValues(alpha: 0.18),
+          width: 1.2,
         ),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.hero.withValues(alpha: 0.96),
-            colors.heroGradientEnd.withValues(alpha: 0.90),
+            colors.hero.withValues(alpha: 0.92),
+            colors.heroGradientEnd.withValues(alpha: 0.95),
           ],
         ),
       ),
@@ -236,15 +236,37 @@ class GlassCard extends StatelessWidget {
       bg = Color.alphaBlend(tint!, bg);
     }
 
-    Widget content = Container(
-      padding: padding ?? const EdgeInsets.all(AppSpacing.cardInnerPadding),
-      decoration: BoxDecoration(
-        color: bg,
-        gradient: gradient,
-        borderRadius: effectiveBorderRadius,
-        border: border,
-      ),
-      child: child,
+    Widget content = Stack(
+      children: [
+        Container(
+          padding: padding ?? const EdgeInsets.all(AppSpacing.cardInnerPadding),
+          decoration: BoxDecoration(
+            color: bg,
+            gradient: gradient,
+            borderRadius: effectiveBorderRadius,
+            border: border,
+          ),
+          child: child,
+        ),
+        // Optical Specular Rim Light on upper edge
+        Positioned(
+          top: 0,
+          left: 14,
+          right: 14,
+          height: 1.2,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  Colors.white.withValues(alpha: 0.35),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
 
     if (onTap != null) {

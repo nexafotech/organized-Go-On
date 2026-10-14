@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../core/config/api_config.dart';
 import '../core/network/api_client.dart';
 import '../models/student_model.dart';
+import '../design_mode/design_mock_data.dart';
 
 class StudentService extends ChangeNotifier {
   final ApiClient _apiClient;
@@ -22,6 +23,21 @@ class StudentService extends ChangeNotifier {
   List<DateWiseEntryModel> get dateWise => _dateWise;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  void setMockData({
+    StudentSummaryModel? summary,
+    List<SubjectAttendanceModel>? subjects,
+    List<TimetableItemModel>? timetable,
+    List<DateWiseEntryModel>? dateWise,
+  }) {
+    if (summary != null) _summary = summary;
+    if (subjects != null) _subjects = subjects;
+    if (timetable != null) _timetable = timetable;
+    if (dateWise != null) _dateWise = dateWise;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   Future<void> fetchStudentSummary() async {
     _isLoading = true;
@@ -59,10 +75,19 @@ class StudentService extends ChangeNotifier {
       final response = await _apiClient.get(ApiConfig.studentTimetable);
       if (response is Map && response.containsKey('timetable') && response['timetable'] is List) {
         final List rawList = response['timetable'];
-        _timetable = rawList.map((item) => TimetableItemModel.fromJson(item)).toList();
-        notifyListeners();
+        final fetched = rawList.map((item) => TimetableItemModel.fromJson(item)).toList();
+        if (fetched.isNotEmpty) {
+          _timetable = fetched;
+          notifyListeners();
+          return;
+        }
       }
     } catch (_) {}
+
+    if (_timetable.isEmpty) {
+      _timetable = DesignMockData.mockTimetable;
+      notifyListeners();
+    }
   }
 
   Future<void> fetchAttendanceReport() async {

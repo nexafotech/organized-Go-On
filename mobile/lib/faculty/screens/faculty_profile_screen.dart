@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/config/api_config.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/theme/theme_service.dart';
 import '../../widgets/widgets.dart';
 import '../../services/auth_service.dart';
 import '../../auth/screens/login_screen.dart';
@@ -243,6 +244,113 @@ class FacultyProfileScreen extends StatelessWidget {
                 _buildInfoTile(context, 'Authenticated Role', user.role, Icons.security_rounded),
                 Divider(height: 1, indent: 56, color: colors.glassBorder),
                 _buildInfoTile(context, 'Backend Server', ApiConfig.baseUrl, Icons.dns_outlined),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Appearance / Theme Preferences Card
+          GlassCard(
+            variant: GlassCardVariant.standard,
+            padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Appearance & Theme',
+                  style: typography.titleMedium.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colors.primary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Toggle between warm cream and obsidian liquid glass styles across the application.',
+                  style: typography.bodySmall.copyWith(color: colors.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SafeThemeConsumer(
+                  builder: (context, themeService, _) {
+                    final isDark = themeService.isDarkMode;
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => themeService.setThemeMode(ThemeMode.light),
+                            borderRadius: AppRadius.pillBorder,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: !isDark ? colors.primary : colors.glassSurfaceSubtle,
+                                borderRadius: AppRadius.pillBorder,
+                                border: Border.all(
+                                  color: !isDark ? colors.primary : colors.glassBorder,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.light_mode_rounded,
+                                    size: 16,
+                                    color: !isDark ? colors.onPrimary : colors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Warm Light',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: !isDark ? colors.onPrimary : colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => themeService.setThemeMode(ThemeMode.dark),
+                            borderRadius: AppRadius.pillBorder,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isDark ? colors.primary : colors.glassSurfaceSubtle,
+                                borderRadius: AppRadius.pillBorder,
+                                border: Border.all(
+                                  color: isDark ? colors.primary : colors.glassBorder,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.dark_mode_rounded,
+                                    size: 16,
+                                    color: isDark ? colors.onPrimary : colors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Obsidian Dark',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: isDark ? colors.onPrimary : colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ),

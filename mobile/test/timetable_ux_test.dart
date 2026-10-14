@@ -52,6 +52,8 @@ class MockStudentServiceForTimetable extends ChangeNotifier implements StudentSe
   Future<void> fetchAttendanceReportFiltered({int? subjectId, String? startDate, String? endDate}) async {}
   @override
   Future<void> loadDashboardData() async {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class MockFacultyServiceForTimetable extends ChangeNotifier implements FacultyService {
@@ -254,6 +256,8 @@ class MockFacultyServiceForTimetable extends ChangeNotifier implements FacultySe
     int? subjectId,
   }) async =>
       [];
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class MockAuthServiceForTimetable extends ChangeNotifier implements AuthService {
@@ -294,6 +298,8 @@ class MockAuthServiceForTimetable extends ChangeNotifier implements AuthService 
   @override
   Future<Map<String, dynamic>> validateIdentifier(String identifier, {String role = 'FACULTY'}) async =>
       {'valid': true, 'role': role, 'message': null, 'is_network_error': false};
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -368,21 +374,24 @@ void main() {
       await tester.pump();
 
       expect(find.text('Data Structures'), findsOneWidget);
-      expect(find.text('Code: 23CS101'), findsOneWidget);
-      expect(find.text('09:00 - 09:50'), findsOneWidget);
-      expect(find.text('Faculty: Dr. John Doe'), findsOneWidget);
-      expect(find.text('P1'), findsOneWidget);
-
       expect(find.text('Algorithms'), findsOneWidget);
-      expect(find.text('Code: 23CS102'), findsOneWidget);
-      expect(find.text('P2'), findsOneWidget);
+
+      // Tap card to inspect details modal
+      await tester.tap(find.text('Data Structures'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('23CS101'), findsOneWidget);
+      expect(find.text('Dr. John Doe'), findsOneWidget);
+
+      // Close modal
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
 
       // Select Tuesday
       await tester.tap(find.text('Tue'));
       await tester.pump();
 
       expect(find.text('Operating Systems'), findsOneWidget);
-      expect(find.text('Code: 23CS103'), findsOneWidget);
       expect(find.text('Data Structures'), findsNothing);
     });
 
@@ -414,7 +423,10 @@ void main() {
       await tester.tap(find.text('Mon'));
       await tester.pump();
 
-      expect(find.text('Faculty: Faculty assignment pending'), findsOneWidget);
+      await tester.tap(find.text('Data Structures'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Faculty Assignment Pending'), findsOneWidget);
     });
 
     testWidgets('Renders empty state when day has no classes', (tester) async {

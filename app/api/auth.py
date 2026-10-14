@@ -367,7 +367,7 @@ def student_logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    current_user.session_token = None
+    current_user.session_token = "REVOKED"
     db.commit()
     response.delete_cookie(key=settings.COOKIE_NAME, path="/")
     return {"message": "Successfully logged out"}
@@ -426,7 +426,7 @@ def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    current_user.session_token = None
+    current_user.session_token = "REVOKED"
     db.commit()
     response.delete_cookie(key=settings.COOKIE_NAME, path="/")
     return {"message": "Successfully logged out"}

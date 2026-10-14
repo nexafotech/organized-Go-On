@@ -6,6 +6,7 @@ import '../../models/notification_model.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/widgets.dart';
 
+/// Notification History Screen for Students and Faculty
 class FacultyNotificationHistoryScreen extends StatefulWidget {
   const FacultyNotificationHistoryScreen({Key? key}) : super(key: key);
 
@@ -52,6 +53,207 @@ class _FacultyNotificationHistoryScreenState
           duration: const Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  Future<void> _handleTogglePin(NotificationItem item) async {
+    final notifService = Provider.of<NotificationService>(context, listen: false);
+    if (item.isPinned) {
+      final success = await notifService.unpinNotification(_apiClient, item.id);
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification unpinned'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      final success = await notifService.pinNotification(_apiClient, item.id);
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification pinned to top'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDelete(NotificationItem item) async {
+    final notifService = Provider.of<NotificationService>(context, listen: false);
+    final success = await notifService.deleteNotification(_apiClient, item.id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Notification deleted' : 'Failed to delete notification',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleDeleteAllUnpinned() async {
+    final notifService = Provider.of<NotificationService>(context, listen: false);
+    final colors = context.colors;
+
+    if (notifService.isBulkDeleting) return;
+
+    final unpinnedCount = notifService.notifications.where((n) => !n.isPinned && !n.isDeleted).length;
+    final pinnedCount = notifService.notifications.where((n) => n.isPinned && !n.isDeleted).length;
+
+    if (unpinnedCount == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              pinnedCount > 0
+                  ? 'All active notifications are pinned. Unpin notifications first to delete them.'
+                  : 'No notifications to delete.',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: colors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: colors.glassBorder),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colors.error.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.delete_sweep_rounded, color: colors.error, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Delete Unpinned?',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to delete all $unpinnedCount unpinned notification${unpinnedCount > 1 ? 's' : ''}?',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colors.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: colors.warning.withValues(alpha: 0.3),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.push_pin_rounded, size: 16, color: colors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        pinnedCount > 0
+                            ? '$pinnedCount pinned notification${pinnedCount > 1 ? 's' : ''} will be kept safe at the top.'
+                            : 'Pinned notifications are always kept safe.',
+                        style: TextStyle(
+                          color: colors.warning,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: colors.textSecondary),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              child: Text(
+                'Delete ($unpinnedCount)',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && mounted) {
+      final result = await notifService.deleteAllUnpinnedNotifications(_apiClient);
+      if (mounted) {
+        if (result['success'] == true) {
+          final deleted = result['deleted_count'] ?? unpinnedCount;
+          final pinnedKept = result['pinned_preserved_count'] ?? pinnedCount;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Deleted $deleted unpinned notification${deleted != 1 ? 's' : ''} ($pinnedKept pinned preserved)',
+              ),
+              duration: const Duration(seconds: 3),
+              backgroundColor: colors.surface,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result['message'] ?? 'Failed to delete unpinned notifications',
+              ),
+              backgroundColor: colors.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -126,8 +328,8 @@ class _FacultyNotificationHistoryScreenState
     final notifService = Provider.of<NotificationService>(context);
 
     final displayedNotifications = _selectedFilterIndex == 1
-        ? notifService.notifications.where((n) => !n.isRead).toList()
-        : notifService.notifications;
+        ? notifService.notifications.where((n) => !n.isRead && !n.isDeleted).toList()
+        : notifService.notifications.where((n) => !n.isDeleted).toList();
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -167,6 +369,20 @@ class _FacultyNotificationHistoryScreenState
               onPressed: _handleMarkAllRead,
             ),
           IconButton(
+            icon: notifService.isBulkDeleting
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colors.textSecondary,
+                    ),
+                  )
+                : const Icon(Icons.delete_outline_rounded),
+            tooltip: 'Delete all unpinned notifications',
+            onPressed: notifService.isBulkDeleting ? null : _handleDeleteAllUnpinned,
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',
             onPressed: _loadNotifications,
@@ -187,9 +403,23 @@ class _FacultyNotificationHistoryScreenState
             ),
             child: Row(
               children: [
-                _buildFilterChip(0, 'All', notifService.notifications.length, colors),
+                _buildFilterChip(
+                  0,
+                  'All',
+                  notifService.notifications.where((n) => !n.isDeleted).length,
+                  colors,
+                ),
                 const SizedBox(width: 8),
                 _buildFilterChip(1, 'Unread', notifService.unreadCount, colors),
+                const Spacer(),
+                Text(
+                  'Swipe left to delete, right to pin',
+                  style: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.7),
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
               ],
             ),
           ),
@@ -371,45 +601,116 @@ class _FacultyNotificationHistoryScreenState
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        return _buildNotificationCard(item, colors);
+        return _buildNotificationCard(item, notifService, colors);
       },
     );
   }
 
-  Widget _buildNotificationCard(NotificationItem item, AppColors colors) {
+  Widget _buildNotificationCard(
+    NotificationItem item,
+    NotificationService notifService,
+    AppColors colors,
+  ) {
     final channelColor = _getChannelColor(item.channelId, colors);
     final channelName = _getChannelName(item.channelId);
     final icon = _getChannelIcon(item.channelId);
     final hasRoute = item.targetRoute != null && item.targetRoute!.isNotEmpty;
 
     return Dismissible(
-      key: Key('notif_${item.id}'),
-      direction: DismissDirection.endToStart,
+      key: ValueKey('notif_card_${item.id}'),
+      direction: DismissDirection.horizontal,
+      // Swipe Right -> Pin / Unpin
       background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: colors.primary.withValues(alpha: 0.8),
+          color: colors.warning.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.check_rounded, color: Colors.white),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              item.isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              item.isPinned ? 'Unpin' : 'Pin to Top',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
-      onDismissed: (_) {
-        _handleMarkRead(item);
+      // Swipe Left -> Delete
+      secondaryBackground: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: colors.error.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(Icons.delete_forever_rounded, color: Colors.white, size: 24),
+          ],
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          // Swipe Right: Pin or Unpin
+          // Return false so widget snaps back cleanly to its slot,
+          // then update pin state post-frame to eliminate in-flight tree mutation during gesture
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _handleTogglePin(item);
+          });
+          return false;
+        } else if (direction == DismissDirection.endToStart) {
+          // Swipe Left: Delete
+          // Immediately and synchronously unregister from local list before tree rebuild
+          notifService.removeNotificationLocally(item.id);
+          return true;
+        }
+        return false;
+      },
+      onDismissed: (direction) {
+        if (direction == DismissDirection.endToStart) {
+          // Persist deletion to backend
+          _handleDelete(item);
+        }
       },
       child: GlassCard(
         variant: item.isRead ? GlassCardVariant.standard : GlassCardVariant.elevated,
         enableBlur: false,
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
         padding: const EdgeInsets.all(AppSpacing.md),
-        borderColor: !item.isRead ? channelColor.withValues(alpha: 0.4) : null,
+        borderColor: item.isPinned
+            ? colors.warning.withValues(alpha: 0.6)
+            : (!item.isRead ? channelColor.withValues(alpha: 0.4) : null),
         child: InkWell(
           onTap: () => _handleItemTap(item),
           borderRadius: BorderRadius.circular(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Row: Channel Badge, Priority, Timestamp, Unread Dot
+              // Header Row: Channel Badge, Pinned Badge, Priority, Timestamp, Actions Menu
               Row(
                 children: [
                   Container(
@@ -417,7 +718,10 @@ class _FacultyNotificationHistoryScreenState
                     decoration: BoxDecoration(
                       color: channelColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: channelColor.withValues(alpha: 0.3), width: 0.8),
+                      border: Border.all(
+                        color: channelColor.withValues(alpha: 0.3),
+                        width: 0.8,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -435,12 +739,41 @@ class _FacultyNotificationHistoryScreenState
                       ],
                     ),
                   ),
+                  if (item.isPinned) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: colors.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: colors.warning.withValues(alpha: 0.5),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.push_pin_rounded, size: 11, color: colors.warning),
+                          const SizedBox(width: 3),
+                          Text(
+                            'PINNED',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: colors.warning,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (item.isHighPriority) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
-                        color: colors.warning.withValues(alpha: 0.12),
+                        color: colors.error.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -448,7 +781,7 @@ class _FacultyNotificationHistoryScreenState
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: colors.warning,
+                          color: colors.error,
                         ),
                       ),
                     ),
@@ -479,18 +812,96 @@ class _FacultyNotificationHistoryScreenState
                       ),
                     ),
                   ],
+                  // Accessibility action pop-up menu
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      size: 18,
+                      color: colors.textSecondary,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Options',
+                    onSelected: (action) {
+                      switch (action) {
+                        case 'pin':
+                          _handleTogglePin(item);
+                          break;
+                        case 'read':
+                          _handleMarkRead(item);
+                          break;
+                        case 'delete':
+                          _handleDelete(item);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'pin',
+                        child: Row(
+                          children: [
+                            Icon(
+                              item.isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+                              size: 16,
+                              color: colors.warning,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(item.isPinned ? 'Unpin' : 'Pin to Top'),
+                          ],
+                        ),
+                      ),
+                      if (!item.isRead)
+                        PopupMenuItem(
+                          value: 'read',
+                          child: Row(
+                            children: [
+                              Icon(Icons.done_rounded, size: 16, color: colors.primary),
+                              const SizedBox(width: 8),
+                              const Text('Mark as Read'),
+                            ],
+                          ),
+                        ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded, size: 16, color: colors.error),
+                            const SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: colors.error)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
 
-              // Title
-              Text(
-                item.title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: item.isRead ? FontWeight.w600 : FontWeight.bold,
-                  color: colors.textPrimary,
-                ),
+              // Title with Pinned Indicator
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (item.isPinned) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, right: 6),
+                      child: Icon(
+                        Icons.push_pin_rounded,
+                        size: 16,
+                        color: colors.warning,
+                      ),
+                    ),
+                  ],
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: item.isRead ? FontWeight.w600 : FontWeight.bold,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
 
@@ -500,7 +911,9 @@ class _FacultyNotificationHistoryScreenState
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.35,
-                  color: item.isRead ? colors.textSecondary : colors.textPrimary.withValues(alpha: 0.9),
+                  color: item.isRead
+                      ? colors.textSecondary
+                      : colors.textPrimary.withValues(alpha: 0.9),
                 ),
               ),
 
@@ -514,7 +927,11 @@ class _FacultyNotificationHistoryScreenState
                     icon: Icon(Icons.arrow_forward_rounded, size: 14, color: channelColor),
                     label: Text(
                       'Open View',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: channelColor),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: channelColor,
+                      ),
                     ),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

@@ -121,17 +121,22 @@ class RecognitionIndexManager:
         )
         student_ids = [s.id for s in students]
 
-        db_embeddings = (
-            db.query(FaceEmbedding)
-            .filter(
-                FaceEmbedding.student_id.in_(student_ids),
-                FaceEmbedding.model_name == engine.model_name,
-                FaceEmbedding.dimension == engine.embedding_dimension,
-                FaceEmbedding.distance_metric == engine.distance_metric
-            )
-            .all()
-            if student_ids else []
-        )
+        db_embeddings = []
+        if student_ids:
+            chunk_size = 900
+            for i in range(0, len(student_ids), chunk_size):
+                chunk = student_ids[i:i + chunk_size]
+                chunk_embs = (
+                    db.query(FaceEmbedding)
+                    .filter(
+                        FaceEmbedding.student_id.in_(chunk),
+                        FaceEmbedding.model_name == engine.model_name,
+                        FaceEmbedding.dimension == engine.embedding_dimension,
+                        FaceEmbedding.distance_metric == engine.distance_metric
+                    )
+                    .all()
+                )
+                db_embeddings.extend(chunk_embs)
 
         # Filter compatible embeddings strictly matching active engine
         compatible_embeddings = [

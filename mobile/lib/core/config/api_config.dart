@@ -12,7 +12,7 @@ class ApiConfig {
       }
       return 'http://127.0.0.1:8000';
     }
-    return 'http://10.50.3.40:8000';
+    return 'http://127.0.0.1:8000';
   }
 
   static const String hotspotUrl = 'http://10.254.103.195:8000';
@@ -227,6 +227,10 @@ class ApiConfig {
   static const String notificationUnreadCount = '/api/v1/notifications/unread-count';
   static String notificationMarkRead(int id) => '/api/v1/notifications/$id/read';
   static const String notificationReadAll = '/api/v1/notifications/read-all';
+  static String notificationDelete(int id) => '/api/v1/notifications/$id';
+  static String notificationPin(int id) => '/api/v1/notifications/$id/pin';
+  static String notificationUnpin(int id) => '/api/v1/notifications/$id/unpin';
+  static const String notificationDeleteUnpinned = '/api/v1/notifications/unpinned';
   static const String adminNotificationSettings = '/api/v1/admin/notifications/settings';
   static const String adminNotificationSend = '/api/v1/admin/notifications/send';
   static const String adminNotificationTrigger = '/api/v1/admin/notifications/trigger-reminders';

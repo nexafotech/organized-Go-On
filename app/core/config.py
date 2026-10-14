@@ -1,20 +1,43 @@
 import os
 
+from typing import List
+
 class Settings:
     PROJECT_NAME: str = "Go-On Attendance System"
     VERSION: str = "2.0.0"
     API_V1_STR: str = "/api/v1"
 
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production-class-attendance-2026")
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development").lower()
+    _DEFAULT_DEV_SECRET: str = "dev-secret-key-change-in-production-class-attendance-2026"
+    SECRET_KEY: str = os.getenv("SECRET_KEY", _DEFAULT_DEV_SECRET)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days session
+
+    # CORS Allowed Origins and Regex Patterns
+    CORS_ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost",
+        "http://127.0.0.1",
+    ]
+    CORS_ORIGIN_REGEX: str = r"^https?:\/\/(localhost|127\.0\.0\.1|([a-zA-Z0-9-]+\.)*trycloudflare\.com)(:\d+)?$"
+
+    def validate_production_configuration(self):
+        """Disallows starting in production mode with known public development secret."""
+        if self.ENVIRONMENT in ("production", "prod") and self.SECRET_KEY == self._DEFAULT_DEV_SECRET:
+            raise RuntimeError(
+                "FATAL CONFIGURATION ERROR: The default development SECRET_KEY cannot be used when "
+                "ENVIRONMENT is set to 'production'. Please set a cryptographically random SECRET_KEY environment variable."
+            )
 
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./attendance_system.db")
 
-    # System Capacity Limits (Milestone 10C.9)
-    MAX_STUDENTS: int = 130
-    MAX_FACULTY: int = 15
+    # System Capacity Limits (5,000 students, 250 faculty)
+    MAX_STUDENTS: int = int(os.getenv("MAX_STUDENTS", "5000"))
+    MAX_FACULTY: int = int(os.getenv("MAX_FACULTY", "250"))
 
     # Cookie Configuration
     COOKIE_NAME: str = "attendance_session"
@@ -34,4 +57,5 @@ class Settings:
         return os.path.normpath(os.path.join(base_dir, self.STUDENT_FACE_DATASET_DIR))
 
 settings = Settings()
+settings.validate_production_configuration()
 

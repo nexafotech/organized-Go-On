@@ -80,6 +80,22 @@ def init_db(bind_engine=engine):
                 with bind_engine.connect() as conn:
                     conn.execute(text("ALTER TABLE notification_logs ADD COLUMN read_at DATETIME"))
                     conn.commit()
+            if "is_pinned" not in columns:
+                with bind_engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE notification_logs ADD COLUMN is_pinned BOOLEAN DEFAULT 0 NOT NULL"))
+                    conn.commit()
+            if "pinned_at" not in columns:
+                with bind_engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE notification_logs ADD COLUMN pinned_at DATETIME"))
+                    conn.commit()
+            if "is_deleted" not in columns:
+                with bind_engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE notification_logs ADD COLUMN is_deleted BOOLEAN DEFAULT 0 NOT NULL"))
+                    conn.commit()
+            if "deleted_at" not in columns:
+                with bind_engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE notification_logs ADD COLUMN deleted_at DATETIME"))
+                    conn.commit()
     except Exception as e:
         print(f"[DB] Schema migration check notice: {e}")
 

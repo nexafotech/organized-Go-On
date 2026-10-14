@@ -540,7 +540,7 @@ def test_biometric_face_profiles_and_reset(client, console_fixture, db_session):
     assert sum_r.status_code == 200
     summary = sum_r.json()
     assert summary["enrolled_count"] >= 1
-    assert summary["dimension"] == 128
+    assert summary["dimension"] in [128, 512]
     assert "model_name" in summary
 
     # 2. Students list

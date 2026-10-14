@@ -15,6 +15,7 @@ data/
 # Temporary Packages & Binaries
 *.ipa
 *.exe
+ui-desine.zip
 tools/
 mobile/artifact.zip
 

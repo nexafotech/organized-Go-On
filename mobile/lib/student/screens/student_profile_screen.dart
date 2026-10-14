@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import '../../core/config/api_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/theme/theme_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/student_service.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../auth/widgets/change_password_dialog.dart';
 import '../../widgets/widgets.dart';
+import '../../design_mode/design_gallery_screen.dart';
 import 'biometric_enrollment_screen.dart';
 
 class StudentProfileScreen extends StatelessWidget {
@@ -125,199 +127,336 @@ class StudentProfileScreen extends StatelessWidget {
       );
     }
 
-    return RefreshIndicator(
-      color: colors.primary,
-      backgroundColor: colors.surface,
-      onRefresh: () => studentService.fetchStudentSummary(),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Student Profile Header Card
-            GlassCard(
-              variant: GlassCardVariant.elevated,
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 36,
-                    backgroundColor: colors.heroChip,
-                    child: Text(
-                      summary.fullName.isNotEmpty ? summary.fullName[0].toUpperCase() : 'S',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: colors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    summary.fullName,
-                    textAlign: TextAlign.center,
-                    style: typography.titleLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Reg No: ${summary.registerNumber}',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: summary.isActive ? colors.presentBg : colors.errorBg,
-                      borderRadius: AppRadius.pillBorder,
-                      border: Border.all(
-                        color: summary.isActive ? colors.present : colors.error,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          summary.isActive ? Icons.check_circle : Icons.cancel,
-                          size: 14,
-                          color: summary.isActive ? colors.present : colors.error,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          summary.isActive ? 'Active Student' : 'Account Disabled',
+    final semesterDisplay = summary.semester != null
+        ? (summary.semester!.toLowerCase().contains('semester')
+            ? summary.semester!
+            : 'Semester ${summary.semester}')
+        : 'Semester 1';
+
+    return Stack(
+      children: [
+        AppScaffold.buildLiquidAmbientCanvas(),
+        RefreshIndicator(
+          color: colors.primary,
+          backgroundColor: colors.surface,
+          onRefresh: () => studentService.fetchStudentSummary(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Student Profile Header Card
+                GlassCard(
+                  variant: GlassCardVariant.elevated,
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 36,
+                        backgroundColor: colors.heroChip,
+                        child: Text(
+                          summary.fullName.isNotEmpty ? summary.fullName[0].toUpperCase() : 'S',
                           style: TextStyle(
-                            color: summary.isActive ? colors.present : colors.error,
-                            fontSize: 12,
+                            fontSize: 32,
                             fontWeight: FontWeight.bold,
+                            color: colors.primary,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Academic & Student Information
-            GlassCard(
-              variant: GlassCardVariant.standard,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-                    child: Text(
-                      'Academic Details',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: colors.primary,
                       ),
-                    ),
-                  ),
-                  Divider(height: 1, color: colors.glassBorder),
-                  _buildInfoTile(context, 'Full Name', summary.fullName, Icons.badge_outlined),
-                  Divider(height: 1, indent: 56, color: colors.glassBorder),
-                  _buildInfoTile(context, 'Register Number', summary.registerNumber, Icons.pin_outlined),
-                  Divider(height: 1, indent: 56, color: colors.glassBorder),
-                  _buildInfoTile(context, 'Email Address', summary.email ?? 'Not specified', Icons.email_outlined),
-                  Divider(height: 1, indent: 56, color: colors.glassBorder),
-                  _buildInfoTile(context, 'Class Section', summary.className ?? 'Not assigned', Icons.school_outlined),
-                  Divider(height: 1, indent: 56, color: colors.glassBorder),
-                  _buildInfoTile(context, 'Department', summary.department ?? 'N/A', Icons.business_outlined),
-                  Divider(height: 1, indent: 56, color: colors.glassBorder),
-                  _buildInfoTile(context, 'Academic Semester', summary.semester ?? 'N/A', Icons.calendar_today_outlined),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Session & Server Information
-            GlassCard(
-              variant: GlassCardVariant.standard,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-                    child: Text(
-                      'Session Information',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: colors.primary,
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        summary.fullName,
+                        textAlign: TextAlign.center,
+                        style: typography.titleLarge.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Reg No: ${summary.registerNumber}',
+                        style: TextStyle(color: colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: summary.isActive ? colors.presentBg : colors.errorBg,
+                          borderRadius: AppRadius.pillBorder,
+                          border: Border.all(
+                            color: summary.isActive ? colors.present : colors.error,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              summary.isActive ? Icons.check_circle : Icons.cancel,
+                              size: 14,
+                              color: summary.isActive ? colors.present : colors.error,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              summary.isActive ? 'Active Student' : 'Account Disabled',
+                              style: TextStyle(
+                                color: summary.isActive ? colors.present : colors.error,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  Divider(height: 1, color: colors.glassBorder),
-                  _buildInfoTile(context, 'User Role', 'STUDENT', Icons.security_rounded),
-                  Divider(height: 1, indent: 56, color: colors.glassBorder),
-                  _buildInfoTile(context, 'Backend Server', ApiConfig.baseUrl, Icons.dns_outlined),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
+                ),
+                const SizedBox(height: AppSpacing.md),
 
-            // Security Actions
-            GlassCard(
-              variant: GlassCardVariant.standard,
-              padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Account Actions',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: colors.primary,
-                    ),
+                // Academic & Student Information
+                GlassCard(
+                  variant: GlassCardVariant.standard,
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                        child: Text(
+                          'Academic Details',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: colors.primary,
+                          ),
+                        ),
+                      ),
+                      Divider(height: 1, color: colors.glassBorder),
+                      _buildInfoTile(context, 'Full Name', summary.fullName, Icons.badge_outlined),
+                      Divider(height: 1, indent: 56, color: colors.glassBorder),
+                      _buildInfoTile(context, 'Register Number', summary.registerNumber, Icons.pin_outlined),
+                      Divider(height: 1, indent: 56, color: colors.glassBorder),
+                      _buildInfoTile(context, 'College Email', summary.email ?? 'Not specified', Icons.email_outlined),
+                      Divider(height: 1, indent: 56, color: colors.glassBorder),
+                      _buildInfoTile(context, 'Class Section', summary.className ?? 'Not assigned', Icons.school_outlined),
+                      Divider(height: 1, indent: 56, color: colors.glassBorder),
+                      _buildInfoTile(context, 'Department', summary.department ?? 'N/A', Icons.business_outlined),
+                      Divider(height: 1, indent: 56, color: colors.glassBorder),
+                      _buildInfoTile(context, 'Academic Semester', semesterDisplay, Icons.calendar_today_outlined),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  PrimaryButton(
-                    text: 'Biometric Face Enrollment',
-                    icon: Icons.face_retouching_natural_rounded,
-                    isFullWidth: true,
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Session & Server Information
+                GlassCard(
+                  variant: GlassCardVariant.standard,
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                        child: Text(
+                          'Session Information',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: colors.primary,
+                          ),
+                        ),
+                      ),
+                      Divider(height: 1, color: colors.glassBorder),
+                      _buildInfoTile(context, 'User Role', 'STUDENT', Icons.security_rounded),
+                      Divider(height: 1, indent: 56, color: colors.glassBorder),
+                      _buildInfoTile(context, 'Backend Server', ApiConfig.baseUrl, Icons.dns_outlined),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Appearance & Theme Switcher
+                GlassCard(
+                  variant: GlassCardVariant.standard,
+                  padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Appearance & Theme',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: colors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Toggle between warm cream and obsidian liquid glass styles across the application.',
+                        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      SafeThemeConsumer(
+                        builder: (context, themeService, _) {
+                          final isDark = themeService.isDarkMode;
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => themeService.setThemeMode(ThemeMode.light),
+                                  borderRadius: AppRadius.pillBorder,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: !isDark ? colors.primary : colors.glassSurfaceSubtle,
+                                      borderRadius: AppRadius.pillBorder,
+                                      border: Border.all(
+                                        color: !isDark ? colors.primary : colors.glassBorder,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.light_mode_rounded,
+                                          size: 16,
+                                          color: !isDark ? colors.onPrimary : colors.textSecondary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Warm Light',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: !isDark ? colors.onPrimary : colors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => themeService.setThemeMode(ThemeMode.dark),
+                                  borderRadius: AppRadius.pillBorder,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? colors.primary : colors.glassSurfaceSubtle,
+                                      borderRadius: AppRadius.pillBorder,
+                                      border: Border.all(
+                                        color: isDark ? colors.primary : colors.glassBorder,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.dark_mode_rounded,
+                                          size: 16,
+                                          color: isDark ? colors.onPrimary : colors.textSecondary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Obsidian Abyss',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isDark ? colors.onPrimary : colors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Security & Actions
+                GlassCard(
+                  variant: GlassCardVariant.standard,
+                  padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Account Actions',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: colors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      PrimaryButton(
+                        text: 'Biometric Face Enrollment',
+                        icon: Icons.face_retouching_natural_rounded,
+                        isFullWidth: true,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const BiometricEnrollmentScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      SecondaryButton(
+                        text: 'Change Password',
+                        icon: Icons.key_rounded,
+                        isFullWidth: true,
+                        onPressed: () => ChangePasswordDialog.show(context),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colors.error,
+                          side: BorderSide(color: colors.error.withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: Icon(Icons.logout_rounded, size: 20, color: colors.error),
+                        label: const Text('Sign Out'),
+                        onPressed: () => _confirmLogout(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                // Design Gallery Shortcut
+                Center(
+                  child: TextButton.icon(
+                    icon: Icon(Icons.palette_outlined, size: 16, color: colors.textSecondary),
+                    label: Text(
+                      'Open UI/UX Design Reference Gallery',
+                      style: TextStyle(fontSize: 12, color: colors.textSecondary, fontWeight: FontWeight.w600),
+                    ),
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const BiometricEnrollmentScreen()),
+                        MaterialPageRoute(builder: (_) => const DesignGalleryScreen()),
                       );
                     },
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  SecondaryButton(
-                    text: 'Change Password',
-                    icon: Icons.key_rounded,
-                    isFullWidth: true,
-                    onPressed: () => ChangePasswordDialog.show(context),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colors.error,
-                      side: BorderSide(color: colors.error.withValues(alpha: 0.5)),
-                      shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    icon: Icon(Icons.logout_rounded, size: 20, color: colors.error),
-                    label: const Text('Sign Out'),
-                    onPressed: () => _confirmLogout(context),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+              ],
             ),
-            const SizedBox(height: AppSpacing.xxl),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 

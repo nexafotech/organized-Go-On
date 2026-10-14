@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_service.dart';
 import 'services/auth_service.dart';
 import 'services/student_service.dart';
 import 'services/faculty_service.dart';
@@ -25,6 +26,9 @@ class AttendanceMarkerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<ThemeService>(
+          create: (_) => ThemeService(),
+        ),
         ChangeNotifierProvider<AuthService>(
           create: (_) => AuthService(),
         ),
@@ -44,15 +48,20 @@ class AttendanceMarkerApp extends StatelessWidget {
           value: NotificationService(),
         ),
       ],
-      child: MaterialApp(
-        title: 'Go-On',
-        navigatorKey: appNavigatorKey,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.light,
-        home: const SplashScreen(),
+      child: Consumer<ThemeService>(
+        builder: (context, themeService, _) {
+          return MaterialApp(
+            title: 'Go-On',
+            navigatorKey: appNavigatorKey,
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeService.themeMode,
+            home: const SplashScreen(),
+          );
+        },
       ),
     );
   }
 }
+

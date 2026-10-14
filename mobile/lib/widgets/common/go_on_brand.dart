@@ -15,10 +15,13 @@ class GoOnBrand {
 /// The artwork is light beige/gold, so use it on dark (Espresso) surfaces, or
 /// use [GoOnLogoBadge] on light surfaces.
 class GoOnLogo extends StatelessWidget {
-  const GoOnLogo({Key? key, required this.size}) : super(key: key);
+  const GoOnLogo({Key? key, required this.size, this.color}) : super(key: key);
 
   /// Rendered width/height (the asset is square; aspect ratio is preserved).
   final double size;
+
+  /// Optional color blend for the logo. If null, the natural PNG artwork is rendered.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +30,7 @@ class GoOnLogo extends StatelessWidget {
       GoOnBrand.logoAsset,
       width: size,
       height: size,
+      color: color,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.high,
       cacheWidth: (size * dpr).ceil().clamp(32, 512),

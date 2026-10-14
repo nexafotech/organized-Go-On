@@ -38,6 +38,26 @@ class FacultyService extends ChangeNotifier {
   bool get isClassAdvisor => _isClassAdvisor;
   AdvisedClassInfo? get advisedClass => _advisedClass;
 
+  void setMockData({
+    List<FacultyScheduleItem>? schedule,
+    ActiveClassSlot? activeSlot,
+    List<RosterStudentModel>? roster,
+    bool? isClassAdvisor,
+    AdvisedClassInfo? advisedClass,
+  }) {
+    if (schedule != null) _schedule = schedule;
+    if (activeSlot != null) {
+      _activeSlot = activeSlot;
+      _hasActiveSlot = true;
+    }
+    if (roster != null) _roster = roster;
+    if (isClassAdvisor != null) _isClassAdvisor = isClassAdvisor;
+    if (advisedClass != null) _advisedClass = advisedClass;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   Future<void> fetchSchedule() async {
     _isLoading = true;
     _errorMessage = null;

@@ -677,11 +677,14 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen> {
             ),
         ],
       ),
-      body: _showingIntro
-          ? _buildIntroView()
-          : (isAllCompleted
-              ? _buildCompletedView(status!)
-              : SingleChildScrollView(
+      body: Stack(
+        children: [
+          AppScaffold.buildLiquidAmbientCanvas(),
+          _showingIntro
+              ? _buildIntroView()
+              : (isAllCompleted
+                  ? _buildCompletedView(status!)
+                  : SingleChildScrollView(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -838,6 +841,8 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen> {
                     ],
                   ),
                 )),
+        ],
+      ),
     );
   }
 }

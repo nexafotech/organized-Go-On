@@ -131,6 +131,9 @@ class MockAuthService extends ChangeNotifier implements AuthService {
     }
     return {'valid': false, 'role': role, 'message': 'Invalid faculty username', 'is_network_error': false};
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -292,8 +295,8 @@ void main() {
       final mockAuth = MockAuthService();
       await tester.pumpWidget(createTestWidget(mockAuth));
 
-      // Open via AppBar icon
-      await tester.tap(find.byIcon(Icons.settings_remote_rounded));
+      // Open via Server Connected pill
+      await tester.tap(find.text('Server Connected'));
       await tester.pumpAndSettle();
 
       expect(find.text('Server Settings'), findsOneWidget);

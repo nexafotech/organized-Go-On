@@ -198,8 +198,8 @@
 
                 <div class="dashboard-grid mt-4">
                     <!-- Attendance Performance Summary -->
-                    <div class="panel-card col-span-2">
-                        <div class="card-header">
+                    <div class="panel-card">
+                        <div class="card-header justify-between">
                             <h3><i class="fa-solid fa-chart-bar"></i> Overall Attendance Metrics</h3>
                             <span class="badge badge-success" id="badgeMinReq">Min Required: 75%</span>
                         </div>
@@ -257,7 +257,7 @@
                         <div class="flex items-center gap-3">
                             <div class="capacity-pill" id="studentCapacityBadge">
                                 <i class="fa-solid fa-user-graduate"></i>
-                                <span>Students: <strong id="studentCapCurrent">--</strong> / 130</span>
+                                <span>Students: <strong id="studentCapCurrent">--</strong> / <span id="studentCapMax">5000</span></span>
                                 <span class="badge badge-info" id="studentCapRemaining">Remaining: --</span>
                             </div>
                             <button id="btnAddStudent" class="btn btn-success" onclick="openCreateStudentModal()">
@@ -284,6 +284,10 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div class="table-pagination flex justify-between items-center p-3" id="studentsPagination" style="border-top: 1px solid rgba(255,255,255,0.06);">
+                            <span class="text-sm text-muted" id="studentsPageInfo">Showing 0 of 0 students</span>
+                            <div class="btn-group gap-2" id="studentsPageControls"></div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -306,7 +310,7 @@
                         <div class="flex items-center gap-3">
                             <div class="capacity-pill" id="facultyCapacityBadge">
                                 <i class="fa-solid fa-chalkboard-user"></i>
-                                <span>Faculty: <strong id="facultyCapCurrent">--</strong> / 15</span>
+                                <span>Faculty: <strong id="facultyCapCurrent">--</strong> / <span id="facultyCapMax">250</span></span>
                                 <span class="badge badge-info" id="facultyCapRemaining">Remaining: --</span>
                             </div>
                             <button id="btnAddFaculty" class="btn btn-success" onclick="openCreateFacultyModal()">
@@ -332,6 +336,10 @@
                                     <tr><td colspan="7" class="text-center">Loading faculty...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="table-pagination flex justify-between items-center p-3" id="facultyPagination" style="border-top: 1px solid rgba(255,255,255,0.06);">
+                            <span class="text-sm text-muted" id="facultyPageInfo">Showing 0 of 0 faculty</span>
+                            <div class="btn-group gap-2" id="facultyPageControls"></div>
                         </div>
                     </div>
                 </div>

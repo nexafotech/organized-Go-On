@@ -115,18 +115,19 @@ def test_capacity_stats_endpoint(client, auth_headers):
     data = response.json()
     assert "students" in data
     assert "faculty" in data
-    assert data["students"]["max"] == 130
+    assert data["students"]["max"] == settings.MAX_STUDENTS
     assert data["students"]["current"] == 0
-    assert data["students"]["remaining"] == 130
-    assert data["faculty"]["max"] == 15
+    assert data["students"]["remaining"] == settings.MAX_STUDENTS
+    assert data["faculty"]["max"] == settings.MAX_FACULTY
     assert data["faculty"]["current"] == 1  # FAC01 seeded
-    assert data["faculty"]["remaining"] == 14
+    assert data["faculty"]["remaining"] == settings.MAX_FACULTY - 1
 
 
 # ----------------------------------------------------
-# 2. Student Capacity Limit (130)
+# 2. Student Capacity Limit (Boundary Enforcement)
 # ----------------------------------------------------
-def test_student_capacity_limit_enforced(client, auth_headers, db_session):
+def test_student_capacity_limit_enforced(client, auth_headers, db_session, monkeypatch):
+    monkeypatch.setattr(settings, "MAX_STUDENTS", 130)
     cs = auth_headers["class_1"]
     # Bulk insert 130 students directly to test boundary
     for i in range(130):
@@ -151,9 +152,10 @@ def test_student_capacity_limit_enforced(client, auth_headers, db_session):
 
 
 # ----------------------------------------------------
-# 3. Faculty Capacity Limit (15)
+# 3. Faculty Capacity Limit (Boundary Enforcement)
 # ----------------------------------------------------
-def test_faculty_capacity_limit_enforced(client, auth_headers, db_session):
+def test_faculty_capacity_limit_enforced(client, auth_headers, db_session, monkeypatch):
+    monkeypatch.setattr(settings, "MAX_FACULTY", 15)
     # Add 14 more faculty to reach 15 (FAC01 already seeded)
     for i in range(2, 16):
         u = User(username=f"fac{i:02d}", hashed_password="hash", role=UserRole.FACULTY, is_active=True, login_identifier=f"FAC{i:02d}")
@@ -409,7 +411,9 @@ def test_get_apis_never_expose_plaintext_passwords(client, auth_headers):
 # ----------------------------------------------------
 # 12. Importer Capacity Limits Validation
 # ----------------------------------------------------
-def test_importer_enforces_capacity_limits(db_session):
+def test_importer_enforces_capacity_limits(db_session, monkeypatch):
+    monkeypatch.setattr(settings, "MAX_FACULTY", 15)
+    monkeypatch.setattr(settings, "MAX_STUDENTS", 130)
     # Attempt to import 16 faculty records (limit 15)
     overflow_faculty = [
         {"employee_id": f"TEST_FAC_{i:02d}", "username": f"testfac{i:02d}", "full_name": f"Test Fac {i}", "email": f"fac{i}@test.com"}
@@ -432,7 +436,9 @@ def test_importer_enforces_capacity_limits(db_session):
 # ----------------------------------------------------
 # 13. Validator Script Capacity Validation
 # ----------------------------------------------------
-def test_validator_script_flags_capacity_overflow(tmp_path):
+def test_validator_script_flags_capacity_overflow(tmp_path, monkeypatch):
+    import scripts.validate_production_college_data as val_mod
+    monkeypatch.setattr(val_mod, "MAX_FACULTY", 15)
     validator = ProductionCollegeDataValidator(base_dir=str(tmp_path))
     # Test faculty capacity overflow
     fake_faculty = [{"employee_id": f"F{i}", "username": f"u{i}", "full_name": f"N{i}", "email": f"e{i}@c.edu"} for i in range(16)]

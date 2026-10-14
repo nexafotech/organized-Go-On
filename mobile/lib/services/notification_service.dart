@@ -12,6 +12,7 @@ import '../models/user_model.dart';
 import '../student/screens/student_timetable_screen.dart';
 import '../faculty/screens/faculty_attendance_screen.dart';
 import '../faculty/screens/faculty_attendance_report_screen.dart';
+import '../faculty/screens/faculty_notification_history_screen.dart';
 
 /// Top-level background message handler required by Firebase Messaging
 @pragma('vm:entry-point')
@@ -40,14 +41,28 @@ class NotificationService extends ChangeNotifier {
   Timer? _pollTimer;
   ApiClient? _pollingApiClient;
   final Set<int> _knownNotificationIds = {};
+  final Set<int> _deletedNotificationIds = {};
   bool _initialPollDone = false;
+  bool _isBulkDeleting = false;
 
   bool get isInitialized => _isInitialized;
   String? get currentFcmToken => _currentFcmToken;
   int get unreadCount => _unreadCount;
   List<NotificationItem> get notifications => _notifications;
   bool get isLoading => _isLoading;
+  bool get isBulkDeleting => _isBulkDeleting;
   String? get errorMessage => _errorMessage;
+
+  void clearUserData() {
+    _notifications = [];
+    _unreadCount = 0;
+    _deletedNotificationIds.clear();
+    _knownNotificationIds.clear();
+    _initialPollDone = false;
+    _isBulkDeleting = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
     _navigatorKey = key;
@@ -326,17 +341,22 @@ class NotificationService extends ChangeNotifier {
         for (final entry in res) {
           if (entry is Map<String, dynamic>) {
             final item = NotificationItem.fromJson(entry);
-            items.add(item);
-            _knownNotificationIds.add(item.id);
+            if (!item.isDeleted && !_deletedNotificationIds.contains(item.id)) {
+              items.add(item);
+              _knownNotificationIds.add(item.id);
+            }
           } else if (entry is Map) {
             final item = NotificationItem.fromJson(Map<String, dynamic>.from(entry));
-            items.add(item);
-            _knownNotificationIds.add(item.id);
+            if (!item.isDeleted && !_deletedNotificationIds.contains(item.id)) {
+              items.add(item);
+              _knownNotificationIds.add(item.id);
+            }
           }
         }
       }
 
       _notifications = items;
+      _sortNotifications();
       if (!unreadOnly) {
         _unreadCount = items.where((it) => !it.isRead).length;
       }
@@ -349,6 +369,202 @@ class NotificationService extends ChangeNotifier {
       _errorMessage = 'Failed to load notifications: $e';
       notifyListeners();
       return [];
+    }
+  }
+
+  void _sortNotifications() {
+    _notifications.sort((a, b) {
+      // Pinned first
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      if (a.isPinned && b.isPinned) {
+        final aPin = a.pinnedAt ?? a.createdAt;
+        final bPin = b.pinnedAt ?? b.createdAt;
+        final cmp = bPin.compareTo(aPin);
+        if (cmp != 0) return cmp;
+      }
+      return b.createdAt.compareTo(a.createdAt);
+    });
+  }
+
+  void removeNotificationLocally(int notificationId) {
+    _deletedNotificationIds.add(notificationId);
+    final existingIndex = _notifications.indexWhere((n) => n.id == notificationId);
+    if (existingIndex != -1) {
+      final item = _notifications.removeAt(existingIndex);
+      if (!item.isRead && _unreadCount > 0) {
+        _unreadCount--;
+      }
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteNotification(ApiClient apiClient, int notificationId) async {
+    _deletedNotificationIds.add(notificationId);
+    final existingIndex = _notifications.indexWhere((n) => n.id == notificationId);
+    NotificationItem? removedItem;
+    if (existingIndex != -1) {
+      removedItem = _notifications.removeAt(existingIndex);
+      if (!removedItem.isRead && _unreadCount > 0) {
+        _unreadCount--;
+      }
+      notifyListeners();
+    }
+
+    try {
+      await apiClient.delete(ApiConfig.notificationDelete(notificationId));
+      return true;
+    } catch (e) {
+      if (kDebugMode) print('[Go-On Notifications] Failed to delete notification on server: $e');
+      if (removedItem != null) {
+        _deletedNotificationIds.remove(notificationId);
+        _notifications.insert(existingIndex, removedItem);
+        if (!removedItem.isRead) {
+          _unreadCount++;
+        }
+        _sortNotifications();
+        notifyListeners();
+      }
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteAllUnpinnedNotifications(ApiClient apiClient) async {
+    if (_isBulkDeleting) {
+      return {
+        'success': false,
+        'message': 'Bulk deletion is already in progress.',
+        'deleted_count': 0,
+        'pinned_preserved_count': _notifications.where((n) => n.isPinned).length,
+      };
+    }
+
+    final unpinned = _notifications.where((n) => !n.isPinned && !n.isDeleted).toList();
+    final pinned = _notifications.where((n) => n.isPinned && !n.isDeleted).toList();
+
+    if (unpinned.isEmpty) {
+      return {
+        'success': true,
+        'deleted_count': 0,
+        'pinned_preserved_count': pinned.length,
+        'message': pinned.isNotEmpty
+            ? 'All notifications are pinned. None were deleted.'
+            : 'No notifications available to delete.',
+      };
+    }
+
+    _isBulkDeleting = true;
+    notifyListeners();
+
+    // Snapshot state for rollback on error
+    final previousNotifications = List<NotificationItem>.from(_notifications);
+    final previousUnreadCount = _unreadCount;
+    final deletedIds = unpinned.map((n) => n.id).toSet();
+
+    // Optimistically track deleted IDs and remove unpinned from active list
+    _deletedNotificationIds.addAll(deletedIds);
+    _notifications = pinned;
+    _unreadCount = _notifications.where((n) => !n.isRead).length;
+    _sortNotifications();
+    notifyListeners();
+
+    try {
+      final res = await apiClient.delete(ApiConfig.notificationDeleteUnpinned);
+      _isBulkDeleting = false;
+
+      int deletedCount = unpinned.length;
+      int pinnedPreserved = pinned.length;
+
+      if (res is Map) {
+        if (res['deleted_count'] is int) deletedCount = res['deleted_count'] as int;
+        if (res['pinned_preserved_count'] is int) pinnedPreserved = res['pinned_preserved_count'] as int;
+      }
+
+      notifyListeners();
+      return {
+        'success': true,
+        'deleted_count': deletedCount,
+        'pinned_preserved_count': pinnedPreserved,
+        'message': 'Deleted $deletedCount unpinned notification(s); kept $pinnedPreserved pinned.',
+      };
+    } catch (e) {
+      _isBulkDeleting = false;
+      if (kDebugMode) print('[Go-On Notifications] Bulk delete failed on server: $e');
+
+      // Reconcile / rollback to previous state
+      for (final id in deletedIds) {
+        _deletedNotificationIds.remove(id);
+      }
+      _notifications = previousNotifications;
+      _unreadCount = previousUnreadCount;
+      _sortNotifications();
+      notifyListeners();
+
+      return {
+        'success': false,
+        'deleted_count': 0,
+        'pinned_preserved_count': pinned.length,
+        'error': e.toString(),
+        'message': 'Failed to delete unpinned notifications on server: $e',
+      };
+    }
+  }
+
+  Future<bool> pinNotification(ApiClient apiClient, int notificationId) async {
+    final idx = _notifications.indexWhere((n) => n.id == notificationId);
+    if (idx != -1) {
+      _notifications[idx] = _notifications[idx].copyWith(
+        isPinned: true,
+        pinnedAt: DateTime.now(),
+      );
+      _sortNotifications();
+      notifyListeners();
+    }
+
+    try {
+      await apiClient.post(ApiConfig.notificationPin(notificationId));
+      return true;
+    } catch (e) {
+      if (kDebugMode) print('[Go-On Notifications] Failed to pin notification on server: $e');
+      if (idx != -1 && idx < _notifications.length) {
+        _notifications[idx] = _notifications[idx].copyWith(
+          isPinned: false,
+          pinnedAt: null,
+        );
+        _sortNotifications();
+        notifyListeners();
+      }
+      return false;
+    }
+  }
+
+  Future<bool> unpinNotification(ApiClient apiClient, int notificationId) async {
+    final idx = _notifications.indexWhere((n) => n.id == notificationId);
+    DateTime? oldPinnedAt;
+    if (idx != -1) {
+      oldPinnedAt = _notifications[idx].pinnedAt;
+      _notifications[idx] = _notifications[idx].copyWith(
+        isPinned: false,
+        pinnedAt: null,
+      );
+      _sortNotifications();
+      notifyListeners();
+    }
+
+    try {
+      await apiClient.post(ApiConfig.notificationUnpin(notificationId));
+      return true;
+    } catch (e) {
+      if (kDebugMode) print('[Go-On Notifications] Failed to unpin notification on server: $e');
+      if (idx != -1 && idx < _notifications.length) {
+        _notifications[idx] = _notifications[idx].copyWith(
+          isPinned: true,
+          pinnedAt: oldPinnedAt,
+        );
+        _sortNotifications();
+        notifyListeners();
+      }
+      return false;
     }
   }
 
@@ -587,6 +803,12 @@ class NotificationService extends ChangeNotifier {
       case 'reports':
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const FacultyAttendanceReportScreen()),
+        );
+        break;
+      case 'notifications':
+      case 'announcements':
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const FacultyNotificationHistoryScreen()),
         );
         break;
       case 'dashboard':

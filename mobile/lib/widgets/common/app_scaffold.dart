@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -38,29 +39,37 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     final typography = context.typography;
     final canPop = Navigator.canPop(context);
 
-    return Container(
-      height: height + MediaQuery.of(context).padding.top,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top,
-        left: AppSpacing.md,
-        right: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: backgroundColor ?? colors.background,
-        border: showBottomBorder
-            ? Border(bottom: BorderSide(color: colors.border, width: 1))
-            : null,
-      ),
-      child: Row(
-        children: [
-          if (leading != null)
-            leading!
-          else if (canPop)
-            IconButton(
-              icon: Icon(Icons.arrow_back_rounded, size: AppIconSize.navHeader, color: colors.textPrimary),
-              tooltip: 'Back',
-              onPressed: () => Navigator.of(context).pop(),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          height: height + MediaQuery.of(context).padding.top,
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top,
+            left: AppSpacing.md,
+            right: AppSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            color: backgroundColor ?? colors.surface.withValues(alpha: 0.85),
+            border: Border(
+              bottom: BorderSide(
+                color: showBottomBorder
+                    ? colors.glassBorderStrong
+                    : colors.border.withValues(alpha: 0.3),
+                width: 1,
+              ),
             ),
+          ),
+          child: Row(
+            children: [
+              if (leading != null)
+                leading!
+              else if (canPop)
+                IconButton(
+                  icon: Icon(Icons.arrow_back_rounded, size: AppIconSize.navHeader, color: colors.textPrimary),
+                  tooltip: 'Back',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -111,7 +120,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
           if (actions != null) ...actions!,
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -131,6 +142,8 @@ class AppScaffold extends StatelessWidget {
   final bool resizeToAvoidBottomInset;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
 
+  final bool enableLiquidGlow;
+
   const AppScaffold({
     Key? key,
     required this.body,
@@ -143,7 +156,109 @@ class AppScaffold extends StatelessWidget {
     this.padding,
     this.resizeToAvoidBottomInset = true,
     this.floatingActionButtonLocation,
+    this.enableLiquidGlow = true,
   }) : super(key: key);
+
+  static Widget buildLiquidAmbientCanvas() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Stack(
+          children: [
+            // Ambient Electric Indigo Orb (Upper Right)
+            Positioned(
+              top: 30,
+              right: -60,
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF6366F1).withValues(alpha: 0.16),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Ambient Liquid Emerald Orb (Mid Left)
+            Positioned(
+              top: 320,
+              left: -80,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF10B981).withValues(alpha: 0.14),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Ambient Liquid Radiant Amber Orb (Mid Right)
+            Positioned(
+              top: 650,
+              right: -70,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFFF8A00).withValues(alpha: 0.12),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Ambient Liquid Coral Rose Orb (Lower Left)
+            Positioned(
+              bottom: 140,
+              left: -50,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFF43F5E).withValues(alpha: 0.12),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Ambient Liquid Violet Orb (Bottom Center)
+            Positioned(
+              bottom: -40,
+              right: 40,
+              child: Container(
+                width: 290,
+                height: 290,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF8B5CF6).withValues(alpha: 0.14),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -196,13 +311,22 @@ class AppScaffold extends StatelessWidget {
       );
     }
 
+    final Widget finalBody = enableLiquidGlow
+        ? Stack(
+            children: [
+              buildLiquidAmbientCanvas(),
+              content,
+            ],
+          )
+        : content;
+
     return Scaffold(
       backgroundColor: backgroundColor ?? colors.background,
       appBar: header,
       bottomNavigationBar: bottomNavigationBar,
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       floatingActionButtonLocation: floatingActionButtonLocation,
-      body: content,
+      body: finalBody,
     );
   }
 }

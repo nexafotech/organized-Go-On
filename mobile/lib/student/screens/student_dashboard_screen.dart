@@ -1,16 +1,22 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/theme/theme_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/student_service.dart';
 import '../../models/student_model.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../auth/widgets/change_password_dialog.dart';
 import '../../widgets/widgets.dart';
+import '../../core/network/api_client.dart';
+import '../../services/notification_service.dart';
+import '../../faculty/screens/faculty_notification_history_screen.dart';
 import 'student_timetable_screen.dart';
 import 'student_profile_screen.dart';
 import 'student_attendance_report_screen.dart';
+import 'biometric_enrollment_screen.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({Key? key}) : super(key: key);
@@ -20,7 +26,9 @@ class StudentDashboardScreen extends StatefulWidget {
 }
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentIndex = 0;
+  bool _showOnlyPast5Days = true;
 
   @override
   void initState() {
@@ -31,19 +39,20 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       if (authService.currentUser?.forcePasswordChange == true) {
         ChangePasswordDialog.show(context, isMandatory: true);
       }
+      try {
+        final notifService = Provider.of<NotificationService>(context, listen: false);
+        notifService.requestNotificationPermissions();
+        notifService.startInAppPolling(ApiClient());
+      } catch (_) {
+        // Safe fallback when running in test harness without NotificationService
+      }
     });
   }
 
-  Color _getStatusColor(String status, AppColors colors) {
-    switch (status.toUpperCase()) {
-      case 'CRITICAL':
-        return colors.error;
-      case 'WARNING':
-        return colors.warning;
-      case 'OK':
-      default:
-        return colors.success;
-    }
+  @override
+  void dispose() {
+    NotificationService().stopInAppPolling();
+    super.dispose();
   }
 
   void _confirmLogout(BuildContext context) {
@@ -51,11 +60,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surface,
+        backgroundColor: colors.surfaceElevated,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.dialog),
-          side: BorderSide(color: colors.border),
+          side: BorderSide(color: colors.glassBorderStrong, width: 1.2),
         ),
         title: Row(
           children: [
@@ -182,92 +191,273 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       );
     }
 
-    final statusColor = _getStatusColor(summary.attendanceStatus, colors);
-
     return RefreshIndicator(
       color: colors.primary,
       backgroundColor: colors.surface,
       onRefresh: () => studentService.loadDashboardData(),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Student Profile Header Card
-            GlassCard(
-              variant: GlassCardVariant.standard,
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: colors.heroChip,
-                    child: Text(
-                      summary.fullName.isNotEmpty ? summary.fullName[0].toUpperCase() : 'S',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: colors.primary,
-                      ),
-                    ),
+      child: Stack(
+        children: [
+          // Apple Liquid Ambient Glow Backdrop (Blurred Orbs creating optical caustics behind glass)
+          _buildLiquidAmbientCanvas(),
+
+          SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Student Profile Header Card (Upgraded Liquid Glass)
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: AppGlass.shadow,
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              colors.glassSurfaceStrong,
+                              colors.glassSurface,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: colors.glassBorderStrong,
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                summary.fullName,
-                                style: typography.titleMedium.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colors.textPrimary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                  // Top Row: Go-On Logo on Top-Left Corner, User Profile on Top-Right Corner
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Top Left Corner: Go-On Logo (Pure Transparent PNG - Opens Menu Drawer on Click)
+                      Tooltip(
+                        message: 'Open Navigation Menu',
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () {
+                              _scaffoldKey.currentState?.openDrawer();
+                            },
+                            child: const GoOnLogo(size: 48),
+                          ),
+                        ),
+                      ),
+
+                      // Top Right Corner: User Profile & Role Chip
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                            margin: const EdgeInsets.only(right: 10),
+                            decoration: BoxDecoration(
+                              color: colors.accent.withValues(alpha: 0.12),
+                              borderRadius: AppRadius.pillBorder,
+                              border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              'STUDENT',
+                              style: TextStyle(
+                                color: colors.accentStrong,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.6,
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          ),
+                          // Notification Bell with unread badge counter
+                          Builder(
+                            builder: (context) {
+                              NotificationService? notifService;
+                              try {
+                                notifService = Provider.of<NotificationService>(context);
+                              } catch (_) {
+                                return const SizedBox.shrink();
+                              }
+                              final unread = notifService.unreadCount;
+                              return Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  IconButton(
+                                    padding: const EdgeInsets.all(6),
+                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    icon: Icon(
+                                      unread > 0
+                                          ? Icons.notifications_active_rounded
+                                          : Icons.notifications_outlined,
+                                      color: unread > 0 ? colors.accent : colors.textSecondary,
+                                      size: 22,
+                                    ),
+                                    tooltip: 'Notifications',
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const FacultyNotificationHistoryScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  if (unread > 0)
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2.5),
+                                        decoration: BoxDecoration(
+                                          color: colors.primary,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 16,
+                                          minHeight: 16,
+                                        ),
+                                        child: Text(
+                                          unread > 9 ? '9+' : '$unread',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() => _currentIndex = 3);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
-                                color: colors.glassSurfaceSubtle,
-                                borderRadius: AppRadius.pillBorder,
-                                border: Border.all(color: colors.glassBorder),
-                              ),
-                              child: Text(
-                                'STUDENT',
-                                style: TextStyle(
-                                  color: colors.primary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: colors.borderStrong.withValues(alpha: 0.4),
+                                  width: 1.5,
                                 ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 20,
+                                backgroundColor: colors.surfaceMuted,
+                                child: Text(
+                                  summary.fullName.isNotEmpty ? summary.fullName[0].toUpperCase() : 'S',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: colors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // "Welcome Back!" Label
+                  Text(
+                    'Welcome Back!',
+                    style: typography.bodyMedium.copyWith(
+                      color: colors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Student User Name in Caviar Dreams Font
+                  Text(
+                    summary.fullName,
+                    style: TextStyle(
+                      fontFamily: 'CaviarDreams',
+                      fontFamilyFallback: const ['sans-serif'],
+                      color: colors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Student Details (Reg No, Class, Department, Semester)
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.badge_outlined, size: 14, color: colors.textMuted),
+                          const SizedBox(width: 4),
+                          Text(
+                            summary.registerNumber,
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (summary.className != null && summary.className!.isNotEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.school_outlined, size: 14, color: colors.textMuted),
+                            const SizedBox(width: 4),
+                            Text(
+                              summary.className!,
+                              style: TextStyle(
+                                color: colors.textSecondary,
+                                fontSize: 12,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Reg No: ${summary.registerNumber} | Class: ${summary.className ?? "N/A"}',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                      if (summary.department != null && summary.department!.isNotEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.apartment_rounded, size: 14, color: colors.textMuted),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${summary.department}${summary.semester != null ? " • Sem ${summary.semester}" : ""}',
+                              style: TextStyle(
+                                color: colors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
-                        if (summary.department != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Dept: ${summary.department} | Sem: ${summary.semester ?? "N/A"}',
-                            style: TextStyle(color: colors.textMuted, fontSize: 12),
-                          ),
-                        ],
-                      ],
-                    ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+          ),
+        ),
+      ),
+      const SizedBox(height: AppSpacing.md),
 
             // Mandatory Password Change Banner (if flagged by backend/admin)
             if (Provider.of<AuthService>(context).currentUser?.forcePasswordChange == true) ...[
@@ -318,120 +508,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               const SizedBox(height: AppSpacing.md),
             ],
 
-            // Overall Attendance % Card with AttendanceGauge
-            GlassCard(
-              variant: GlassCardVariant.elevated,
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Overall Attendance',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.15),
-                          borderRadius: AppRadius.pillBorder,
-                          border: Border.all(color: statusColor, width: 1.2),
-                        ),
-                        child: Text(
-                          summary.attendanceStatus,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  // AttendanceGauge
-                  AttendanceGauge(
-                    percentage: summary.percentage,
-                    size: 150,
-                    strokeWidth: 12,
-                    showStatusText: true,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Min: ${summary.minimumRequired.toStringAsFixed(0)}%',
-                    style: TextStyle(fontSize: 12, color: colors.textMuted, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // 4 Stat Columns: Total, Present, Absent, OD
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
-                    decoration: BoxDecoration(
-                      color: colors.glassSurfaceSubtle,
-                      borderRadius: AppRadius.cardBorder,
-                      border: Border.all(color: colors.glassBorder),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatColumn('Total', summary.total.toString(), colors.textPrimary),
-                        _buildStatColumn('Present', summary.present.toString(), colors.present),
-                        _buildStatColumn('Absent', summary.absent.toString(), colors.absent),
-                        _buildStatColumn('OD', summary.od.toString(), colors.od),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Divider(height: 1, color: colors.glassBorder),
-                  const SizedBox(height: AppSpacing.sm),
-
-                  // Half-Day Counters
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.wb_sunny_outlined, size: 16, color: colors.present),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Half-Day Present: ',
-                            style: TextStyle(fontSize: 12, color: colors.textSecondary),
-                          ),
-                          Text(
-                            '${summary.halfDayPresent}',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colors.present),
-                          ),
-                        ],
-                      ),
-                      Container(height: 16, width: 1, color: colors.glassBorder),
-                      Row(
-                        children: [
-                          Icon(Icons.nightlight_round_outlined, size: 16, color: colors.absent),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Half-Day Absent: ',
-                            style: TextStyle(fontSize: 12, color: colors.textSecondary),
-                          ),
-                          Text(
-                            '${summary.halfDayAbsent}',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colors.absent),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            // Interactive Overall Attendance Card with Concentric Rings Graph & Day-wise Calendar Heatmap Switch
+            InteractiveAttendanceOverviewCard(
+              summary: summary,
+              dateWiseEntries: studentService.dateWise,
+              subjects: studentService.subjects,
+              timetable: studentService.timetable,
             ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Minimum Attendance Recovery & Missable Alert Banner
+            // Minimum Attendance Recovery Alert Banner (only shown if attendance drops below minimum)
             if (summary.belowMinimum) ...[
+              const SizedBox(height: AppSpacing.md),
               GlassCard(
                 variant: GlassCardVariant.muted,
                 tint: colors.errorBg,
@@ -469,143 +555,232 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ],
                 ),
               ),
-            ] else ...[
-              GlassCard(
-                variant: GlassCardVariant.muted,
-                tint: colors.successBg,
-                borderColor: colors.success.withValues(alpha: 0.5),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle_outline, color: colors.success, size: 22),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Attendance requirement satisfied',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: colors.success, fontSize: 13),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Classes you can miss while remaining safe: ${summary.missableFutureClasses ?? 0}',
-                            style: TextStyle(color: colors.success.withValues(alpha: 0.85), fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
 
-            const SizedBox(height: AppSpacing.md),
-            PrimaryButton(
-              text: 'VIEW FULL ATTENDANCE REPORT',
-              icon: Icons.assessment_rounded,
-              isFullWidth: true,
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const StudentAttendanceReportScreen()),
+            const SizedBox(height: AppSpacing.lg),
+            SubjectPetalChartCard(
+              subjects: studentService.subjects,
+              timetable: studentService.timetable,
+              minimumRequired: summary.minimumRequired,
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+            Builder(
+              builder: (context) {
+                final allEntries = List<DateWiseEntryModel>.from(studentService.dateWise)
+                  ..sort((a, b) => b.date.compareTo(a.date));
+                final displayEntries = _showOnlyPast5Days
+                    ? allEntries.take(5).toList()
+                    : allEntries;
+                final hasMoreThan5 = allEntries.length > 5;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SectionHeader(
+                      title: 'Daily Attendance History',
+                      action: allEntries.isNotEmpty
+                          ? InkWell(
+                              onTap: hasMoreThan5
+                                  ? () => setState(() => _showOnlyPast5Days = !_showOnlyPast5Days)
+                                  : null,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                                decoration: BoxDecoration(
+                                  color: colors.glassSurfaceSubtle,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: hasMoreThan5
+                                        ? colors.accent.withValues(alpha: 0.5)
+                                        : colors.glassBorder,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 11.5,
+                                      color: hasMoreThan5 ? colors.accent : colors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      _showOnlyPast5Days
+                                          ? 'Past 5 Days'
+                                          : 'All ${allEntries.length} Days',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: hasMoreThan5 ? colors.accent : colors.textSecondary,
+                                      ),
+                                    ),
+                                    if (hasMoreThan5) ...[
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        _showOnlyPast5Days
+                                            ? Icons.keyboard_arrow_down_rounded
+                                            : Icons.keyboard_arrow_up_rounded,
+                                        size: 14,
+                                        color: colors.accent,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    if (displayEntries.isEmpty)
+                      GlassCard(
+                        variant: GlassCardVariant.muted,
+                        enableBlur: false,
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Center(
+                          child: Text(
+                            'No daily attendance records found.',
+                            style: TextStyle(color: colors.textSecondary),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      ...displayEntries.map((entry) => _buildDateWiseCard(entry)),
+                      if (hasMoreThan5)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4, bottom: AppSpacing.sm),
+                          child: Center(
+                            child: TextButton.icon(
+                              onPressed: () => setState(() => _showOnlyPast5Days = !_showOnlyPast5Days),
+                              icon: Icon(
+                                _showOnlyPast5Days ? Icons.expand_more_rounded : Icons.expand_less_rounded,
+                                size: 16,
+                                color: colors.accent,
+                              ),
+                              label: Text(
+                                _showOnlyPast5Days
+                                    ? 'View All ${allEntries.length} Recorded Days'
+                                    : 'Show Only Past 5 Days',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.accent,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
                 );
               },
             ),
 
-            const SizedBox(height: AppSpacing.lg),
-            const SectionHeader(
-              title: 'Subject Breakdown',
-            ),
-            const SizedBox(height: AppSpacing.xs),
-
-            // Subject Breakdown List
-            if (studentService.subjects.isEmpty)
-              GlassCard(
-                variant: GlassCardVariant.muted,
-                enableBlur: false,
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Center(
-                  child: Text('No subject attendance recorded yet.', style: TextStyle(color: colors.textSecondary)),
-                ),
-              )
-            else
-              ...studentService.subjects.map((subj) {
-                final isSafe = subj.percentage >= summary.minimumRequired;
-                final subjStatusColor = isSafe ? colors.success : colors.error;
-
-                return GlassCard(
-                  variant: GlassCardVariant.standard,
-                  enableBlur: false,
-                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  padding: EdgeInsets.zero,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
-                      title: Text(
-                        subj.subjectName,
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: colors.textPrimary),
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 2.0),
-                        child: Text(
-                          'Code: ${subj.subjectCode} | Total Classes: ${subj.total}',
-                          style: TextStyle(fontSize: 12, color: colors.textSecondary),
-                        ),
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: subjStatusColor.withValues(alpha: 0.15),
-                          borderRadius: AppRadius.smallBorder,
-                          border: Border.all(color: subjStatusColor, width: 1),
-                        ),
-                        child: Text(
-                          '${subj.percentage.toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: subjStatusColor,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-
-            const SizedBox(height: AppSpacing.lg),
-            SectionHeader(
-              title: 'Daily Attendance History',
-              action: studentService.dateWise.isNotEmpty
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: colors.glassSurfaceSubtle,
-                        borderRadius: AppRadius.smallBorder,
-                        border: Border.all(color: colors.glassBorder),
-                      ),
-                      child: Text(
-                        '${studentService.dateWise.length} Days Recorded',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textSecondary),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            if (studentService.dateWise.isEmpty)
-              GlassCard(
-                variant: GlassCardVariant.muted,
-                enableBlur: false,
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Center(
-                  child: Text('No daily attendance records found.', style: TextStyle(color: colors.textSecondary)),
-                ),
-              )
-            else
-              ...studentService.dateWise.map((entry) => _buildDateWiseCard(entry)),
-
             const SizedBox(height: AppSpacing.xl),
+          ],
+        ),
+      ),
+    ],
+  ),
+);
+  }
+
+  Widget _buildLiquidAmbientCanvas() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Stack(
+          children: [
+            // Ambient Electric Indigo Orb (Upper Right)
+            Positioned(
+              top: 40,
+              right: -60,
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF6366F1).withValues(alpha: 0.16),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Ambient Liquid Emerald Orb (Mid Left)
+            Positioned(
+              top: 380,
+              left: -80,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF10B981).withValues(alpha: 0.14),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Ambient Liquid Radiant Amber Orb (Mid Right)
+            Positioned(
+              top: 720,
+              right: -70,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFFF8A00).withValues(alpha: 0.13),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Ambient Liquid Coral Rose Orb (Lower Left)
+            Positioned(
+              bottom: 160,
+              left: -50,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFF43F5E).withValues(alpha: 0.12),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Ambient Liquid Violet Orb (Bottom Center)
+            Positioned(
+              bottom: -40,
+              right: 40,
+              child: Container(
+                width: 290,
+                height: 290,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF8B5CF6).withValues(alpha: 0.14),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -617,27 +792,26 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     Color badgeColor = colors.textMuted;
     Color badgeBg = colors.surfaceMuted;
     final res = entry.dailyResult ?? 'NOT ENTERED';
+    final normalized = res.replaceAll('_', ' ').trim().toUpperCase();
 
-    if (res == 'FULL DAY PRESENT') {
+    if (normalized.contains('FULL') && normalized.contains('PRESENT')) {
       badgeColor = colors.present;
       badgeBg = colors.presentBg;
-    } else if (res == 'HALF-DAY PRESENT') {
+    } else if (normalized.contains('HALF') || normalized.contains('PARTIAL')) {
       badgeColor = colors.warning;
       badgeBg = colors.warningBg;
-    } else if (res == 'FULL DAY ABSENT') {
+    } else if (normalized.contains('ABSENT')) {
       badgeColor = colors.absent;
       badgeBg = colors.absentBg;
-    } else if (res == 'OD') {
-      badgeColor = colors.od;
-      badgeBg = colors.odBg;
-    } else if (res == 'PARTIAL / MIXED') {
+    } else if (normalized.contains('OD') || normalized.contains('DUTY')) {
       badgeColor = colors.od;
       badgeBg = colors.odBg;
     }
 
     return GlassCard(
       variant: GlassCardVariant.standard,
-      enableBlur: false,
+      enableBlur: true,
+      blur: 16,
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: EdgeInsets.zero,
       child: Material(
@@ -768,28 +942,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ),
                 );
               }),
+            const SizedBox(height: 80),
           ],
         ),
       ),
     ),
   );
-  }
-
-  Widget _buildStatColumn(String label, String value, Color color) {
-    final colors = context.colors;
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: color),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: colors.textSecondary, fontWeight: FontWeight.w500),
-        ),
-      ],
-    );
   }
 
   @override
@@ -804,76 +962,472 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       const StudentProfileScreen(),
     ];
 
-    String appBarTitle;
-    if (_currentIndex == 0) {
-      appBarTitle = 'Student Dashboard';
-    } else if (_currentIndex == 1) {
-      appBarTitle = 'Attendance Report';
-    } else if (_currentIndex == 2) {
-      appBarTitle = 'Class Timetable';
-    } else {
-      appBarTitle = 'Student Profile';
-    }
-
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: colors.background,
-      appBar: AppBar(
-        title: _currentIndex == 0
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
+      drawer: _buildStudentDrawer(context, studentService),
+      body: SafeArea(
+        child: IndexedStack(
+          index: _currentIndex,
+          children: tabs,
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: AppGlass.shadowFloating,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colors.glassSurfaceStrong,
+                      colors.glassSurface,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: colors.glassBorderStrong,
+                    width: 1.2,
+                  ),
+                ),
+                child: BottomNavigationBar(
+                  currentIndex: _currentIndex,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  selectedItemColor: colors.primary,
+                  unselectedItemColor: colors.textMuted,
+                  type: BottomNavigationBarType.fixed,
+                  onTap: (idx) => setState(() => _currentIndex = idx),
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.dashboard_rounded),
+                      label: 'Dashboard',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.assessment_rounded),
+                      label: 'Attendance',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.calendar_today_rounded),
+                      label: 'Timetable',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.person_rounded),
+                      label: 'Profile',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStudentDrawer(BuildContext context, StudentService studentService) {
+    final colors = context.colors;
+    final summary = studentService.summary;
+    final studentName = (summary?.fullName != null && summary!.fullName.isNotEmpty)
+        ? summary.fullName
+        : 'Student';
+    final regNo = (summary?.registerNumber != null && summary!.registerNumber.isNotEmpty)
+        ? summary.registerNumber
+        : '2024CS101';
+    final className = (summary?.className != null && summary!.className!.isNotEmpty)
+        ? summary.className!
+        : 'B.Tech Computer Science';
+
+    return Drawer(
+      backgroundColor: colors.glassSurfaceStrong,
+      surfaceTintColor: Colors.transparent,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Column(
+          children: [
+            // Drawer Header with Frosted Pearl Liquid Glass & student credentials
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 50, 20, 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    colors.glassSurfaceStrong,
+                    colors.glassSurface,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border(
+                  bottom: BorderSide(color: colors.glassBorderStrong),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const GoOnLogoBadge(size: 30),
-                  const SizedBox(width: 10),
-                  Flexible(child: Text(appBarTitle, overflow: TextOverflow.ellipsis)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const GoOnLogo(size: 46),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: colors.accent.withValues(alpha: 0.15),
+                        borderRadius: AppRadius.pillBorder,
+                        border: Border.all(color: colors.accent.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        'STUDENT PORTAL',
+                        style: TextStyle(
+                          color: colors.accentStrong,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  studentName,
+                  style: TextStyle(
+                    fontFamily: 'CaviarDreams',
+                    fontFamilyFallback: const ['sans-serif'],
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                    letterSpacing: 0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.badge_outlined, size: 14, color: colors.textMuted),
+                    const SizedBox(width: 5),
+                    Text(
+                      regNo,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      width: 3,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.textMuted.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        className,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Drawer Navigation Items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              children: [
+                _buildDrawerSectionHeader('MAIN NAVIGATION', colors),
+                _buildDrawerItem(
+                  icon: Icons.dashboard_rounded,
+                  title: 'Dashboard',
+                  subtitle: 'Attendance overview & analytics',
+                  isSelected: _currentIndex == 0,
+                  colors: colors,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _currentIndex = 0);
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.assessment_rounded,
+                  title: 'Attendance Report',
+                  subtitle: 'Subject-wise breakdown',
+                  isSelected: _currentIndex == 1,
+                  colors: colors,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _currentIndex = 1);
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.calendar_today_rounded,
+                  title: 'Class Timetable',
+                  subtitle: 'Daily class schedule',
+                  isSelected: _currentIndex == 2,
+                  colors: colors,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _currentIndex = 2);
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.person_rounded,
+                  title: 'Student Profile',
+                  subtitle: 'Personal & academic information',
+                  isSelected: _currentIndex == 3,
+                  colors: colors,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _currentIndex = 3);
+                  },
+                ),
+                Builder(
+                  builder: (context) {
+                    NotificationService? notifService;
+                    try {
+                      notifService = Provider.of<NotificationService>(context);
+                    } catch (_) {
+                      return const SizedBox.shrink();
+                    }
+                    final unread = notifService.unreadCount;
+                    return _buildDrawerItem(
+                      icon: unread > 0 ? Icons.notifications_active_rounded : Icons.notifications_outlined,
+                      title: 'Notifications',
+                      subtitle: unread > 0 ? '$unread unread message${unread > 1 ? "s" : ""}' : 'Alerts & announcements',
+                      isSelected: false,
+                      colors: colors,
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FacultyNotificationHistoryScreen(),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                Divider(color: colors.border.withValues(alpha: 0.5), height: 1),
+                const SizedBox(height: 12),
+                _buildDrawerSectionHeader('STUDENT SERVICES', colors),
+                _buildDrawerItem(
+                  icon: Icons.face_retouching_natural_rounded,
+                  title: 'Biometric Face Enrollment',
+                  subtitle: 'Register face for camera attendance',
+                  isSelected: false,
+                  colors: colors,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BiometricEnrollmentScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.lock_reset_rounded,
+                  title: 'Change Password',
+                  subtitle: 'Manage account security',
+                  isSelected: false,
+                  colors: colors,
+                  onTap: () {
+                    Navigator.pop(context);
+                    ChangePasswordDialog.show(context);
+                  },
+                ),
+                SafeThemeConsumer(
+                  builder: (context, themeService, _) {
+                    final isDark = themeService.isDarkMode;
+                    return _buildDrawerItem(
+                      icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      title: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
+                      subtitle: isDark ? 'Warm Cream & Roasted Espresso' : 'Deep Obsidian & Liquid Glass',
+                      isSelected: false,
+                      colors: colors,
+                      onTap: () {
+                        themeService.toggleTheme();
+                      },
+                    );
+                  },
+                ),
+                if (Navigator.canPop(context)) ...[
+                  _buildDrawerItem(
+                    icon: Icons.palette_outlined,
+                    title: 'Design Studio Gallery',
+                    subtitle: 'Browse all UI role screens',
+                    isSelected: false,
+                    colors: colors,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                  ),
                 ],
-              )
-            : Text(appBarTitle),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Logout',
-            onPressed: () => _confirmLogout(context),
+              ],
+            ),
+          ),
+
+          // Drawer Footer with Logout
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: colors.border),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _confirmLogout(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: colors.error.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: colors.error.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout_rounded, color: colors.error, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Sign Out',
+                            style: TextStyle(
+                              color: colors.error,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Go-On v1.2',
+                  style: TextStyle(
+                    color: colors.textMuted,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: tabs,
+    ),
+    );
+  }
+
+  Widget _buildDrawerSectionHeader(String title, AppColors colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: colors.textMuted,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: colors.glassSurfaceStrong,
-          border: Border(top: BorderSide(color: colors.glassBorder)),
-          boxShadow: AppGlass.shadowFloating,
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    required AppColors colors,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isSelected ? colors.primary.withValues(alpha: 0.08) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? colors.primary.withValues(alpha: 0.22) : Colors.transparent,
+          width: 1.1,
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: colors.primary,
-          unselectedItemColor: colors.textMuted,
-          type: BottomNavigationBarType.fixed,
-          onTap: (idx) => setState(() => _currentIndex = idx),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.assessment_rounded),
-              label: 'Attendance',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_rounded),
-              label: 'Timetable',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
-              label: 'Profile',
-            ),
-          ],
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
+        leading: Icon(
+          icon,
+          color: isSelected ? colors.primary : colors.textSecondary,
+          size: 22,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? colors.textPrimary : colors.textSecondary,
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            color: colors.textMuted,
+            fontSize: 11,
+          ),
+        ),
+        trailing: isSelected
+            ? Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.present,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.present.withValues(alpha: 0.4),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+              )
+            : null,
+        onTap: onTap,
+        dense: true,
       ),
     );
   }

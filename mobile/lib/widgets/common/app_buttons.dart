@@ -125,9 +125,26 @@ class _PrimaryButtonState extends State<PrimaryButton> with SingleTickerProvider
         onTapCancel: isEnabled ? _onTapCancel : null,
         child: ScaleTransition(
           scale: _scaleAnimation,
-          child: SizedBox(
+          child: Container(
             width: widget.isFullWidth ? double.infinity : widget.width,
             height: widget.height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: isEnabled
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: const Color(0xFF818CF8).withValues(alpha: 0.18),
+                        blurRadius: 20,
+                        spreadRadius: -2,
+                      ),
+                    ]
+                  : null,
+            ),
             child: ElevatedButton(
               onPressed: isEnabled ? widget.onPressed : null,
               style: ElevatedButton.styleFrom(
@@ -139,7 +156,11 @@ class _PrimaryButtonState extends State<PrimaryButton> with SingleTickerProvider
                 minimumSize: Size(widget.width ?? (widget.isFullWidth ? double.infinity : AppSize.minTouchTarget), widget.height),
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                 shape: RoundedRectangleBorder(
-                  borderRadius: AppRadius.mediumBorder,
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: isEnabled ? Colors.white.withValues(alpha: 0.35) : Colors.transparent,
+                    width: 1.1,
+                  ),
                 ),
               ),
               child: buttonChild,
@@ -200,13 +221,14 @@ class SecondaryButton extends StatelessWidget {
         child: OutlinedButton(
           onPressed: isEnabled ? onPressed : null,
           style: OutlinedButton.styleFrom(
+            backgroundColor: colors.glassSurfaceSubtle,
             foregroundColor: textCol,
             disabledForegroundColor: textCol.withValues(alpha: 0.4),
             minimumSize: Size(width ?? (isFullWidth ? double.infinity : AppSize.minTouchTarget), height),
-            side: BorderSide(color: isEnabled ? border : border.withValues(alpha: 0.3)),
+            side: BorderSide(color: isEnabled ? border : border.withValues(alpha: 0.3), width: 1.1),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             shape: RoundedRectangleBorder(
-              borderRadius: AppRadius.mediumBorder,
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
           child: Row(

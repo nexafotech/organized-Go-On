@@ -20,7 +20,7 @@ DEFAULT_ROSTER_PATH = os.path.abspath("college_seed/students_class1_development.
 DEFAULT_DOCX_OUTPUT_PATH = r"C:\Users\Abishek\Documents\Attendance_Marker\CLASS1_STUDENT_CREDENTIALS.docx"
 EXPECTED_CLASS_NAME = "II Year CSE Cyber Security - Class 1"
 EXPECTED_STUDENT_COUNT = 64
-MAX_SYSTEM_STUDENTS = 130
+MAX_SYSTEM_STUDENTS = int(os.getenv("MAX_SYSTEM_STUDENTS", "130"))
 
 
 def generate_secure_temporary_password(length: int = 8) -> str:

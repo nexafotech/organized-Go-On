@@ -59,6 +59,13 @@ class AdminCustomNotificationCreate(BaseModel):
     route: Optional[str] = Field(default=None, description="Safe deep link internal route")
     scheduled_at: Optional[datetime] = Field(default=None, description="Scheduled delivery timestamp (Asia/Kolkata)")
 
+    @field_validator("title", "body")
+    @classmethod
+    def validate_non_empty_text(cls, v: str, info):
+        if not v or not v.strip():
+            raise ValueError(f"{info.field_name.capitalize()} cannot be empty or blank")
+        return v.strip()
+
     @field_validator("audience")
     @classmethod
     def validate_audience(cls, v):
@@ -97,6 +104,10 @@ class AdminCustomNotificationResponse(BaseModel):
     status: str
     message: str
     scheduled_at: Optional[datetime] = None
+    devices_targeted: Optional[int] = 0
+    devices_sent: Optional[int] = 0
+    devices_failed: Optional[int] = 0
+    deactivated_tokens: Optional[int] = 0
 
 
 class NotificationLogOut(BaseModel):
@@ -114,6 +125,10 @@ class NotificationLogOut(BaseModel):
     error_message: Optional[str] = None
     is_read: bool = False
     read_at: Optional[datetime] = None
+    is_pinned: bool = False
+    pinned_at: Optional[datetime] = None
+    is_deleted: bool = False
+    deleted_at: Optional[datetime] = None
     created_at: datetime
 
     class Config:
@@ -128,6 +143,13 @@ class NotificationActionResponse(BaseModel):
     success: bool
     id: Optional[int] = None
     count: Optional[int] = None
+    message: str
+
+
+class BulkDeleteUnpinnedResponse(BaseModel):
+    success: bool
+    deleted_count: int
+    pinned_preserved_count: int
     message: str
 
 

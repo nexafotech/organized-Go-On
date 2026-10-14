@@ -28,6 +28,13 @@ class AuthService extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get sessionExpired => _sessionExpired;
 
+  void setMockUser(UserModel user) {
+    _currentUser = user;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   void clearErrorMessage() {
     if (_errorMessage != null) {
       _errorMessage = null;
@@ -349,6 +356,7 @@ class AuthService extends ChangeNotifier {
     } catch (_) {}
 
     await _secureStorage.clearSession();
+    NotificationService().clearUserData();
     _currentUser = null;
     _sessionExpired = false;
     _errorMessage = null;

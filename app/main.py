@@ -56,12 +56,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware setup
+# CORS middleware setup - restrict origins safely when credentials are enabled
+cors_origins = list(settings.CORS_ALLOWED_ORIGINS)
+env_cors = os.getenv("CORS_ORIGINS", "")
+if env_cors:
+    for origin in env_cors.split(","):
+        o = origin.strip()
+        if o and o not in cors_origins:
+            cors_origins.append(o)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 

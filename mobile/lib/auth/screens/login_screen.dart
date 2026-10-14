@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/config/api_config.dart';
 import '../../core/storage/app_preferences.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_service.dart';
 import '../../services/auth_service.dart';
 import '../../student/screens/student_dashboard_screen.dart';
 import '../../faculty/screens/faculty_dashboard_screen.dart';
@@ -271,16 +272,27 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_remote_rounded),
-            tooltip: 'Configure Server URL',
-            onPressed: _showServerConfigDialog,
+          SafeThemeConsumer(
+            builder: (context, themeService, _) {
+              final isDark = themeService.isDarkMode;
+              return IconButton(
+                icon: Icon(
+                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                  color: isDark ? const Color(0xFFF59E0B) : colors.textPrimary,
+                ),
+                tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
+                onPressed: () => themeService.toggleTheme(),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(
-        child: Center(
+      body: Stack(
+        children: [
+          AppScaffold.buildLiquidAmbientCanvas(),
+          SafeArea(
+            child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: SingleChildScrollView(
@@ -487,7 +499,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ),
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   Widget _buildStudentForm(AppColors colors, AuthService authService) {

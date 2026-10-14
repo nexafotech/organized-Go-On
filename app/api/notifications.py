@@ -14,6 +14,7 @@ from app.schemas.notification import (
     NotificationLogOut, NextClassReminderCheckResult,
     ScheduledNotificationOut,
     UnreadCountOut, NotificationActionResponse,
+    BulkDeleteUnpinnedResponse,
 )
 from app.api.deps import get_current_user, require_admin
 from app.services.notification_service import NotificationService, TIMEZONE_KOLKATA
@@ -90,19 +91,16 @@ def get_my_notification_history(
 ):
     """
     Returns recent notifications delivered to the current authenticated user.
+    Excludes deleted notifications, sorts pinned notifications to top.
     Strictly isolated: never exposes notifications from another user.
     """
-    query = db.query(NotificationLog).filter(NotificationLog.user_id == current_user.id)
-    if unread_only:
-        query = query.filter(NotificationLog.is_read == False)
-    logs = (
-        query
-        .order_by(NotificationLog.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
+    return NotificationService.get_user_notification_history(
+        db=db,
+        user_id=current_user.id,
+        skip=skip,
+        limit=limit,
+        unread_only=unread_only,
     )
-    return logs
 
 
 @router.get("/unread-count", response_model=UnreadCountOut)
@@ -155,6 +153,87 @@ def mark_all_notifications_read(
     }
 
 
+@router.delete("/unpinned", response_model=BulkDeleteUnpinnedResponse)
+@router.post("/delete-unpinned", response_model=BulkDeleteUnpinnedResponse)
+def delete_all_unpinned_notifications(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Deletes all unpinned notifications for the currently authenticated user.
+    Pinned notifications are strictly preserved and remain in the active inbox.
+    Scope is limited strictly to the authenticated user's records.
+    """
+    return NotificationService.delete_all_unpinned_notifications(db=db, user_id=current_user.id)
+
+
+@router.delete("/{log_id}", response_model=NotificationActionResponse)
+def delete_notification(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Soft-deletes a notification for the current authenticated user.
+    The notification will no longer appear in the user's inbox or unread count.
+    """
+    success = NotificationService.soft_delete_notification(db=db, log_id=log_id, user_id=current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found or access denied",
+        )
+    return {
+        "success": True,
+        "id": log_id,
+        "message": "Notification deleted successfully",
+    }
+
+
+@router.post("/{log_id}/pin", response_model=NotificationActionResponse)
+def pin_notification(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Pins a notification to the top for the current authenticated user.
+    """
+    success = NotificationService.pin_notification(db=db, log_id=log_id, user_id=current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found or access denied",
+        )
+    return {
+        "success": True,
+        "id": log_id,
+        "message": "Notification pinned to top",
+    }
+
+
+@router.post("/{log_id}/unpin", response_model=NotificationActionResponse)
+def unpin_notification(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Unpins a notification for the current authenticated user.
+    """
+    success = NotificationService.unpin_notification(db=db, log_id=log_id, user_id=current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found or access denied",
+        )
+    return {
+        "success": True,
+        "id": log_id,
+        "message": "Notification unpinned",
+    }
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Admin Notification Endpoints
 # ─────────────────────────────────────────────────────────────────────────────
@@ -173,10 +252,13 @@ def get_notification_metrics(
     total_logs = db.query(NotificationLog).count()
     pending_scheduled = db.query(ScheduledNotification).filter(ScheduledNotification.status == "PENDING").count()
     settings = NotificationService.get_settings(db)
+    from app.models.policy import SystemSetting
+    last_heartbeat = db.query(SystemSetting).filter(SystemSetting.key == "notification.last_reminder_check_at").first()
     return {
         "active_device_tokens": active_tokens,
         "total_dispatched_logs": total_logs,
         "pending_scheduled": pending_scheduled,
+        "last_scheduler_heartbeat": last_heartbeat.value if last_heartbeat else None,
         "student_next_class_enabled": bool(settings.get("student_next_class_enabled", True)),
         "student_next_class_lead_minutes": int(settings.get("student_next_class_lead_minutes", 10)),
         "faculty_next_class_enabled": bool(settings.get("faculty_next_class_enabled", True)),

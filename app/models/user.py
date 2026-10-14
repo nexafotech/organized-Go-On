@@ -82,8 +82,8 @@ class Faculty(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     employee_id = Column(String(50), unique=True, index=True, nullable=False)
-    full_name = Column(String(100), nullable=False)
-    department = Column(String(100), nullable=True)
+    full_name = Column(String(100), nullable=False, index=True)
+    department = Column(String(100), nullable=True, index=True)
     phone = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

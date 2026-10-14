@@ -115,6 +115,8 @@ class MockStudentServiceForEnrollment extends ChangeNotifier implements StudentS
   Future<void> fetchAttendanceReportFiltered({int? subjectId, String? startDate, String? endDate}) async {}
   @override
   Future<void> loadDashboardData() async {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {

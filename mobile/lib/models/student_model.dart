@@ -128,6 +128,10 @@ class TimetableItemModel {
   final String? subjectCode;
   final String? subjectName;
   final String? facultyName;
+  final String? roomNo;
+  final int span;
+  final String? type;
+  final String? colorTag;
 
   TimetableItemModel({
     required this.dayOfWeek,
@@ -138,6 +142,10 @@ class TimetableItemModel {
     this.subjectCode,
     this.subjectName,
     this.facultyName,
+    this.roomNo,
+    this.span = 1,
+    this.type,
+    this.colorTag,
   });
 
   factory TimetableItemModel.fromJson(Map<String, dynamic> json) {
@@ -150,6 +158,10 @@ class TimetableItemModel {
       subjectCode: json['subject_code'] as String?,
       subjectName: json['subject_name'] as String?,
       facultyName: json['faculty_name'] as String?,
+      roomNo: json['room_no'] as String? ?? json['room'] as String?,
+      span: json['span'] as int? ?? 1,
+      type: json['type'] as String?,
+      colorTag: json['color_tag'] as String?,
     );
   }
 }

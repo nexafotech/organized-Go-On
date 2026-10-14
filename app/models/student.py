@@ -8,11 +8,11 @@ class Student(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     roll_number = Column(String(50), unique=True, index=True, nullable=False)
-    full_name = Column(String(100), nullable=False)
+    full_name = Column(String(100), nullable=False, index=True)
     email = Column(String(100), nullable=True)
     phone = Column(String(20), nullable=True)
-    class_id = Column(Integer, ForeignKey("class_sections.id", ondelete="SET NULL"), nullable=True)
-    is_active = Column(Boolean, default=True)
+    class_id = Column(Integer, ForeignKey("class_sections.id", ondelete="SET NULL"), nullable=True, index=True)
+    is_active = Column(Boolean, default=True, index=True)
     # M4: Academic profile fields
     semester = Column(String(20), nullable=True)     # e.g., "3", "Semester 3"
     department = Column(String(100), nullable=True)  # e.g., "Computer Science & Engineering"

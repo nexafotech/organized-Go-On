@@ -181,6 +181,9 @@ class AppColors extends ThemeExtension<AppColors> {
     this.glassTint = const Color(0x1AF6F1EA),
   });
 
+  /// Quick check for dark mode based on background luminance
+  bool get isDark => background.computeLuminance() < 0.2;
+
   /// Authoritative Light "Cream & Espresso" Token Palette
   static const AppColors light = AppColors(
     background: Color(0xFFF6F1EA),
@@ -207,12 +210,12 @@ class AppColors extends ThemeExtension<AppColors> {
     accentStrong: Color(0xFF8A5530),
     accentOnHero: Color(0xFFE0A878),
     focusRing: Color(0xFFB87B4B),
-    present: Color(0xFF0B7A55),
-    presentBg: Color(0xFFDDF3E8),
-    absent: Color(0xFFB42318),
-    absentBg: Color(0xFFFBE4E1),
-    od: Color(0xFF3D4FB8),
-    odBg: Color(0xFFE4E8FA),
+    present: Color(0xFF2B1A13), // Deep Roasted Espresso (replaces green, harmonizes with cream palette)
+    presentBg: Color(0xFFEDE5DB), // Warm Oat Linen background
+    absent: Color(0xFFBA5A31), // Warm Spiced Terracotta / Burnt Clay (replaces red)
+    absentBg: Color(0xFFFBF0EB), // Soft terracotta peach tint
+    od: Color(0xFF4A607A), // Muted Slate Denim
+    odBg: Color(0xFFEFF3F8), // Soft denim mist tint
     notEntered: Color(0xFF6B5B50),
     notEnteredBg: Color(0xFFEFE7DD),
     excluded: Color(0xFF6B5B50),
@@ -242,6 +245,69 @@ class AppColors extends ThemeExtension<AppColors> {
     glassHighlight: Color(0x66FFFFFF), // specular sheen
     glassScrim: Color(0x332B1A13), // ~20% warm espresso scrim
     glassTint: Color(0x1AF6F1EA), // ~10% warm cream tint
+  );
+
+  /// Authoritative Liquid Glass Dark Token Palette (Petal Chart & Apple visionOS aesthetic)
+  static const AppColors dark = AppColors(
+    background: Color(0xFF0D0C13), // Deep obsidian abyss
+    surface: Color(0xFF1E1C27),    // Translucent obsidian glass card (~85%)
+    surfaceElevated: Color(0xFF262332), // Raised smoked obsidian glass
+    surfaceMuted: Color(0xFF161420),    // Muted obsidian
+    surfaceTint: Color(0xFF2A2738),
+    hero: Color(0xFF22202A),       // Smoked obsidian hero card
+    heroRaised: Color(0xFF2E2A3C),
+    heroGradientEnd: Color(0xFF14131A),
+    onHero: Color(0xFFF7F5EE),     // Luminous pearl cream
+    onHeroSecondary: Color(0xFFC5BDD3), // Soft lavender mist
+    textPrimary: Color(0xFFF7F5EE),     // Luminous pearl cream (ultra clear)
+    textSecondary: Color(0xFFC5BDD3),   // Muted lilac / soft lavender mist
+    textMuted: Color(0xFF867D97),       // Slate violet
+    border: Color(0x2EFFFFFF),          // Translucent specular white border (~18%)
+    borderStrong: Color(0x52FFFFFF),    // Specular edge highlight (~32%)
+    divider: Color(0x1FFFFFFF),         // Subtle glass divider (~12%)
+    scrim: Color(0xB30D0C13),           // Smoked scrim
+    primary: Color(0xFFE4DFEB),         // Soft pearl lavender / luminous cream
+    primaryPressed: Color(0xFF867D97),
+    onPrimary: Color(0xFF161420),       // Deep obsidian text on pearl buttons
+    accent: Color(0xFF818CF8),          // Sapphire crystal / electric indigo
+    accentStrong: Color(0xFF6366F1),
+    accentOnHero: Color(0xFFE4DFEB),
+    focusRing: Color(0xFFC5BDD3),
+    present: Color(0xFF10B981),         // Emerald liquid glow
+    presentBg: Color(0x2610B981),       // Translucent emerald glass jewel
+    absent: Color(0xFFF43F5E),          // Ruby rose liquid glow
+    absentBg: Color(0x26F43F5E),        // Translucent ruby glass jewel
+    od: Color(0xFF818CF8),              // Sapphire crystal liquid glow
+    odBg: Color(0x26818CF8),            // Translucent sapphire glass jewel
+    notEntered: Color(0xFF867D97),      // Slate violet
+    notEnteredBg: Color(0x24867D97),
+    excluded: Color(0xFF867D97),
+    excludedBg: Color(0x24867D97),
+    breakColor: Color(0xFFC5BDD3),
+    breakBg: Color(0x24C5BDD3),
+    lunch: Color(0xFF867D97),
+    lunchBg: Color(0x24867D97),
+    success: Color(0xFF10B981),
+    successBg: Color(0x2610B981),
+    warning: Color(0xFFF59E0B),
+    warningBg: Color(0x26F59E0B),
+    error: Color(0xFFF43F5E),
+    errorBg: Color(0x26F43F5E),
+    info: Color(0xFF818CF8),
+    infoBg: Color(0x26818CF8),
+    heroChip: Color(0x24FFFFFF),
+    rateHigh: Color(0xFF10B981),
+    rateMedium: Color(0xFFF59E0B),
+    rateLow: Color(0xFFF43F5E),
+    glassSurface: Color(0xBF22202A),       // ~75% frosted obsidian glass
+    glassSurfaceStrong: Color(0xEB282635), // ~92% frosted obsidian glass
+    glassSurfaceSubtle: Color(0x801E1C27), // ~50% frosted obsidian glass
+    glassSurfaceHero: Color(0xEB22202A),
+    glassBorder: Color(0x33FFFFFF),        // 20% specular white rim
+    glassBorderStrong: Color(0x59FFFFFF),  // 35% specular white rim
+    glassHighlight: Color(0x66FFFFFF),     // Convex specular arc glare
+    glassScrim: Color(0x800D0C13),
+    glassTint: Color(0x1AC5BDD3),          // Lavender mist optic tint
   );
 
   // Status bundle accessors with paired icon & label
@@ -349,7 +415,10 @@ class AppColors extends ThemeExtension<AppColors> {
   }
 
   static AppColors of(BuildContext context) {
-    return Theme.of(context).extension<AppColors>() ?? AppColors.light;
+    final ext = Theme.of(context).extension<AppColors>();
+    if (ext != null) return ext;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? AppColors.dark : AppColors.light;
   }
 
   @override
@@ -791,7 +860,10 @@ abstract class AppSpacing {
 
   /// Dynamic horizontal page padding based on screen width
   static double pagePadding(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= 1200.0) return 40.0;
+    if (width >= 900.0) return 32.0;
+    if (width >= 600.0) return 24.0;
     return width >= 390.0 ? pagePaddingDefault : pagePaddingCompact;
   }
 }
@@ -832,17 +904,17 @@ abstract class AppElevation {
   /// e0: Flat rows, roster rows, matrix (none; 1px border hairline)
   static const List<BoxShadow> e0 = [];
 
-  /// e1: Standard cards
+  /// e1: Standard liquid glass cards
   static const List<BoxShadow> e1 = [
     BoxShadow(
-      color: Color(0x0A2B1A13), // rgba(43, 26, 19, 0.04)
-      offset: Offset(0, 1),
-      blurRadius: 2,
-    ),
-    BoxShadow(
-      color: Color(0x0D2B1A13), // rgba(43, 26, 19, 0.05)
+      color: Color(0x122B1A13), // rgba(43, 26, 19, 0.07) warm espresso depth
       offset: Offset(0, 4),
       blurRadius: 16,
+    ),
+    BoxShadow(
+      color: Color(0x082B1A13),
+      offset: Offset(0, 1),
+      blurRadius: 4,
     ),
   ];
 
@@ -851,16 +923,26 @@ abstract class AppElevation {
     BoxShadow(
       color: Color(0x1A2B1A13), // rgba(43, 26, 19, 0.10)
       offset: Offset(0, 8),
-      blurRadius: 24,
+      blurRadius: 22,
+    ),
+    BoxShadow(
+      color: Color(0x0D2B1A13),
+      offset: Offset(0, 2),
+      blurRadius: 6,
     ),
   ];
 
   /// e3: Floating nav, bottom action bars
   static const List<BoxShadow> e3 = [
     BoxShadow(
-      color: Color(0x2E2B1A13), // rgba(43, 26, 19, 0.18)
+      color: Color(0x242B1A13), // rgba(43, 26, 19, 0.14)
       offset: Offset(0, 12),
-      blurRadius: 32,
+      blurRadius: 30,
+    ),
+    BoxShadow(
+      color: Color(0x0F2B1A13),
+      offset: Offset(0, 3),
+      blurRadius: 10,
     ),
   ];
 }
@@ -871,63 +953,63 @@ abstract class AppElevation {
 
 abstract class AppGlass {
   // Blur amounts (Sigma values for ImageFilter.blur)
-  static const double blurSubtle = 8.0;
-  static const double blurStandard = 14.0;
-  static const double blurStrong = 20.0;
-  static const double blurSheet = 24.0;
+  static const double blurSubtle = 12.0;
+  static const double blurStandard = 18.0;
+  static const double blurStrong = 24.0;
+  static const double blurSheet = 28.0;
 
   // Opacities
   static const double opacitySubtle = 0.50;
-  static const double opacityStandard = 0.77;
+  static const double opacityStandard = 0.78;
   static const double opacityStrong = 0.92;
 
-  // Glass Shadows (warm espresso depth)
+  // Glass Shadows (warm espresso optical depth for cream canvas)
   static const List<BoxShadow> shadow = [
     BoxShadow(
-      color: Color(0x0D2B1A13), // rgba(43, 26, 19, 0.05)
-      offset: Offset(0, 4),
-      blurRadius: 16,
+      color: Color(0x122B1A13), // rgba(43, 26, 19, 0.07)
+      offset: Offset(0, 6),
+      blurRadius: 18,
     ),
     BoxShadow(
-      color: Color(0x082B1A13), // rgba(43, 26, 19, 0.03)
+      color: Color(0x082B1A13),
       offset: Offset(0, 1),
-      blurRadius: 3,
+      blurRadius: 4,
     ),
   ];
 
   static const List<BoxShadow> shadowElevated = [
     BoxShadow(
-      color: Color(0x172B1A13), // rgba(43, 26, 19, 0.09)
-      offset: Offset(0, 8),
-      blurRadius: 24,
+      color: Color(0x1A2B1A13), // rgba(43, 26, 19, 0.10)
+      offset: Offset(0, 10),
+      blurRadius: 26,
     ),
     BoxShadow(
-      color: Color(0x0A2B1A13), // rgba(43, 26, 19, 0.04)
+      color: Color(0x0C2B1A13),
       offset: Offset(0, 2),
-      blurRadius: 6,
+      blurRadius: 8,
     ),
   ];
 
   static const List<BoxShadow> shadowFloating = [
     BoxShadow(
       color: Color(0x242B1A13), // rgba(43, 26, 19, 0.14)
-      offset: Offset(0, 12),
+      offset: Offset(0, 14),
       blurRadius: 32,
     ),
     BoxShadow(
-      color: Color(0x0D2B1A13),
+      color: Color(0x0F2B1A13),
       offset: Offset(0, 4),
-      blurRadius: 8,
+      blurRadius: 12,
     ),
   ];
 
-  // Specular Gradients (simulating light passing through frosted glass)
+  // Specular Gradients (simulating light passing through frosted glass with top glare reflection)
   static const LinearGradient specularGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xD9FFFFFF), // 85% white highlight
-      Color(0xA6FFFFFF), // 65% white base
+      Color(0x2EFFFFFF), // 18% white specular highlight
+      Color(0x0AFFFFFF), // 4% white base
     ],
   );
 
@@ -935,8 +1017,8 @@ abstract class AppGlass {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xF02B1A13), // 94% espresso highlight
-      Color(0xE03A2419), // 88% warm raised espresso
+      Color(0xF02B1A13), // Deep espresso glass
+      Color(0xE61A0F0A), // Espresso shadow
     ],
   );
 
@@ -944,8 +1026,8 @@ abstract class AppGlass {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0x99FFFFFF), // 60%
-      Color(0x66FFFFFF), // 40%
+      Color(0x1FFFFFFF), // 12%
+      Color(0x08FFFFFF), // 3%
     ],
   );
 }
@@ -1003,10 +1085,34 @@ abstract class AppSize {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 10. CONTEXT CONVENIENCE EXTENSION
+// 10. RESPONSIVE BREAKPOINT TOKENS
+// ─────────────────────────────────────────────────────────────────────────────
+
+abstract class AppBreakpoints {
+  static const double compactMobile = 390.0;
+  static const double mobile = 600.0;
+  static const double tablet = 900.0;
+  static const double desktop = 1200.0;
+  static const double maxContentWidth = 1200.0;
+
+  static bool isCompact(BuildContext context) => MediaQuery.sizeOf(context).width < compactMobile;
+  static bool isMobile(BuildContext context) => MediaQuery.sizeOf(context).width < mobile;
+  static bool isTablet(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    return width >= mobile && width < desktop;
+  }
+  static bool isDesktop(BuildContext context) => MediaQuery.sizeOf(context).width >= desktop;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 11. CONTEXT CONVENIENCE EXTENSION
 // ─────────────────────────────────────────────────────────────────────────────
 
 extension AppTokensContextExtension on BuildContext {
   AppColors get colors => AppColors.of(this);
   AppTypography get typography => AppTypography.of(this);
+  bool get isCompact => AppBreakpoints.isCompact(this);
+  bool get isMobile => AppBreakpoints.isMobile(this);
+  bool get isTablet => AppBreakpoints.isTablet(this);
+  bool get isDesktop => AppBreakpoints.isDesktop(this);
 }

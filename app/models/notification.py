@@ -67,6 +67,10 @@ class NotificationLog(Base):
     error_message = Column(Text, nullable=True)
     is_read = Column(Boolean, default=False, nullable=False, index=True)
     read_at = Column(DateTime, nullable=True)
+    is_pinned = Column(Boolean, default=False, nullable=False, index=True)
+    pinned_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False, nullable=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     user = relationship("User", backref="notification_logs")
@@ -74,6 +78,8 @@ class NotificationLog(Base):
     __table_args__ = (
         Index("ix_notif_log_idempotency", "user_id", "notification_type", "reference_date", "timetable_entry_id"),
         Index("ix_notif_log_user_read", "user_id", "is_read"),
+        Index("ix_notif_log_user_deleted", "user_id", "is_deleted"),
+        Index("ix_notif_log_user_pinned", "user_id", "is_pinned"),
     )
 
 
