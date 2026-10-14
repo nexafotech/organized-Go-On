@@ -46,6 +46,7 @@ class StudentMeOut(BaseModel):
     semester: Optional[str] = None
     department: Optional[str] = None
     is_active: bool
+    avatar_id: Optional[str] = None
     # Overall attendance summary
     total: int = 0
     present: int = 0
@@ -65,6 +66,21 @@ class StudentMeOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AvatarCatalogItem(BaseModel):
+    id: str
+    name: str
+    category: str
+    gender_presentation: str
+    is_neutral: bool
+    tags: List[str]
+    asset: str
+    url: str
+
+class AvatarUpdateIn(BaseModel):
+    avatar_id: str
+    preference: Optional[str] = None
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

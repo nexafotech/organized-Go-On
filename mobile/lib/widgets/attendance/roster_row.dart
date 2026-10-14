@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../avatar/user_avatar_widget.dart';
 import 'attendance_status_chip.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,14 +23,6 @@ class StudentRow extends StatelessWidget {
     this.onTap,
   }) : super(key: key);
 
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -44,16 +37,11 @@ class StudentRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          UserAvatarWidget(
+            fallbackSeed: rollNumber.isNotEmpty ? rollNumber : fullName,
             radius: 20,
-            backgroundColor: colors.surfaceMuted,
-            child: Text(
-              _getInitials(fullName),
-              style: typography.labelMedium.copyWith(
-                color: colors.accentStrong,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            borderWidth: 1.5,
+            borderColor: colors.border,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

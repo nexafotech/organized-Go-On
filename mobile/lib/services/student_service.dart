@@ -125,6 +125,58 @@ class StudentService extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<bool> updateAvatar(String avatarId) async {
+    try {
+      final response = await _apiClient.put(
+        ApiConfig.studentAvatar,
+        body: {'avatar_id': avatarId},
+      );
+      if (response is Map && response['success'] == true) {
+        if (_summary != null) {
+          _summary = _summary!.copyWith(avatarId: avatarId);
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      // Optimistically update locally as fallback
+      if (_summary != null) {
+        _summary = _summary!.copyWith(avatarId: avatarId);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    }
+  }
+
+  Future<bool> updateProfile({String? email, String? phone, String? avatarId}) async {
+    try {
+      final payload = <String, dynamic>{};
+      if (email != null) payload['email'] = email;
+      if (phone != null) payload['phone'] = phone;
+      if (avatarId != null) payload['avatar_id'] = avatarId;
+
+      final response = await _apiClient.patch(
+        ApiConfig.studentProfile,
+        body: payload,
+      );
+      if (response is Map && response['success'] == true) {
+        if (_summary != null) {
+          _summary = _summary!.copyWith(
+            email: email ?? _summary!.email,
+            avatarId: avatarId ?? _summary!.avatarId,
+          );
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<void> loadDashboardData() async {
     await Future.wait([
       fetchStudentSummary(),
@@ -134,3 +186,4 @@ class StudentService extends ChangeNotifier {
     ]);
   }
 }
+

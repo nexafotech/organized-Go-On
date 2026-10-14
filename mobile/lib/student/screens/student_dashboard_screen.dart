@@ -339,32 +339,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             },
                           ),
                           const SizedBox(width: 4),
-                          GestureDetector(
+                          UserAvatarWidget(
+                            avatarId: summary.avatarId,
+                            fallbackSeed: summary.registerNumber.isNotEmpty ? summary.registerNumber : summary.fullName,
+                            radius: 20,
+                            borderWidth: 1.5,
+                            borderColor: colors.borderStrong.withValues(alpha: 0.4),
                             onTap: () {
                               setState(() => _currentIndex = 3);
                             },
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: colors.borderStrong.withValues(alpha: 0.4),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: CircleAvatar(
-                                radius: 20,
-                                backgroundColor: colors.surfaceMuted,
-                                child: Text(
-                                  summary.fullName.isNotEmpty ? summary.fullName[0].toUpperCase() : 'S',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ),
                           ),
                         ],
                       ),

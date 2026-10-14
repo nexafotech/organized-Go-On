@@ -187,6 +187,24 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> patch(String path, {dynamic body, bool includeAuth = true}) async {
+    try {
+      final uri = _buildUri(path);
+      final headers = await _getHeaders(includeAuth: includeAuth);
+      final String? jsonBody = body != null ? jsonEncode(body) : null;
+      final response = await _httpClient
+          .patch(uri, headers: headers, body: jsonBody)
+          .timeout(const Duration(seconds: 15));
+      return _processResponse(response, isAuthRequest: !includeAuth);
+    } on SocketException {
+      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
+    } on http.ClientException {
+      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
+    } on TimeoutException {
+      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
+    }
+  }
+
   Future<dynamic> delete(String path, {bool includeAuth = true}) async {
     try {
       final uri = _buildUri(path);

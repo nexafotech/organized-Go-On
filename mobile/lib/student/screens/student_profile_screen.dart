@@ -152,17 +152,27 @@ class StudentProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.xl),
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 36,
-                        backgroundColor: colors.heroChip,
-                        child: Text(
-                          summary.fullName.isNotEmpty ? summary.fullName[0].toUpperCase() : 'S',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: colors.primary,
-                          ),
-                        ),
+                      UserAvatarWidget(
+                        avatarId: summary.avatarId,
+                        fallbackSeed: summary.registerNumber,
+                        radius: 42,
+                        showEditBadge: true,
+                        onEditTap: () {
+                          AvatarPickerSheet.show(
+                            context: context,
+                            currentAvatarId: summary.avatarId ?? '',
+                            userSeed: summary.registerNumber,
+                            onSave: (id) => studentService.updateAvatar(id),
+                          );
+                        },
+                        onTap: () {
+                          AvatarPickerSheet.show(
+                            context: context,
+                            currentAvatarId: summary.avatarId ?? '',
+                            userSeed: summary.registerNumber,
+                            onSave: (id) => studentService.updateAvatar(id),
+                          );
+                        },
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
@@ -179,35 +189,78 @@ class StudentProfileScreen extends StatelessWidget {
                         style: TextStyle(color: colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: summary.isActive ? colors.presentBg : colors.errorBg,
-                          borderRadius: AppRadius.pillBorder,
-                          border: Border.all(
-                            color: summary.isActive ? colors.present : colors.error,
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              summary.isActive ? Icons.check_circle : Icons.cancel,
-                              size: 14,
-                              color: summary.isActive ? colors.present : colors.error,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              summary.isActive ? 'Active Student' : 'Account Disabled',
-                              style: TextStyle(
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: summary.isActive ? colors.presentBg : colors.errorBg,
+                              borderRadius: AppRadius.pillBorder,
+                              border: Border.all(
                                 color: summary.isActive ? colors.present : colors.error,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                                width: 1,
                               ),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  summary.isActive ? Icons.check_circle : Icons.cancel,
+                                  size: 14,
+                                  color: summary.isActive ? colors.present : colors.error,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  summary.isActive ? 'Active Student' : 'Account Disabled',
+                                  style: TextStyle(
+                                    color: summary.isActive ? colors.present : colors.error,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () {
+                              AvatarPickerSheet.show(
+                                context: context,
+                                currentAvatarId: summary.avatarId ?? '',
+                                userSeed: summary.registerNumber,
+                                onSave: (id) => studentService.updateAvatar(id),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: colors.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: colors.primary.withValues(alpha: 0.35),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.edit_rounded, size: 12, color: colors.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Edit Avatar',
+                                    style: TextStyle(
+                                      color: colors.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -400,6 +453,20 @@ class StudentProfileScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
+                      SecondaryButton(
+                        text: 'Customize Profile Avatar',
+                        icon: Icons.palette_rounded,
+                        isFullWidth: true,
+                        onPressed: () {
+                          AvatarPickerSheet.show(
+                            context: context,
+                            currentAvatarId: summary.avatarId ?? '',
+                            userSeed: summary.registerNumber,
+                            onSave: (id) => studentService.updateAvatar(id),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
                       PrimaryButton(
                         text: 'Biometric Face Enrollment',
                         icon: Icons.face_retouching_natural_rounded,

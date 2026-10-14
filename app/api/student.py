@@ -18,7 +18,11 @@ from app.models.attendance import FaceEmbedding
 from app.models.audit import AuditLog
 from app.schemas.student_auth import (
     StudentMeOut, StudentAttendanceReport, SubjectAttendanceRow,
-    SubjectAttendanceDetail, DateWiseEntry, PeriodEntry
+    SubjectAttendanceDetail, DateWiseEntry, PeriodEntry,
+    AvatarCatalogItem, AvatarUpdateIn
+)
+from app.core.avatars import (
+    AVATAR_CATALOG, is_valid_avatar, resolve_avatar, get_avatar_meta
 )
 from app.api.deps import get_current_student
 from app.engines.policy_engine import AttendancePolicyEngine, get_active_policy
@@ -59,6 +63,7 @@ def get_student_profile(
         semester=student.semester,
         department=student.department,
         is_active=student.is_active,
+        avatar_id=resolve_avatar(student.avatar_id, student.roll_number or student.id),
         total=summary["total"],
         present=summary["present"],
         absent=summary["absent"],
@@ -337,7 +342,7 @@ def get_student_profile_detail(
     student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
-    """Returns full student profile."""
+    """Returns full student profile including resolved avatar."""
     return {
         "student_id": student.id,
         "full_name": student.full_name,
@@ -348,6 +353,113 @@ def get_student_profile_detail(
         "semester": student.semester,
         "department": student.department,
         "is_active": student.is_active,
+        "avatar_id": resolve_avatar(student.avatar_id, student.roll_number or student.id),
+    }
+
+
+@router.get("/avatars", response_model=List[AvatarCatalogItem])
+def list_student_avatars(
+    category: Optional[str] = None,
+    student: Student = Depends(get_current_student),
+):
+    """
+    Returns available avatar collection.
+    Supports filtering by category: 'masculine', 'feminine', 'neutral', or 'all'.
+    """
+    if not category or category.lower() == "all":
+        return AVATAR_CATALOG
+    cat = category.strip().lower()
+    if cat == "neutral":
+        return [a for a in AVATAR_CATALOG if a.get("is_neutral", False)]
+    return [a for a in AVATAR_CATALOG if a.get("category") == cat]
+
+
+@router.put("/avatar")
+@router.patch("/avatar")
+def update_student_avatar(
+    body: AvatarUpdateIn,
+    student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """
+    Updates the authenticated student's profile avatar.
+    Rejects invalid avatar IDs.
+    """
+    if not is_valid_avatar(body.avatar_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid avatar ID '{body.avatar_id}'. Must be one of approved avatar catalog IDs.",
+        )
+
+    student.avatar_id = body.avatar_id
+    if student.user:
+        student.user.avatar_id = body.avatar_id
+
+    db.commit()
+    db.refresh(student)
+
+    # Audit logging
+    try:
+        audit = AuditLog(
+            action="UPDATE_STUDENT_AVATAR",
+            user_id=student.user_id,
+            target=f"student:{student.id}",
+            details=json.dumps({"student_id": student.id, "avatar_id": body.avatar_id}),
+        )
+        db.add(audit)
+        db.commit()
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "avatar_id": student.avatar_id,
+        "message": "Avatar updated successfully",
+    }
+
+
+@router.patch("/profile")
+@router.put("/profile")
+def update_student_profile(
+    body: Dict[str, Any],
+    student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """
+    Allows authenticated student to update editable profile fields:
+    email, phone, avatar_id.
+    """
+    if "avatar_id" in body:
+        new_av = body["avatar_id"]
+        if new_av and not is_valid_avatar(new_av):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid avatar ID '{new_av}'. Must be one of approved avatar catalog IDs.",
+            )
+        student.avatar_id = new_av
+        if student.user:
+            student.user.avatar_id = new_av
+
+    if "email" in body and body["email"] is not None:
+        student.email = str(body["email"]).strip()
+        if student.user:
+            student.user.email = student.email
+
+    if "phone" in body and body["phone"] is not None:
+        student.phone = str(body["phone"]).strip()
+
+    db.commit()
+    db.refresh(student)
+
+    return {
+        "success": True,
+        "student_id": student.id,
+        "full_name": student.full_name,
+        "register_number": student.roll_number,
+        "email": student.email,
+        "phone": student.phone,
+        "avatar_id": resolve_avatar(student.avatar_id, student.roll_number or student.id),
+        "message": "Profile updated successfully",
     }
 
 

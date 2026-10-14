@@ -221,17 +221,11 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
               padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
               child: Row(
                 children: [
-                  CircleAvatar(
+                  UserAvatarWidget(
+                    fallbackSeed: user?.username ?? user?.fullName ?? 'faculty',
                     radius: 28,
-                    backgroundColor: colors.heroChip,
-                    child: Text(
-                      (user?.fullName.isNotEmpty == true) ? user!.fullName[0].toUpperCase() : 'F',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: colors.primary,
-                      ),
-                    ),
+                    borderWidth: 2,
+                    borderColor: colors.primary.withValues(alpha: 0.35),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(

@@ -128,17 +128,11 @@ class FacultyProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
             child: Column(
               children: [
-                CircleAvatar(
+                UserAvatarWidget(
+                  fallbackSeed: user.username.isNotEmpty ? user.username : user.fullName,
                   radius: 38,
-                  backgroundColor: colors.heroChip,
-                  child: Text(
-                    user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'F',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: colors.onHero,
-                    ),
-                  ),
+                  borderWidth: 2.5,
+                  borderColor: colors.onHero.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
