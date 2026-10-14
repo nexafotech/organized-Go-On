@@ -115,7 +115,9 @@ class _InteractiveAttendanceOverviewCardState
 
     // Calculate percentages
     final total = summary.total > 0 ? summary.total : 1;
-    final presentPct = (summary.present / total) * 100.0;
+    final presentPct = summary.total > 0
+        ? (summary.present / total) * 100.0
+        : (summary.percentage > 0 ? summary.percentage : 0.0);
     final absentPct = (summary.absent / total) * 100.0;
     final odPct = (summary.od / total) * 100.0;
 
@@ -256,6 +258,11 @@ class _InteractiveAttendanceOverviewCardState
                     final curPresent = presentPct * _anim.value;
                     final curAbsent = absentPct * _anim.value;
                     final curOd = odPct * _anim.value;
+                    final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+                    final activePresent = disableAnimations ? presentPct : curPresent;
+                    final displayPercentage = (presentPct % 1 == 0)
+                        ? '${activePresent.round()}%'
+                        : '${activePresent.toStringAsFixed(1)}%';
 
                     return Stack(
                       alignment: Alignment.center,
@@ -300,9 +307,9 @@ class _InteractiveAttendanceOverviewCardState
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    '%',
+                                    displayPercentage,
                                     style: TextStyle(
-                                      fontSize: 23,
+                                      fontSize: 22,
                                       fontWeight: FontWeight.w900,
                                       color: colors.textPrimary,
                                       letterSpacing: -0.5,

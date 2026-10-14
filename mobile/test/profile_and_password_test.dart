@@ -99,6 +99,37 @@ class MockStudentServiceForProfile extends ChangeNotifier implements StudentServ
   Future<void> fetchAttendanceReportFiltered({int? subjectId, String? startDate, String? endDate}) async {}
   @override
   Future<void> loadDashboardData() async {}
+
+  bool updateProfileDetailsCalled = false;
+  String? updatedFullName;
+  String? updatedEmail;
+  String? updatedPhone;
+  String? updatedAvatarId;
+
+  @override
+  Future<bool> updateProfileDetails({
+    String? fullName,
+    String? email,
+    String? phone,
+    String? avatarId,
+  }) async {
+    updateProfileDetailsCalled = true;
+    updatedFullName = fullName;
+    updatedEmail = email;
+    updatedPhone = phone;
+    updatedAvatarId = avatarId;
+    if (_summary != null) {
+      _summary = _summary!.copyWith(
+        fullName: fullName ?? _summary!.fullName,
+        email: email ?? _summary!.email,
+        phone: phone ?? _summary!.phone,
+        avatarId: avatarId ?? _summary!.avatarId,
+      );
+      notifyListeners();
+    }
+    return true;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -149,8 +180,78 @@ void main() {
       expect(find.text('Cyber Security'), findsOneWidget);
       expect(find.text('Semester 4'), findsOneWidget);
       expect(find.text('Active Student'), findsOneWidget);
+      expect(find.text('Edit Profile Details'), findsOneWidget);
       expect(find.text('Change Password'), findsOneWidget);
       expect(find.text('Sign Out'), findsOneWidget);
+    });
+
+    testWidgets('Tapping Edit Profile Details button opens EditProfileSheet with prefilled details and allows editing', (tester) async {
+      final summary = StudentSummaryModel(
+        studentId: 10,
+        fullName: 'Jane Doe',
+        registerNumber: '23CY050',
+        email: 'jane@college.edu',
+        phone: '9876543210',
+        className: 'II Year CSE - Section B',
+        semester: 'Semester 4',
+        department: 'Cyber Security',
+        isActive: true,
+        total: 20,
+        present: 18,
+        absent: 2,
+        od: 0,
+        percentage: 90.0,
+        calculationMode: 'RECORD_BASED',
+        attendanceStatus: 'OK',
+        minimumRequired: 75.0,
+        belowMinimum: false,
+      );
+
+      final mockAuth = MockAuthServiceForProfile();
+      final mockStudent = MockStudentServiceForProfile(summary: summary);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthService>.value(value: mockAuth),
+            ChangeNotifierProvider<StudentService>.value(value: mockStudent),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: StudentProfileScreen()),
+          ),
+        ),
+      );
+
+      // Verify button exists and tap it
+      final editBtn = find.text('Edit Profile Details');
+      expect(editBtn, findsOneWidget);
+
+      await tester.ensureVisible(editBtn);
+      await tester.tap(editBtn);
+      await tester.pumpAndSettle();
+
+      // Check sheet opened
+      expect(find.text('Personal Details'), findsOneWidget);
+      expect(find.text('Institutional Records (Locked)'), findsOneWidget);
+      expect(find.text('Save Changes'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      // Verify locked administrative fields
+      expect(find.text('Admin Only'), findsOneWidget);
+
+      // Update Full Name
+      final nameField = find.widgetWithText(TextFormField, 'Jane Doe');
+      expect(nameField, findsOneWidget);
+      await tester.enterText(nameField, 'Jane Smith');
+
+      // Tap Save Changes
+      final saveBtn = find.text('Save Changes');
+      await tester.ensureVisible(saveBtn);
+      await tester.tap(saveBtn);
+      await tester.pumpAndSettle();
+
+      expect(mockStudent.updateProfileDetailsCalled, isTrue);
+      expect(mockStudent.updatedFullName, 'Jane Smith');
     });
 
     testWidgets('Opens confirmation dialog when Sign Out button is tapped', (tester) async {

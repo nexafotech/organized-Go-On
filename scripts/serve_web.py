@@ -23,6 +23,8 @@ mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("application/json", ".json")
 mimetypes.add_type("image/png", ".png")
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("video/webm", ".webm")
 mimetypes.add_type("image/x-icon", ".ico")
 mimetypes.add_type("text/html", ".html")
 

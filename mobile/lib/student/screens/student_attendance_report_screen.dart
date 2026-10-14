@@ -338,6 +338,9 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
       if (studentService.dateWise.isEmpty) {
         studentService.fetchAttendanceReport();
       }
+      if (studentService.timetable.isEmpty) {
+        studentService.fetchTimetable();
+      }
     });
   }
 
@@ -1206,6 +1209,12 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
     final summary = studentService.summary;
     final subjects = studentService.subjects;
     final dateWise = studentService.dateWise;
+    final activeDaily = _resolveActiveDailyEntry(dateWise);
+    final now = DateTime.now();
+    final todayStr =
+        "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final effectiveDate = activeDaily?.date ?? todayStr;
+    final dateLabel = _formatDateLabel(effectiveDate);
 
     final Widget bodyContent = studentService.isLoading && summary == null
         ? const Center(child: CircularProgressIndicator())
@@ -1300,8 +1309,18 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
 
                         const SizedBox(height: 12),
 
-                        // Subject-Wise Attendance
-                        if (subjects.isEmpty)
+                        // Daily Schedule Breakdown (Target Reference UI) or Subject Cards if viewing Overall Attendance
+                        if (!_showOverallAttendance)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                            child: DailyScheduleCard(
+                              entry: activeDaily,
+                              timetable: studentService.timetable,
+                              subjects: subjects,
+                              dateLabel: dateLabel,
+                            ),
+                          )
+                        else if (subjects.isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(AppSpacing.xxl),
                             child: Center(

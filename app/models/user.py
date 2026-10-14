@@ -35,6 +35,7 @@ class User(Base):
     password_change_window_id = Column(Integer, ForeignKey("password_change_windows.id", ondelete="SET NULL", use_alter=True, name="fk_user_password_change_window"), nullable=True)
     # M4: login_identifier stores the primary lookup value (employee_id, register_number)
     login_identifier = Column(String(100), nullable=True, index=True)
+    avatar_id = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     faculty_profile = relationship("Faculty", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -85,6 +86,7 @@ class Faculty(Base):
     full_name = Column(String(100), nullable=False, index=True)
     department = Column(String(100), nullable=True, index=True)
     phone = Column(String(20), nullable=True)
+    avatar_id = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="faculty_profile")

@@ -210,12 +210,12 @@ class AppColors extends ThemeExtension<AppColors> {
     accentStrong: Color(0xFF8A5530),
     accentOnHero: Color(0xFFE0A878),
     focusRing: Color(0xFFB87B4B),
-    present: Color(0xFF2B1A13), // Deep Roasted Espresso (replaces green, harmonizes with cream palette)
-    presentBg: Color(0xFFEDE5DB), // Warm Oat Linen background
-    absent: Color(0xFFBA5A31), // Warm Spiced Terracotta / Burnt Clay (replaces red)
-    absentBg: Color(0xFFFBF0EB), // Soft terracotta peach tint
-    od: Color(0xFF4A607A), // Muted Slate Denim
-    odBg: Color(0xFFEFF3F8), // Soft denim mist tint
+    present: Color(0xFF0B7A55), // Forest / Emerald Green (#0B7A55)
+    presentBg: Color(0xFFDDF3E8), // Soft emerald background tint
+    absent: Color(0xFFB42318), // Crimson Red (#B42318)
+    absentBg: Color(0xFFFEECEB), // Soft crimson peach tint
+    od: Color(0xFF3D4FB8), // Royal Indigo (#3D4FB8)
+    odBg: Color(0xFFEEF0FA), // Soft indigo denim tint
     notEntered: Color(0xFF6B5B50),
     notEnteredBg: Color(0xFFEFE7DD),
     excluded: Color(0xFF6B5B50),

@@ -29,6 +29,8 @@ flutter:
   assets:
     - assets/branding/
     - assets/fonts/
+    - assets/avatars/
+    - assets/animations/
   fonts:
     - family: BrockScript
       fonts:

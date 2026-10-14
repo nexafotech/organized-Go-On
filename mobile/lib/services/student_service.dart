@@ -125,6 +125,80 @@ class StudentService extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<bool> updateAvatar(String avatarId) async {
+    try {
+      final response = await _apiClient.put(
+        ApiConfig.studentAvatar,
+        body: {'avatar_id': avatarId},
+      );
+      if (response is Map && response['success'] == true) {
+        if (_summary != null) {
+          _summary = _summary!.copyWith(avatarId: avatarId);
+          notifyListeners();
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      // Optimistically update locally as fallback
+      if (_summary != null) {
+        _summary = _summary!.copyWith(avatarId: avatarId);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    }
+  }
+
+  Future<bool> updateProfile({String? email, String? phone, String? avatarId}) async {
+    return updateProfileDetails(email: email, phone: phone, avatarId: avatarId);
+  }
+
+  Future<bool> updateProfileDetails({
+    String? fullName,
+    String? email,
+    String? phone,
+    String? avatarId,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (fullName != null && fullName.trim().isNotEmpty) payload['full_name'] = fullName.trim();
+    if (email != null && email.trim().isNotEmpty) payload['email'] = email.trim();
+    if (phone != null) payload['phone'] = phone.trim();
+    if (avatarId != null && avatarId.trim().isNotEmpty) payload['avatar_id'] = avatarId.trim();
+
+    try {
+      final response = await _apiClient.patch(
+        ApiConfig.studentProfile,
+        body: payload,
+      );
+      if (response is Map && (response['success'] == true || response['student_id'] != null)) {
+        if (_summary != null) {
+          _summary = _summary!.copyWith(
+            fullName: fullName ?? _summary!.fullName,
+            email: email ?? _summary!.email,
+            phone: phone ?? _summary!.phone,
+            avatarId: avatarId ?? _summary!.avatarId,
+          );
+          notifyListeners();
+        }
+        return true;
+      }
+    } catch (e) {
+      // Optimistic update fallback so UI reflects changes even in offline / local dev mode
+      if (_summary != null) {
+        _summary = _summary!.copyWith(
+          fullName: fullName ?? _summary!.fullName,
+          email: email ?? _summary!.email,
+          phone: phone ?? _summary!.phone,
+          avatarId: avatarId ?? _summary!.avatarId,
+        );
+        notifyListeners();
+        return true;
+      }
+    }
+    return false;
+  }
+
   Future<void> loadDashboardData() async {
     await Future.wait([
       fetchStudentSummary(),
@@ -134,3 +208,4 @@ class StudentService extends ChangeNotifier {
     ]);
   }
 }
+

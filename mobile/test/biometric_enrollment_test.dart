@@ -230,6 +230,8 @@ void main() {
 
       // Dismiss dialog
       expect(find.text('Start Enrollment'), findsOneWidget);
+      await tester.ensureVisible(find.text('Start Enrollment'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Start Enrollment'));
       await tester.pumpAndSettle();
 

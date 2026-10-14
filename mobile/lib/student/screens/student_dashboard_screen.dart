@@ -339,32 +339,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             },
                           ),
                           const SizedBox(width: 4),
-                          GestureDetector(
+                          UserAvatarWidget(
+                            avatarId: summary.avatarId,
+                            fallbackSeed: summary.registerNumber.isNotEmpty ? summary.registerNumber : summary.fullName,
+                            radius: 20,
+                            borderWidth: 1.5,
+                            borderColor: colors.borderStrong.withValues(alpha: 0.4),
                             onTap: () {
                               setState(() => _currentIndex = 3);
                             },
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: colors.borderStrong.withValues(alpha: 0.4),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: CircleAvatar(
-                                radius: 20,
-                                backgroundColor: colors.surfaceMuted,
-                                child: Text(
-                                  summary.fullName.isNotEmpty ? summary.fullName[0].toUpperCase() : 'S',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ),
                           ),
                         ],
                       ),
@@ -515,47 +498,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               subjects: studentService.subjects,
               timetable: studentService.timetable,
             ),
-            // Minimum Attendance Recovery Alert Banner (only shown if attendance drops below minimum)
-            if (summary.belowMinimum) ...[
-              const SizedBox(height: AppSpacing.md),
-              GlassCard(
-                variant: GlassCardVariant.muted,
-                tint: colors.errorBg,
-                borderColor: colors.error.withValues(alpha: 0.5),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: colors.error, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Attendance below required minimum',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: colors.error,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '• Required classes to reach minimum: ${summary.requiredFutureClasses ?? 0}',
-                      style: TextStyle(color: colors.error.withValues(alpha: 0.85), fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                    if (summary.estimatedWorkingDays != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '• Estimated working days required: ${summary.estimatedWorkingDays}',
-                        style: TextStyle(color: colors.error.withValues(alpha: 0.75), fontSize: 12),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
 
             const SizedBox(height: AppSpacing.lg),
             SubjectPetalChartCard(
@@ -1275,19 +1217,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     );
                   },
                 ),
-                if (Navigator.canPop(context)) ...[
-                  _buildDrawerItem(
-                    icon: Icons.palette_outlined,
-                    title: 'Design Studio Gallery',
-                    subtitle: 'Browse all UI role screens',
-                    isSelected: false,
-                    colors: colors,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    },
-                  ),
-                ],
               ],
             ),
           ),

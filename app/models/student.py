@@ -18,6 +18,7 @@ class Student(Base):
     department = Column(String(100), nullable=True)  # e.g., "Computer Science & Engineering"
     # M4: Auth linkage — nullable so existing students without accounts still work
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, unique=True, index=True)
+    avatar_id = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     class_section = relationship("ClassSection", back_populates="students")

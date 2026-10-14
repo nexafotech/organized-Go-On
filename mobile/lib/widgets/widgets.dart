@@ -23,3 +23,11 @@ export 'attendance/subject_detail_sheet.dart';
 export 'attendance/interactive_attendance_overview_card.dart';
 export 'attendance/subject_petal_chart_card.dart';
 export 'attendance/full_day_breakdown_card.dart';
+export 'attendance/daily_schedule_card.dart';
+
+// Avatar & Profile Domain Widgets
+export 'avatar/user_avatar_widget.dart';
+export 'avatar/avatar_picker_sheet.dart';
+export 'profile/edit_profile_sheet.dart';
+
+

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/config/api_config.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/theme_service.dart';
 import '../../widgets/widgets.dart';
@@ -128,17 +127,11 @@ class FacultyProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
             child: Column(
               children: [
-                CircleAvatar(
+                UserAvatarWidget(
+                  fallbackSeed: user.username.isNotEmpty ? user.username : user.fullName,
                   radius: 38,
-                  backgroundColor: colors.heroChip,
-                  child: Text(
-                    user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'F',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: colors.onHero,
-                    ),
-                  ),
+                  borderWidth: 2.5,
+                  borderColor: colors.onHero.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
@@ -242,8 +235,6 @@ class FacultyProfileScreen extends StatelessWidget {
                 ),
                 Divider(height: 1, color: colors.glassBorder),
                 _buildInfoTile(context, 'Authenticated Role', user.role, Icons.security_rounded),
-                Divider(height: 1, indent: 56, color: colors.glassBorder),
-                _buildInfoTile(context, 'Backend Server', ApiConfig.baseUrl, Icons.dns_outlined),
               ],
             ),
           ),

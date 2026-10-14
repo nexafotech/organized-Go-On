@@ -53,6 +53,8 @@ class ApiConfig {
   static const String studentSubjects = '/api/v1/student/attendance/subjects';
   static const String studentTimetable = '/api/v1/student/timetable';
   static const String studentProfile = '/api/v1/student/profile';
+  static const String studentAvatar = '/api/v1/student/avatar';
+  static const String studentAvatars = '/api/v1/student/avatars';
   static const String studentEnrollmentStatus = '/api/v1/student/enrollment-status';
   static const String studentEnrollValidatePose = '/api/v1/student/enroll-face/validate-pose';
   static const String studentEnrollCapture = '/api/v1/student/enroll-face/capture';

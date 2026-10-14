@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/config/api_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/theme_service.dart';
@@ -9,7 +8,6 @@ import '../../services/student_service.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../auth/widgets/change_password_dialog.dart';
 import '../../widgets/widgets.dart';
-import '../../design_mode/design_gallery_screen.dart';
 import 'biometric_enrollment_screen.dart';
 
 class StudentProfileScreen extends StatelessWidget {
@@ -152,17 +150,27 @@ class StudentProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.xl),
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 36,
-                        backgroundColor: colors.heroChip,
-                        child: Text(
-                          summary.fullName.isNotEmpty ? summary.fullName[0].toUpperCase() : 'S',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: colors.primary,
-                          ),
-                        ),
+                      UserAvatarWidget(
+                        avatarId: summary.avatarId,
+                        fallbackSeed: summary.registerNumber,
+                        radius: 42,
+                        showEditBadge: true,
+                        onEditTap: () {
+                          AvatarPickerSheet.show(
+                            context: context,
+                            currentAvatarId: summary.avatarId ?? '',
+                            userSeed: summary.registerNumber,
+                            onSave: (id) => studentService.updateAvatar(id),
+                          );
+                        },
+                        onTap: () {
+                          AvatarPickerSheet.show(
+                            context: context,
+                            currentAvatarId: summary.avatarId ?? '',
+                            userSeed: summary.registerNumber,
+                            onSave: (id) => studentService.updateAvatar(id),
+                          );
+                        },
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
@@ -179,35 +187,78 @@ class StudentProfileScreen extends StatelessWidget {
                         style: TextStyle(color: colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: summary.isActive ? colors.presentBg : colors.errorBg,
-                          borderRadius: AppRadius.pillBorder,
-                          border: Border.all(
-                            color: summary.isActive ? colors.present : colors.error,
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              summary.isActive ? Icons.check_circle : Icons.cancel,
-                              size: 14,
-                              color: summary.isActive ? colors.present : colors.error,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              summary.isActive ? 'Active Student' : 'Account Disabled',
-                              style: TextStyle(
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: summary.isActive ? colors.presentBg : colors.errorBg,
+                              borderRadius: AppRadius.pillBorder,
+                              border: Border.all(
                                 color: summary.isActive ? colors.present : colors.error,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                                width: 1,
                               ),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  summary.isActive ? Icons.check_circle : Icons.cancel,
+                                  size: 14,
+                                  color: summary.isActive ? colors.present : colors.error,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  summary.isActive ? 'Active Student' : 'Account Disabled',
+                                  style: TextStyle(
+                                    color: summary.isActive ? colors.present : colors.error,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () {
+                              AvatarPickerSheet.show(
+                                context: context,
+                                currentAvatarId: summary.avatarId ?? '',
+                                userSeed: summary.registerNumber,
+                                onSave: (id) => studentService.updateAvatar(id),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: colors.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: colors.primary.withValues(alpha: 0.35),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.edit_rounded, size: 12, color: colors.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Edit Avatar',
+                                    style: TextStyle(
+                                      color: colors.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -239,6 +290,8 @@ class StudentProfileScreen extends StatelessWidget {
                       Divider(height: 1, indent: 56, color: colors.glassBorder),
                       _buildInfoTile(context, 'College Email', summary.email ?? 'Not specified', Icons.email_outlined),
                       Divider(height: 1, indent: 56, color: colors.glassBorder),
+                      _buildInfoTile(context, 'Contact Phone', (summary.phone != null && summary.phone!.trim().isNotEmpty) ? summary.phone! : 'Not specified', Icons.phone_outlined),
+                      Divider(height: 1, indent: 56, color: colors.glassBorder),
                       _buildInfoTile(context, 'Class Section', summary.className ?? 'Not assigned', Icons.school_outlined),
                       Divider(height: 1, indent: 56, color: colors.glassBorder),
                       _buildInfoTile(context, 'Department', summary.department ?? 'N/A', Icons.business_outlined),
@@ -269,8 +322,6 @@ class StudentProfileScreen extends StatelessWidget {
                       ),
                       Divider(height: 1, color: colors.glassBorder),
                       _buildInfoTile(context, 'User Role', 'STUDENT', Icons.security_rounded),
-                      Divider(height: 1, indent: 56, color: colors.glassBorder),
-                      _buildInfoTile(context, 'Backend Server', ApiConfig.baseUrl, Icons.dns_outlined),
                     ],
                   ),
                 ),
@@ -400,6 +451,19 @@ class StudentProfileScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
+                      SecondaryButton(
+                        text: 'Edit Profile Details',
+                        icon: Icons.edit_note_rounded,
+                        isFullWidth: true,
+                        onPressed: () {
+                          EditProfileSheet.show(
+                            context: context,
+                            summary: summary,
+                            studentService: studentService,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
                       PrimaryButton(
                         text: 'Biometric Face Enrollment',
                         icon: Icons.face_retouching_natural_rounded,
@@ -431,24 +495,6 @@ class StudentProfileScreen extends StatelessWidget {
                         onPressed: () => _confirmLogout(context),
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-
-                // Design Gallery Shortcut
-                Center(
-                  child: TextButton.icon(
-                    icon: Icon(Icons.palette_outlined, size: 16, color: colors.textSecondary),
-                    label: Text(
-                      'Open UI/UX Design Reference Gallery',
-                      style: TextStyle(fontSize: 12, color: colors.textSecondary, fontWeight: FontWeight.w600),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const DesignGalleryScreen()),
-                      );
-                    },
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
