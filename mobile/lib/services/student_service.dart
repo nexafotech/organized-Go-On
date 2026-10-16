@@ -93,11 +93,36 @@ class StudentService extends ChangeNotifier {
   Future<void> fetchAttendanceReport() async {
     try {
       final response = await _apiClient.get(ApiConfig.studentAttendance);
-      if (response is Map && response.containsKey('date_wise') && response['date_wise'] is List) {
-        final List rawList = response['date_wise'];
-        _dateWise = rawList
-            .map((item) => DateWiseEntryModel.fromJson(Map<String, dynamic>.from(item as Map)))
-            .toList();
+      if (response is Map) {
+        if (response.containsKey('date_wise') && response['date_wise'] is List) {
+          final List rawList = response['date_wise'];
+          _dateWise = rawList
+              .map((item) => DateWiseEntryModel.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        }
+        if (response.containsKey('subjects') && response['subjects'] is List) {
+          final List rawSubs = response['subjects'];
+          _subjects = rawSubs
+              .map((item) => SubjectAttendanceModel.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        }
+        if (_summary != null && response.containsKey('percentage')) {
+          _summary = _summary!.copyWith(
+            total: response['total'] as int? ?? _summary!.total,
+            present: response['present'] as int? ?? _summary!.present,
+            absent: response['absent'] as int? ?? _summary!.absent,
+            od: response['od'] as int? ?? _summary!.od,
+            halfDayPresent: response['half_day_present'] as int? ?? _summary!.halfDayPresent,
+            halfDayAbsent: response['half_day_absent'] as int? ?? _summary!.halfDayAbsent,
+            percentage: (response['percentage'] as num?)?.toDouble() ?? _summary!.percentage,
+            attendanceStatus: response['status'] as String? ?? _summary!.attendanceStatus,
+            belowMinimum: response['below_minimum'] as bool? ?? _summary!.belowMinimum,
+            alertMessage: response['alert_message'] as String? ?? _summary!.alertMessage,
+            requiredFutureClasses: response['required_future_classes'] as int? ?? _summary!.requiredFutureClasses,
+            estimatedWorkingDays: response['estimated_working_days'] as int? ?? _summary!.estimatedWorkingDays,
+            missableFutureClasses: response['missable_future_classes'] as int? ?? _summary!.missableFutureClasses,
+          );
+        }
         notifyListeners();
       }
     } catch (_) {}
@@ -115,11 +140,19 @@ class StudentService extends ChangeNotifier {
         endDate: endDate,
       );
       final response = await _apiClient.get(path);
-      if (response is Map && response.containsKey('date_wise') && response['date_wise'] is List) {
-        final List rawList = response['date_wise'];
-        _dateWise = rawList
-            .map((item) => DateWiseEntryModel.fromJson(Map<String, dynamic>.from(item as Map)))
-            .toList();
+      if (response is Map) {
+        if (response.containsKey('date_wise') && response['date_wise'] is List) {
+          final List rawList = response['date_wise'];
+          _dateWise = rawList
+              .map((item) => DateWiseEntryModel.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        }
+        if (response.containsKey('subjects') && response['subjects'] is List) {
+          final List rawSubs = response['subjects'];
+          _subjects = rawSubs
+              .map((item) => SubjectAttendanceModel.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        }
         notifyListeners();
       }
     } catch (_) {}
@@ -127,7 +160,7 @@ class StudentService extends ChangeNotifier {
 
   Future<bool> updateAvatar(String avatarId) async {
     try {
-      final response = await _apiClient.put(
+      final response = await _apiClient.patch(
         ApiConfig.studentAvatar,
         body: {'avatar_id': avatarId},
       );
@@ -140,13 +173,8 @@ class StudentService extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      // Optimistically update locally as fallback
-      if (_summary != null) {
-        _summary = _summary!.copyWith(avatarId: avatarId);
-        notifyListeners();
-        return true;
-      }
-      return false;
+      debugPrint('[StudentService] updateAvatar error: $e');
+      rethrow;
     }
   }
 
@@ -162,7 +190,7 @@ class StudentService extends ChangeNotifier {
   }) async {
     final payload = <String, dynamic>{};
     if (fullName != null && fullName.trim().isNotEmpty) payload['full_name'] = fullName.trim();
-    if (email != null && email.trim().isNotEmpty) payload['email'] = email.trim();
+    if (email != null) payload['email'] = email.trim();
     if (phone != null) payload['phone'] = phone.trim();
     if (avatarId != null && avatarId.trim().isNotEmpty) payload['avatar_id'] = avatarId.trim();
 
@@ -174,29 +202,20 @@ class StudentService extends ChangeNotifier {
       if (response is Map && (response['success'] == true || response['student_id'] != null)) {
         if (_summary != null) {
           _summary = _summary!.copyWith(
-            fullName: fullName ?? _summary!.fullName,
-            email: email ?? _summary!.email,
-            phone: phone ?? _summary!.phone,
-            avatarId: avatarId ?? _summary!.avatarId,
+            fullName: response['full_name'] as String? ?? fullName ?? _summary!.fullName,
+            email: response.containsKey('email') ? response['email'] as String? : (email ?? _summary!.email),
+            phone: response.containsKey('phone') ? response['phone'] as String? : (phone ?? _summary!.phone),
+            avatarId: response['avatar_id'] as String? ?? avatarId ?? _summary!.avatarId,
           );
           notifyListeners();
         }
         return true;
       }
+      return false;
     } catch (e) {
-      // Optimistic update fallback so UI reflects changes even in offline / local dev mode
-      if (_summary != null) {
-        _summary = _summary!.copyWith(
-          fullName: fullName ?? _summary!.fullName,
-          email: email ?? _summary!.email,
-          phone: phone ?? _summary!.phone,
-          avatarId: avatarId ?? _summary!.avatarId,
-        );
-        notifyListeners();
-        return true;
-      }
+      debugPrint('[StudentService] updateProfileDetails error: $e');
+      rethrow;
     }
-    return false;
   }
 
   Future<void> loadDashboardData() async {

@@ -49,6 +49,22 @@ def get_current_time_str(dt: Optional[datetime] = None) -> str:
     return dt.strftime("%H:%M")
 
 
+def format_time_12h(time_str: str) -> str:
+    """Converts 24h 'HH:MM' string to 12h 'h:mm AM/PM' in IST."""
+    if not time_str or ":" not in time_str:
+        return time_str or ""
+    try:
+        parts = time_str.split(":")
+        h = int(parts[0])
+        m = int(parts[1])
+        ampm = "PM" if h >= 12 else "AM"
+        display_h = 12 if h % 12 == 0 else h % 12
+        return f"{display_h}:{m:02d} {ampm}"
+    except Exception:
+        return time_str
+
+
+
 # ── Authoritative Institutional Schedule Constants ────────────────────────────
 INSTITUTIONAL_SCHEDULE = {
     1: {"name": "Period 1", "start": "09:10", "end": "10:00", "half": "MORNING"},

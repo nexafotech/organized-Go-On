@@ -11,6 +11,7 @@ import '../../auth/widgets/change_password_dialog.dart';
 import '../../widgets/widgets.dart';
 import '../../core/network/api_client.dart';
 import '../../services/notification_service.dart';
+import '../../utils/timezone_utils.dart';
 import 'faculty_notification_history_screen.dart';
 import 'faculty_session_screen.dart';
 import 'faculty_profile_screen.dart';
@@ -75,26 +76,10 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
     super.dispose();
   }
 
+  /// Returns the current weekday name in IST (Title Case, e.g. 'Monday').
+  /// Uses TimezoneUtils.istWeekdayName() which is UTC+05:30 fixed-offset safe.
   String _getCurrentWeekdayName() {
-    final now = DateTime.now();
-    switch (now.weekday) {
-      case DateTime.monday:
-        return 'MONDAY';
-      case DateTime.tuesday:
-        return 'TUESDAY';
-      case DateTime.wednesday:
-        return 'WEDNESDAY';
-      case DateTime.thursday:
-        return 'THURSDAY';
-      case DateTime.friday:
-        return 'FRIDAY';
-      case DateTime.saturday:
-        return 'SATURDAY';
-      case DateTime.sunday:
-        return 'SUNDAY';
-      default:
-        return 'MONDAY';
-    }
+    return TimezoneUtils.istWeekdayName();
   }
 
   bool _isToday(String day) {
@@ -768,7 +753,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
               children: [
                 Expanded(
                   child: GlassCard(
+                    key: const ValueKey('faculty_quick_reports_card'),
                     variant: GlassCardVariant.standard,
+                    enableBlur: false,
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -824,7 +811,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: GlassCard(
+                    key: const ValueKey('faculty_quick_attendance_card'),
                     variant: GlassCardVariant.standard,
+                    enableBlur: false,
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1160,14 +1149,15 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: colors.primary,
+              color: colors.isDark ? colors.surfaceElevated : colors.primary,
               borderRadius: AppRadius.smallBorder,
+              border: colors.isDark ? Border.all(color: colors.glassBorderStrong, width: 1.2) : null,
             ),
             child: Center(
               child: Text(
                 'P${item.periodNumber}',
                 style: TextStyle(
-                  color: colors.onPrimary,
+                  color: colors.isDark ? colors.textPrimary : colors.onPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
                 ),
@@ -1206,7 +1196,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        '${item.startTime} - ${item.endTime}',
+                        '${TimezoneUtils.format24hTo12h(item.startTime)} - ${TimezoneUtils.format24hTo12h(item.endTime)}',
                         style: TextStyle(fontSize: 12, color: colors.textMuted),
                         softWrap: true,
                       ),
@@ -1273,16 +1263,27 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
+        titleSpacing: 12,
         title: _currentIndex == 0
             ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const GoOnLogoBadge(size: 30),
-                  const SizedBox(width: 10),
-                  Flexible(child: Text(appBarTitle, overflow: TextOverflow.ellipsis)),
+                  const GoOnLogoBadge(size: 26),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      appBarTitle,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               )
-            : Text(appBarTitle),
+            : Text(
+                appBarTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
         elevation: 0,
         actions: [
           Builder(
@@ -1298,6 +1299,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                 alignment: Alignment.center,
                 children: [
                   IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     icon: Icon(
                       unread > 0
                           ? Icons.notifications_active_rounded
@@ -1343,6 +1346,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             },
           ),
           IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             icon: const Icon(Icons.assessment_rounded),
             tooltip: 'Attendance Reports',
             onPressed: () {
@@ -1355,6 +1360,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             builder: (context, themeService, _) {
               final isDark = themeService.isDarkMode;
               return IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 icon: Icon(
                   isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                   color: isDark ? const Color(0xFFF59E0B) : colors.textPrimary,
@@ -1365,55 +1372,114 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             },
           ),
           IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
             onPressed: () => _confirmLogout(context),
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: colors.glassSurfaceStrong,
-          border: Border(top: BorderSide(color: colors.glassBorder)),
-          boxShadow: AppGlass.shadowFloating,
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: colors.primary,
-          unselectedItemColor: colors.textMuted,
-          type: BottomNavigationBarType.fixed,
-          onTap: (idx) => setState(() => _currentIndex = idx),
-          items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded),
-              label: 'Dashboard',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.assignment_turned_in_rounded),
-              label: 'Attendance',
-            ),
-            if (isAdvisor)
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.supervisor_account_rounded),
-                label: 'Advisor',
+      body: MediaQuery.sizeOf(context).width >= 900.0
+          ? Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1080.0),
+                child: IndexedStack(
+                  index: _currentIndex,
+                  children: screens,
+                ),
               ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_rounded),
-              label: 'Timetable',
+            )
+          : IndexedStack(
+              index: _currentIndex,
+              children: screens,
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
-              label: 'Profile',
+      bottomNavigationBar: MediaQuery.sizeOf(context).width >= 900.0
+          ? Align(
+              alignment: Alignment.bottomCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors.glassSurfaceStrong,
+                    border: Border(top: BorderSide(color: colors.glassBorder)),
+                    boxShadow: AppGlass.shadowFloating,
+                  ),
+                  child: BottomNavigationBar(
+                    currentIndex: _currentIndex,
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    selectedItemColor: colors.primary,
+                    unselectedItemColor: colors.textMuted,
+                    type: BottomNavigationBarType.fixed,
+                    onTap: (idx) => setState(() => _currentIndex = idx),
+                    items: [
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.dashboard_rounded),
+                        label: 'Dashboard',
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.assignment_turned_in_rounded),
+                        label: 'Attendance',
+                      ),
+                      if (isAdvisor)
+                        const BottomNavigationBarItem(
+                          icon: Icon(Icons.supervisor_account_rounded),
+                          label: 'Advisor',
+                        ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.calendar_today_rounded),
+                        label: 'Timetable',
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.person_rounded),
+                        label: 'Profile',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          : Container(
+              decoration: BoxDecoration(
+                color: colors.glassSurfaceStrong,
+                border: Border(top: BorderSide(color: colors.glassBorder)),
+                boxShadow: AppGlass.shadowFloating,
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                selectedItemColor: colors.primary,
+                unselectedItemColor: colors.textMuted,
+                type: BottomNavigationBarType.fixed,
+                onTap: (idx) => setState(() => _currentIndex = idx),
+                items: [
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard_rounded),
+                    label: 'Dashboard',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.assignment_turned_in_rounded),
+                    label: 'Attendance',
+                  ),
+                  if (isAdvisor)
+                    const BottomNavigationBarItem(
+                      icon: Icon(Icons.supervisor_account_rounded),
+                      label: 'Advisor',
+                    ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.calendar_today_rounded),
+                    label: 'Timetable',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.person_rounded),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

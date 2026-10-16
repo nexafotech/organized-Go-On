@@ -822,7 +822,7 @@ def seed_temporary_dev_timetable(db: Session, class_name: Optional[str] = None, 
         "IIC": "FAC05",
         "TWM": "FAC01",
         "ASSOC": "FAC05",
-        "FDS LAB": "FAC05",
+        "FDS LAB": None,
     }
 
     has_iks = "IKS" in subjects_map

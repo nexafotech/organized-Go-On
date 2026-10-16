@@ -391,3 +391,57 @@ class TestNotificationDeleteAndPin:
         assert log is not None
         assert log.status == NotificationDeliveryStatus.STORED.value
         assert "No active device registered" in log.error_message
+
+    def test_pinned_notification_cannot_be_deleted_until_unpinned(self, client: TestClient, db: Session, test_users: dict):
+        student = test_users["student1"]
+        headers = auth_header(student)
+
+        # 1. Create a notification and pin it
+        notif = NotificationLog(
+            user_id=student.id,
+            notification_type="GENERAL",
+            channel_id="GO_ON_GENERAL",
+            title="Important Pinned Notice",
+            body="This notice must never be deleted while pinned.",
+            status="STORED",
+            is_read=False,
+            is_pinned=True,
+            pinned_at=datetime.now(timezone.utc),
+            is_deleted=False,
+        )
+        db.add(notif)
+        db.commit()
+        db.refresh(notif)
+
+        # 2. Attempt deletion while pinned -> MUST BE REJECTED WITH 400
+        del_attempt = client.delete(f"/api/v1/notifications/{notif.id}", headers=headers)
+        assert del_attempt.status_code == 400
+        assert "Pinned notifications cannot be deleted" in del_attempt.json()["detail"]
+
+        # 3. Verify in database: not deleted
+        db.expire_all()
+        check_db = db.query(NotificationLog).filter(NotificationLog.id == notif.id).first()
+        assert check_db is not None
+        assert check_db.is_deleted is False
+        assert check_db.is_pinned is True
+
+        # 4. Unpin the notification
+        unpin_res = client.post(f"/api/v1/notifications/{notif.id}/unpin", headers=headers)
+        assert unpin_res.status_code == 200
+        assert unpin_res.json()["success"] is True
+
+        # 5. Verify unpinned in database
+        db.expire_all()
+        check_unpinned = db.query(NotificationLog).filter(NotificationLog.id == notif.id).first()
+        assert check_unpinned.is_pinned is False
+
+        # 6. Now deletion must succeed
+        del_success = client.delete(f"/api/v1/notifications/{notif.id}", headers=headers)
+        assert del_success.status_code == 200
+        assert del_success.json()["success"] is True
+
+        # 7. Verify soft-deleted in database
+        db.expire_all()
+        check_deleted = db.query(NotificationLog).filter(NotificationLog.id == notif.id).first()
+        assert check_deleted.is_deleted is True
+        assert check_deleted.deleted_at is not None

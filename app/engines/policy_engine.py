@@ -610,21 +610,38 @@ class AttendancePolicyEngine:
     def calculate_all_subjects_attendance(self, student_id: int) -> List[Dict[str, Any]]:
         """
         Returns subject-wise attendance breakdown for a student.
+        Includes all subjects assigned to the student's class section, plus any
+        subjects where the student has recorded attendance (e.g. electives, substitute sessions).
         """
         student = self.db.query(Student).filter(Student.id == student_id).first()
-        if not student or not student.class_id:
+        if not student:
             return []
 
-        assignments = (
-            self.db.query(FacultyAssignment)
-            .filter(FacultyAssignment.class_id == student.class_id)
+        # 1. Subjects assigned to the student's class
+        assigned_subjects = []
+        if student.class_id:
+            assigned_subjects = (
+                self.db.query(Subject)
+                .join(FacultyAssignment, FacultyAssignment.subject_id == Subject.id)
+                .filter(FacultyAssignment.class_id == student.class_id)
+                .all()
+            )
+
+        # 2. Subjects from any attendance records the student actually has
+        record_subjects = (
+            self.db.query(Subject)
+            .join(FacultyAssignment, FacultyAssignment.subject_id == Subject.id)
+            .join(TimetableEntry, TimetableEntry.assignment_id == FacultyAssignment.id)
+            .join(ClassSession, ClassSession.timetable_entry_id == TimetableEntry.id)
+            .join(AttendanceRecord, AttendanceRecord.session_id == ClassSession.id)
+            .filter(AttendanceRecord.student_id == student_id)
+            .distinct()
             .all()
         )
 
         seen_subjects = set()
         results = []
-        for assign in assignments:
-            subj = assign.subject
+        for subj in list(assigned_subjects) + list(record_subjects):
             if subj and subj.id not in seen_subjects:
                 seen_subjects.add(subj.id)
                 subject_data = self.calculate_subject_attendance(student_id, subj.id)
@@ -633,6 +650,8 @@ class AttendancePolicyEngine:
                 subject_data["subject_id"] = subj.id
                 results.append(subject_data)
 
+        # Sort alphabetically by subject code for consistent presentation
+        results.sort(key=lambda x: x.get("subject_code", ""))
         return results
 
     def calculate_period_attendance(self, student_id: int) -> List[Dict[str, Any]]:

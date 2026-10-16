@@ -5,6 +5,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../widgets/widgets.dart';
 import '../../models/faculty_attendance_model.dart';
 import '../../services/faculty_service.dart';
+import '../../utils/timezone_utils.dart';
 import 'faculty_attendance_entry_screen.dart';
 
 class FacultyAttendanceScreen extends StatefulWidget {
@@ -21,7 +22,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
   String? _errorMessage;
   AvailablePeriodsResponse? _data;
 
-  DateTime _selectedPastDate = DateTime.now().subtract(const Duration(days: 2));
+  DateTime _selectedPastDate = DateTime.now().subtract(const Duration(days: 1));
   bool _isLoadingPast = false;
   String? _pastErrorMessage;
   FacultyPeriodsForDateResponse? _pastData;
@@ -130,7 +131,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
           date: period.date,
           dayOfWeek: period.dayOfWeek,
           periodName: period.periodName,
-          periodTime: '${period.startTime} - ${period.endTime}',
+          periodTime: '${TimezoneUtils.format24hTo12h(period.startTime)} - ${TimezoneUtils.format24hTo12h(period.endTime)}',
           subjectCode: period.subjectCode,
           subjectName: period.subjectName,
           className: period.className,
@@ -441,7 +442,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  '${period.startTime} - ${period.endTime}',
+                  '${TimezoneUtils.format24hTo12h(period.startTime)} - ${TimezoneUtils.format24hTo12h(period.endTime)}',
                   style: typography.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
                     color: colors.textSecondary,

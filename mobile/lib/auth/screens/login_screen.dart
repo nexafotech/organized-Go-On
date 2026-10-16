@@ -290,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       ),
       body: Stack(
         children: [
-          AppScaffold.buildLiquidAmbientCanvas(),
+          AppScaffold.buildLiquidAmbientCanvas(context),
           SafeArea(
             child: Center(
           child: ConstrainedBox(

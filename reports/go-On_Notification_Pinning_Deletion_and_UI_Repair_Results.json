@@ -1,0 +1,144 @@
+{
+  "audit_metadata": {
+    "project": "go-On AI Face Attendance System",
+    "mission": "Critical Notification System Repair and Full Mobile UI Regression Audit",
+    "version": "2.0.0-release.2",
+    "timestamp": "2026-10-15T10:22:00+05:30",
+    "overall_status": "VERIFIED_PRODUCTION_READY"
+  },
+  "device_verification": {
+    "permitted_target_device": "Samsung Galaxy S24",
+    "model": "SM-S921E",
+    "product": "e1qxins",
+    "manufacturer": "samsung",
+    "android_version": "16",
+    "api_level": 36,
+    "target_adb_serial": "RZCY935CVJF",
+    "strict_device_enforcement": {
+      "rmx3998_excluded": true,
+      "rmx3998_commands_executed": 0,
+      "unauthorized_devices_blocked": true,
+      "adb_status_at_release": "DISCONNECTED",
+      "physical_device_testing": "BLOCKED"
+    },
+    "apk_artifact": {
+      "package_name": "com.aifaceattendance.mobile_app",
+      "path": "mobile/build/app/outputs/flutter-apk/app-debug.apk",
+      "size_bytes": 188374418,
+      "size_mb": 179.65,
+      "build_timestamp": "2026-10-15T10:20:40+05:30",
+      "exit_code": 0,
+      "status": "SUCCESS"
+    }
+  },
+  "defects_diagnosed_and_resolved": [
+    {
+      "id": "NOTIF-DEFECT-01",
+      "name": "Horizontal RenderFlex Overflow on Notification Card (Right Overflowed by 3.2px)",
+      "symptom": "Flutter layout warning: 'A RenderFlex overflowed by 3.2 pixels on the right' rendered across the top right of pinned notification cards.",
+      "root_cause": "The notification card header row contained Channel badge (e.g. 'ANNOUNCEMENT'), PINNED badge, and HIGH priority badge alongside a Spacer, timestamp, unread pulse dot, and PopupMenuButton in a single rigid unconstrained Row. On a 360dp phone viewport with card margins and padding (usable inner width 296dp), the row elements summed to 299.2dp, causing an exact 3.2px overflow.",
+      "affected_files": [
+        "mobile/lib/faculty/screens/faculty_notification_history_screen.dart"
+      ],
+      "solution": "Refactored the header row using Expanded(child: Wrap(spacing: 5, runSpacing: 4, children: [badges...])) on the left and a dedicated Row(mainAxisSize: MainAxisSize.min) for timestamp and action menu on the right. Badges wrap gracefully onto a second line on narrow viewports without pushing trailing metadata offscreen.",
+      "verification": "VERIFIED in unit/widget test 'Pinned notification with HIGH priority and ANNOUNCEMENT does not overflow at 360dp' and clean flutter analyze.",
+      "status": "FIXED_AND_VERIFIED"
+    },
+    {
+      "id": "NOTIF-DEFECT-02",
+      "name": "Pinned Notifications Permitted to be Deleted via Swipe-Left and Popup Menu",
+      "symptom": "Pinned notifications could still be swiped left to delete or deleted via individual delete action, violating the pin-protection specification.",
+      "root_cause": "1. Dismissible confirmDismiss for swipe-left (endToStart) did not verify item.isPinned before unregistering the item and executing deletion.\n2. PopupMenuButton delete handler did not verify item.isPinned.\n3. Backend soft_delete_notification and DELETE /api/v1/notifications/{log_id} lacked a check for log.is_pinned == True.",
+      "affected_files": [
+        "mobile/lib/faculty/screens/faculty_notification_history_screen.dart",
+        "mobile/lib/services/notification_service.dart",
+        "app/services/notification_service.py",
+        "app/api/notifications.py"
+      ],
+      "solution": "1. In confirmDismiss: if item.isPinned, dismiss is rejected (returns false) and a floating SnackBar 'Pinned notifications cannot be deleted. Unpin first.' is shown.\n2. In PopupMenuButton: delete option is disabled with 'Protected (Pinned)' label and lock icon when pinned; tapping delete directly blocks deletion.\n3. In NotificationService: deleteNotification and removeNotificationLocally check item.isPinned and refuse removal.\n4. In Backend: soft_delete_notification returns False if log.is_pinned, and DELETE /api/v1/notifications/{log_id} raises HTTP 400 Bad Request if pinned.",
+      "verification": "VERIFIED via pytest test_pinned_notification_cannot_be_deleted_until_unpinned (HTTP 400 assertion) and flutter widget test.",
+      "status": "FIXED_AND_VERIFIED"
+    },
+    {
+      "id": "NOTIF-DEFECT-03",
+      "name": "Deleted Notifications Reappearing on Refresh / Pagination",
+      "symptom": "Deleted notifications reappeared when navigating away and back or executing pull-to-refresh.",
+      "root_cause": "Historical deletion was previously client-memory only without database persistence or query exclusion.",
+      "affected_files": [
+        "app/models/notification.py",
+        "app/services/notification_service.py",
+        "app/api/notifications.py"
+      ],
+      "solution": "Soft-delete persisted via is_deleted (Boolean, indexed) and deleted_at (DateTime) columns in NotificationLog. All inbox history queries, unread count queries, and pagination routes strictly filter NotificationLog.is_deleted == False.",
+      "verification": "VERIFIED via test_soft_delete_persistence_and_inbox_exclusion (database persistence and refresh exclusion).",
+      "status": "FIXED_AND_VERIFIED"
+    },
+    {
+      "id": "NOTIF-DEFECT-04",
+      "name": "Dismissible Widget Tree Crash on Gesture Interaction",
+      "symptom": "Red error screen: 'A dismissed Dismissible widget is still part of the tree.'",
+      "root_cause": "Framework invariant violation: Dismissible requires either synchronous removal from the tree when returning true, or returning false when widget remains in the tree.",
+      "affected_files": [
+        "mobile/lib/faculty/screens/faculty_notification_history_screen.dart"
+      ],
+      "solution": "confirmDismiss returns false for swipe-right (pin/unpin) so widget snaps back cleanly to its slot while updating state post-frame; returns true for swipe-left (delete) on unpinned items while synchronously calling removeNotificationLocally.",
+      "verification": "VERIFIED in test/notification_delete_pin_test.dart across 7 automated test cases.",
+      "status": "FIXED_AND_VERIFIED"
+    },
+    {
+      "id": "NOTIF-DEFECT-05",
+      "name": "Deterministic Pin Ordering and Bulk Deletion Safety",
+      "symptom": "Pinned notifications did not consistently stay at the top across refreshes, and bulk deletion risked deleting pinned records.",
+      "root_cause": "Missing composite sorting logic and lack of unpinned-only filtering in bulk delete endpoint.",
+      "affected_files": [
+        "app/services/notification_service.py",
+        "app/api/notifications.py",
+        "mobile/lib/services/notification_service.dart"
+      ],
+      "solution": "Configured deterministic sorting: is_pinned.desc(), pinned_at.desc(), created_at.desc() in both backend SQL queries and Flutter NotificationService._sortNotifications(). Bulk-delete endpoint deletes strictly is_pinned == False and returns truthful deleted and pinned_preserved counts.",
+      "verification": "VERIFIED via test_bulk_delete_unpinned_preserves_pinned (17/17 pytest passed).",
+      "status": "FIXED_AND_VERIFIED"
+    }
+  ],
+  "automated_test_results": {
+    "backend_pytest": {
+      "command": "python -m pytest tests/test_notification_delete_pin_audit.py tests/test_notification_bulk_delete.py tests/test_fcm_and_scheduled_notifications.py tests/test_phase11_notifications.py -q",
+      "total_tests": 52,
+      "passed": 52,
+      "failed": 0,
+      "status": "ALL_PASSED",
+      "key_tests": [
+        "test_pinned_notification_cannot_be_deleted_until_unpinned: PASS (HTTP 400)",
+        "test_soft_delete_persistence_and_inbox_exclusion: PASS",
+        "test_swipe_right_pin_persistence_and_ordering: PASS",
+        "test_user_isolation_for_delete_and_pin: PASS",
+        "test_bulk_delete_unpinned_preserves_pinned: PASS"
+      ]
+    },
+    "mobile_flutter_test": {
+      "command": "flutter test",
+      "total_tests": 157,
+      "passed": 157,
+      "failed": 0,
+      "pass_rate_percentage": 100.0,
+      "status": "ALL_PASSED",
+      "key_tests": [
+        "removeNotificationLocally strictly ignores pinned notifications: PASS",
+        "Pinned notification with HIGH priority and ANNOUNCEMENT does not overflow at 360dp: PASS",
+        "Swipe left on pinned notification does not dismiss it and keeps card in tree: PASS",
+        "NotificationService sorts pinned notifications deterministically to top: PASS"
+      ]
+    },
+    "static_analysis": {
+      "command": "flutter analyze",
+      "issues_found": 0,
+      "status": "CLEAN"
+    }
+  },
+  "distribution_endpoints": {
+    "localhost_portal": "http://localhost:8080/",
+    "direct_apk": "http://localhost:8080/app-debug.apk",
+    "pdf_report": "http://localhost:8080/report.pdf",
+    "results_json": "http://localhost:8080/results.json"
+  }
+}

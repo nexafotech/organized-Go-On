@@ -4,10 +4,11 @@ import '../storage/app_preferences.dart';
 
 class ThemeService extends ChangeNotifier {
   final AppPreferencesService _prefs;
-  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode _themeMode;
 
-  ThemeService({AppPreferencesService? prefs})
-      : _prefs = prefs ?? AppPreferencesService() {
+  ThemeService({AppPreferencesService? prefs, ThemeMode initialThemeMode = ThemeMode.light})
+      : _prefs = prefs ?? AppPreferencesService(),
+        _themeMode = (initialThemeMode == ThemeMode.dark) ? ThemeMode.dark : ThemeMode.light {
     _loadTheme();
   }
 
@@ -18,20 +19,17 @@ class ThemeService extends ChangeNotifier {
     try {
       final saved = await _prefs.getThemeMode();
       if (saved != null) {
-        if (saved == 'dark') {
-          _themeMode = ThemeMode.dark;
-        } else if (saved == 'light') {
-          _themeMode = ThemeMode.light;
-        } else {
-          _themeMode = ThemeMode.system;
+        final targetMode = (saved == 'dark') ? ThemeMode.dark : ThemeMode.light;
+        if (_themeMode != targetMode) {
+          _themeMode = targetMode;
+          notifyListeners();
         }
-        notifyListeners();
       }
     } catch (_) {}
   }
 
   Future<void> toggleTheme() async {
-    if (_themeMode == themeModeDark) {
+    if (_themeMode == ThemeMode.dark) {
       await setThemeMode(ThemeMode.light);
     } else {
       await setThemeMode(ThemeMode.dark);
@@ -39,17 +37,15 @@ class ThemeService extends ChangeNotifier {
   }
 
   static const ThemeMode themeModeDark = ThemeMode.dark;
+  static const ThemeMode themeModeLight = ThemeMode.light;
 
   Future<void> setThemeMode(ThemeMode mode) async {
-    if (_themeMode == mode) return;
-    _themeMode = mode;
+    final targetMode = (mode == ThemeMode.dark) ? ThemeMode.dark : ThemeMode.light;
+    if (_themeMode == targetMode) return;
+    _themeMode = targetMode;
     notifyListeners();
     try {
-      await _prefs.saveThemeMode(
-        mode == ThemeMode.dark
-            ? 'dark'
-            : (mode == ThemeMode.light ? 'light' : 'system'),
-      );
+      await _prefs.saveThemeMode(targetMode == ThemeMode.dark ? 'dark' : 'light');
     } catch (_) {}
   }
 }
@@ -63,17 +59,17 @@ class SafeThemeConsumer extends StatelessWidget {
 
   const SafeThemeConsumer({super.key, required this.builder, this.child});
 
-  static final ThemeService _fallback = ThemeService();
+  static final ThemeService _fallback = ThemeService(initialThemeMode: ThemeMode.light);
+  static ThemeMode get fallbackThemeMode => _fallback.themeMode;
 
   @override
   Widget build(BuildContext context) {
     ThemeService? service;
     try {
-      service = Provider.of<ThemeService>(context);
+      service = Provider.of<ThemeService>(context, listen: true);
     } catch (_) {
       service = null;
     }
     return builder(context, service ?? _fallback, child);
   }
 }
-

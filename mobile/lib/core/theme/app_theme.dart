@@ -263,8 +263,8 @@ class AppTheme {
         filled: true,
         fillColor: c.glassSurfaceSubtle,
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        hintStyle: TextStyle(color: c.textMuted, fontSize: 14),
-        labelStyle: TextStyle(color: c.textSecondary, fontSize: 14, fontWeight: FontWeight.w500),
+        hintStyle: t.bodyMedium.copyWith(color: c.textMuted),
+        labelStyle: t.bodyMedium.copyWith(color: c.textSecondary, fontWeight: FontWeight.w500),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusInner),
           borderSide: BorderSide(color: c.glassBorder),
@@ -298,7 +298,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusInner),
           ),
-          textStyle: const TextStyle(
+          textStyle: t.labelLarge.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.2,
@@ -313,10 +313,16 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusInner),
           ),
-          textStyle: const TextStyle(
+          textStyle: t.labelLarge.copyWith(
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: c.accent,
+          textStyle: t.labelLarge,
         ),
       ),
       dialogTheme: DialogThemeData(
@@ -331,10 +337,16 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         selectedItemColor: c.primary,
         unselectedItemColor: c.textMuted,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+        selectedLabelStyle: t.labelMedium.copyWith(fontWeight: FontWeight.w700, fontSize: 12),
+        unselectedLabelStyle: t.labelMedium.copyWith(fontWeight: FontWeight.w500, fontSize: 12),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: c.surfaceElevated,
+        contentTextStyle: t.bodyMedium.copyWith(color: c.textPrimary),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
       ),
       dividerTheme: DividerThemeData(
         color: c.divider,

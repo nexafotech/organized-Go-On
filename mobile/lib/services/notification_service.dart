@@ -17,6 +17,11 @@ import '../faculty/screens/faculty_notification_history_screen.dart';
 /// Top-level background message handler required by Firebase Messaging
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
+
   // Background message received while app is terminated or in background
   if (kDebugMode) {
     print('[Go-On Background Notification] Title: ${message.notification?.title}, Data: ${message.data}');
@@ -52,6 +57,8 @@ class NotificationService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isBulkDeleting => _isBulkDeleting;
   String? get errorMessage => _errorMessage;
+  Set<int> get knownNotificationIds => Set.unmodifiable(_knownNotificationIds);
+  bool isNotificationPinned(int id) => _notifications.any((n) => n.id == id && n.isPinned);
 
   void clearUserData() {
     _notifications = [];
@@ -129,7 +136,7 @@ class NotificationService extends ChangeNotifier {
     // 1. Initialize Local Notifications & Android Channels FIRST (Guaranteed resilience)
     try {
       const AndroidInitializationSettings androidSettings =
-          AndroidInitializationSettings('@drawable/ic_notification');
+          AndroidInitializationSettings('ic_notification');
       const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
@@ -260,6 +267,7 @@ class NotificationService extends ChangeNotifier {
     if (kIsWeb) return;
     try {
       await initialize();
+      await requestNotificationPermissions();
 
       if (defaultTargetPlatform == TargetPlatform.iOS) {
         try {
@@ -343,13 +351,11 @@ class NotificationService extends ChangeNotifier {
             final item = NotificationItem.fromJson(entry);
             if (!item.isDeleted && !_deletedNotificationIds.contains(item.id)) {
               items.add(item);
-              _knownNotificationIds.add(item.id);
             }
           } else if (entry is Map) {
             final item = NotificationItem.fromJson(Map<String, dynamic>.from(entry));
             if (!item.isDeleted && !_deletedNotificationIds.contains(item.id)) {
               items.add(item);
-              _knownNotificationIds.add(item.id);
             }
           }
         }
@@ -388,9 +394,13 @@ class NotificationService extends ChangeNotifier {
   }
 
   void removeNotificationLocally(int notificationId) {
-    _deletedNotificationIds.add(notificationId);
     final existingIndex = _notifications.indexWhere((n) => n.id == notificationId);
     if (existingIndex != -1) {
+      if (_notifications[existingIndex].isPinned) {
+        if (kDebugMode) print('[Go-On Notifications] Blocked local removal of pinned notification: $notificationId');
+        return;
+      }
+      _deletedNotificationIds.add(notificationId);
       final item = _notifications.removeAt(existingIndex);
       if (!item.isRead && _unreadCount > 0) {
         _unreadCount--;
@@ -400,8 +410,12 @@ class NotificationService extends ChangeNotifier {
   }
 
   Future<bool> deleteNotification(ApiClient apiClient, int notificationId) async {
-    _deletedNotificationIds.add(notificationId);
     final existingIndex = _notifications.indexWhere((n) => n.id == notificationId);
+    if (existingIndex != -1 && _notifications[existingIndex].isPinned) {
+      if (kDebugMode) print('[Go-On Notifications] Blocked deletion of pinned notification: $notificationId');
+      return false;
+    }
+    _deletedNotificationIds.add(notificationId);
     NotificationItem? removedItem;
     if (existingIndex != -1) {
       removedItem = _notifications.removeAt(existingIndex);
@@ -621,13 +635,18 @@ class NotificationService extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   // In-App Real-Time Polling & Local Notification Surfacing
   // ---------------------------------------------------------------------------
-  void startInAppPolling(ApiClient apiClient, {Duration interval = const Duration(seconds: 30)}) {
+  void startInAppPolling(ApiClient apiClient, {Duration interval = const Duration(seconds: 25)}) {
     _pollingApiClient = apiClient;
     stopInAppPolling();
 
-    // Initial immediate fetch
+    // Initial immediate fetch: seed known notification IDs so historical items aren't surfaced as new heads-up
     refreshUnreadCount(apiClient);
-    fetchNotifications(apiClient, limit: 20);
+    fetchNotifications(apiClient, limit: 20).then((items) {
+      for (final item in items) {
+        _knownNotificationIds.add(item.id);
+      }
+      _initialPollDone = true;
+    }).catchError((_) {});
 
     _pollTimer = Timer.periodic(interval, (_) async {
       if (_pollingApiClient == null) return;
@@ -638,13 +657,14 @@ class NotificationService extends ChangeNotifier {
         // If unread count changed or first check, check latest notifications
         if (newCount > oldCount || !_initialPollDone) {
           final latest = await fetchNotifications(_pollingApiClient!, limit: 10);
-          // If we find new unread notifications that arrived since last time, surface heads-up
+          // If we find new unread notifications that arrived since last check, surface heads-up
           for (final item in latest) {
             if (!item.isRead && !_knownNotificationIds.contains(item.id)) {
               _knownNotificationIds.add(item.id);
               showLocalNotification(item);
             }
           }
+          _initialPollDone = true;
         }
       } catch (_) {}
     });
@@ -658,8 +678,9 @@ class NotificationService extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   // Foreground & Local System Display
   // ---------------------------------------------------------------------------
-  void showLocalNotification(NotificationItem item) {
+  Future<void> showLocalNotification(NotificationItem item) async {
     if (kIsWeb) return;
+    _knownNotificationIds.add(item.id);
     final selectedChannel = _resolveChannel(item.channelId);
 
     final androidDetails = AndroidNotificationDetails(
@@ -668,7 +689,7 @@ class NotificationService extends ChangeNotifier {
       channelDescription: selectedChannel.description,
       importance: selectedChannel.importance,
       priority: selectedChannel.importance == Importance.max ? Priority.high : Priority.defaultPriority,
-      icon: '@drawable/ic_notification',
+      icon: 'ic_notification',
       playSound: true,
       enableVibration: true,
     );
@@ -692,13 +713,19 @@ class NotificationService extends ChangeNotifier {
       'body': item.body,
     };
 
-    _localNotifications.show(
-      id: item.id != 0 ? item.id : DateTime.now().millisecond,
-      title: item.title,
-      body: item.body,
-      notificationDetails: notificationDetails,
-      payload: jsonEncode(payloadMap),
-    );
+    try {
+      await _localNotifications.show(
+        id: item.id != 0 ? item.id : (item.title.hashCode & 0x7FFFFFFF),
+        title: item.title,
+        body: item.body,
+        notificationDetails: notificationDetails,
+        payload: jsonEncode(payloadMap),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('[Go-On Notifications] Local notification display notice: $e');
+      }
+    }
   }
 
   AndroidNotificationChannel _resolveChannel(String channelId) {
@@ -723,13 +750,23 @@ class NotificationService extends ChangeNotifier {
     final channelId = message.data['channel_id'] ?? 'GO_ON_GENERAL';
     final selectedChannel = _resolveChannel(channelId);
 
+    // Extract deterministic integer notification ID to prevent duplicates
+    final int notifId = int.tryParse(message.data['id']?.toString() ?? '') ??
+        (message.messageId?.hashCode ?? DateTime.now().millisecond);
+
+    // Deduplicate: if already displayed, do not duplicate in system tray
+    if (_knownNotificationIds.contains(notifId)) {
+      return;
+    }
+    _knownNotificationIds.add(notifId);
+
     final androidDetails = AndroidNotificationDetails(
       selectedChannel.id,
       selectedChannel.name,
       channelDescription: selectedChannel.description,
       importance: selectedChannel.importance,
       priority: selectedChannel.importance == Importance.max ? Priority.high : Priority.defaultPriority,
-      icon: '@drawable/ic_notification',
+      icon: 'ic_notification',
       playSound: true,
       enableVibration: true,
     );
@@ -747,7 +784,7 @@ class NotificationService extends ChangeNotifier {
     final payloadJson = jsonEncode(message.data);
 
     _localNotifications.show(
-      id: DateTime.now().millisecond,
+      id: notifId,
       title: title,
       body: body,
       notificationDetails: notificationDetails,
@@ -807,6 +844,8 @@ class NotificationService extends ChangeNotifier {
         break;
       case 'notifications':
       case 'announcements':
+      case 'admin_custom':
+      case 'inbox':
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const FacultyNotificationHistoryScreen()),
         );

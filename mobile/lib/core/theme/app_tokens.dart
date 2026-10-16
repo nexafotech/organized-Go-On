@@ -236,13 +236,13 @@ class AppColors extends ThemeExtension<AppColors> {
     rateHigh: Color(0xFF10B981), // >= 75%
     rateMedium: Color(0xFFF59E0B), // 65% - 74.9%
     rateLow: Color(0xFFEF4444), // < 65%
-    glassSurface: Color(0xC4FFFFFF), // ~77% translucent white
-    glassSurfaceStrong: Color(0xEBFFFFFF), // ~92% translucent white
-    glassSurfaceSubtle: Color(0x80FFFFFF), // ~50% translucent white
+    glassSurface: Color(0xF5FFFFFF), // Crisp ~96% opaque white surface
+    glassSurfaceStrong: Color(0xFFFFFFFF), // Pure crisp card white
+    glassSurfaceSubtle: Color(0xFFF4ECE2), // Warm muted cream container surface
     glassSurfaceHero: Color(0xE62B1A13), // ~90% translucent espresso
-    glassBorder: Color(0x80FFFFFF), // ~50% translucent white border
-    glassBorderStrong: Color(0xB3FFFFFF), // ~70% translucent white border
-    glassHighlight: Color(0x66FFFFFF), // specular sheen
+    glassBorder: Color(0xFFE6DCD0), // Crisp warm espresso hairline border
+    glassBorderStrong: Color(0xFFD5C8B8), // Defined tactile contour border
+    glassHighlight: Color(0x33FFFFFF), // Subtle specular sheen
     glassScrim: Color(0x332B1A13), // ~20% warm espresso scrim
     glassTint: Color(0x1AF6F1EA), // ~10% warm cream tint
   );
@@ -262,8 +262,8 @@ class AppColors extends ThemeExtension<AppColors> {
     textPrimary: Color(0xFFF7F5EE),     // Luminous pearl cream (ultra clear)
     textSecondary: Color(0xFFC5BDD3),   // Muted lilac / soft lavender mist
     textMuted: Color(0xFF867D97),       // Slate violet
-    border: Color(0x2EFFFFFF),          // Translucent specular white border (~18%)
-    borderStrong: Color(0x52FFFFFF),    // Specular edge highlight (~32%)
+    border: Color(0x1F7E7594),          // Restrained soft obsidian border (~12%)
+    borderStrong: Color(0x33A89EC0),    // Restrained edge highlight (~20%)
     divider: Color(0x1FFFFFFF),         // Subtle glass divider (~12%)
     scrim: Color(0xB30D0C13),           // Smoked scrim
     primary: Color(0xFFE4DFEB),         // Soft pearl lavender / luminous cream
@@ -274,11 +274,11 @@ class AppColors extends ThemeExtension<AppColors> {
     accentOnHero: Color(0xFFE4DFEB),
     focusRing: Color(0xFFC5BDD3),
     present: Color(0xFF10B981),         // Emerald liquid glow
-    presentBg: Color(0x2610B981),       // Translucent emerald glass jewel
+    presentBg: Color(0x1A10B981),       // Restrained emerald jewel (~10%)
     absent: Color(0xFFF43F5E),          // Ruby rose liquid glow
-    absentBg: Color(0x26F43F5E),        // Translucent ruby glass jewel
+    absentBg: Color(0x1AF43F5E),        // Restrained ruby jewel (~10%)
     od: Color(0xFF818CF8),              // Sapphire crystal liquid glow
-    odBg: Color(0x26818CF8),            // Translucent sapphire glass jewel
+    odBg: Color(0x1A818CF8),            // Restrained sapphire jewel (~10%)
     notEntered: Color(0xFF867D97),      // Slate violet
     notEnteredBg: Color(0x24867D97),
     excluded: Color(0xFF867D97),
@@ -290,11 +290,11 @@ class AppColors extends ThemeExtension<AppColors> {
     success: Color(0xFF10B981),
     successBg: Color(0x2610B981),
     warning: Color(0xFFF59E0B),
-    warningBg: Color(0x26F59E0B),
+    warningBg: Color(0x1AF59E0B),
     error: Color(0xFFF43F5E),
-    errorBg: Color(0x26F43F5E),
+    errorBg: Color(0x1AF43F5E),
     info: Color(0xFF818CF8),
-    infoBg: Color(0x26818CF8),
+    infoBg: Color(0x1A818CF8),
     heroChip: Color(0x24FFFFFF),
     rateHigh: Color(0xFF10B981),
     rateMedium: Color(0xFFF59E0B),
@@ -303,9 +303,9 @@ class AppColors extends ThemeExtension<AppColors> {
     glassSurfaceStrong: Color(0xEB282635), // ~92% frosted obsidian glass
     glassSurfaceSubtle: Color(0x801E1C27), // ~50% frosted obsidian glass
     glassSurfaceHero: Color(0xEB22202A),
-    glassBorder: Color(0x33FFFFFF),        // 20% specular white rim
-    glassBorderStrong: Color(0x59FFFFFF),  // 35% specular white rim
-    glassHighlight: Color(0x66FFFFFF),     // Convex specular arc glare
+    glassBorder: Color(0x24FFFFFF),        // 14% subtle specular rim (reduced glow)
+    glassBorderStrong: Color(0x38FFFFFF),  // 22% refined specular rim (reduced glow)
+    glassHighlight: Color(0x26FFFFFF),     // Restrained specular glare (~15%)
     glassScrim: Color(0x800D0C13),
     glassTint: Color(0x1AC5BDD3),          // Lavender mist optic tint
   );
@@ -1002,6 +1002,15 @@ abstract class AppGlass {
       blurRadius: 12,
     ),
   ];
+
+  static const LinearGradient darkSpecularGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0x0AFFFFFF), // 4% subtle sheen (no milky glow)
+      Color(0x00FFFFFF), // Transparent base
+    ],
+  );
 
   // Specular Gradients (simulating light passing through frosted glass with top glare reflection)
   static const LinearGradient specularGradient = LinearGradient(

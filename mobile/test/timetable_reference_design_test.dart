@@ -156,7 +156,7 @@ void main() {
           value: mockService,
           child: MaterialApp(
             theme: AppTheme.lightTheme,
-            home: const Scaffold(body: StudentTimetableScreen()),
+            home: Scaffold(body: StudentTimetableScreen(simulatedTime: DateTime(2026, 10, 14, 10, 15))),
           ),
         ),
       );
@@ -270,7 +270,7 @@ void main() {
           value: mockService,
           child: MaterialApp(
             theme: AppTheme.lightTheme,
-            home: const Scaffold(body: StudentTimetableScreen()),
+            home: Scaffold(body: StudentTimetableScreen(simulatedTime: DateTime(2026, 10, 14, 10, 15))),
           ),
         ),
       );

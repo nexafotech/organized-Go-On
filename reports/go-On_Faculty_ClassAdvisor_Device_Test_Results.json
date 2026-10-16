@@ -1,0 +1,91 @@
+{
+  "system": "go-On AI Face Attendance System",
+  "audit_scope": "Faculty & Class Advisor Portal Live Device Debugging & Repair",
+  "timestamp_ist": "2026-10-16T09:30:00+05:30",
+  "project_root": "E:\\originalam",
+  "mobile_app_path": "E:\\originalam\\mobile",
+  "backend_framework": "FastAPI (Python 3.14)",
+  "database": "SQLite / PostgreSQL compatible ORM (SQLAlchemy 2.0)",
+  "target_device": "Samsung Galaxy S24 (SM-S921E)",
+  "physical_device_verification": {
+    "adb_command": "adb -s RZCY935CVJF shell getprop",
+    "status": "VERIFIED_ATTACHED",
+    "device_serial": "RZCY935CVJF",
+    "ro_product_manufacturer": "samsung",
+    "ro_product_model": "SM-S921E",
+    "ro_build_version_release": "16",
+    "ro_build_version_sdk": "36",
+    "installed_package": "com.aifaceattendance.mobile_app",
+    "apk_deployment": {
+      "apk_path": "E:\\originalam\\mobile\\build\\app\\outputs\\flutter-apk\\app-debug.apk",
+      "install_method": "adb -s RZCY935CVJF install -r -d",
+      "install_result": "Success",
+      "user_data_state": "Preserved"
+    },
+    "evidence_captures": {
+      "live_light_dashboard": "reports/evidence/s24_faculty_dashboard_live.png",
+      "live_dark_dashboard": "reports/evidence/s24_faculty_dark_live.png",
+      "live_attendance_screen": "reports/evidence/s24_faculty_attendance_live.png",
+      "live_timetable_screen": "reports/evidence/s24_faculty_timetable_live.png",
+      "live_profile_screen": "reports/evidence/s24_faculty_profile_live.png"
+    }
+  },
+  "summary": {
+    "flutter_analyzer_issues": 0,
+    "backend_sync_tests_passed": 2,
+    "backend_sync_tests_failed": 0,
+    "faculty_live_screen_tests_passed": 5,
+    "theme_toggle_stress_tests_passed": 1,
+    "overall_status": "PASSED"
+  },
+  "defect_inventory_resolution": [
+    {
+      "id": "K-01",
+      "category": "UI Stability & Layout Overflow",
+      "title": "Duplicate GlobalKey ink renderer conflict and RenderFlex 99,890px overflow in Quick Access cards",
+      "root_cause": "GlassCard without onTap did not wrap in Material. Sibling buttons (TextButton & ElevatedButton) inside Row registered ink splashes with distant ancestor Scaffold _InkFeatures, causing key collision during layout. When layout failed, Flutter replaced card with ErrorWidget causing 99,890px horizontal overflow.",
+      "resolution": "Enhanced GlassCard to wrap in local transparent Material(type: MaterialType.transparency) when onTap is null. Provided unique ValueKey for each card and set enableBlur: false on side-by-side cards.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "K-02",
+      "category": "Theme Engine & Typography",
+      "title": "Failed to interpolate TextStyles with different inherit values on theme toggle",
+      "root_cause": "darkTheme omitted textButtonTheme and defined un-inherited TextStyle instances, causing AnimatedTheme 200ms lerp to abort with assertion error when interpolating between inherit: true and inherit: false.",
+      "resolution": "Added matching textButtonTheme and derived all darkTheme button, input, and bottom nav styles from AppTypography tokens with inherit: true.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "A-01",
+      "category": "Attendance Synchronization",
+      "title": "Faculty marked attendance not reflected in Student Subject Breakdown",
+      "root_cause": "1. StudentService parsed date_wise from API response but discarded response['subjects']. 2. StudentAttendanceReportScreen only fetched data if dateWise was empty. 3. AttendancePolicyEngine filtered subjects strictly by student.class_id.",
+      "resolution": "Updated StudentService to populate _subjects and recalculate summary; refreshed on initState in StudentAttendanceReportScreen; merged elective subjects in policy engine.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "T-01",
+      "category": "Timetable & Date/Time",
+      "title": "24-hour military timestamps displayed on faculty schedule and attendance screens",
+      "root_cause": "Timetable and attendance screens displayed raw 24-hour HH:MM strings.",
+      "resolution": "Created TimezoneUtils.format24hTo12h() in Flutter and format_time_12h() in timetable_engine.py. Rebuilt lock reasons ('10:50 AM', '2:30 PM') and schedule cards.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "D-01",
+      "category": "Dark Theme",
+      "title": "Excessive specular glare and over-bright borders in dark theme",
+      "root_cause": "Overly bright borders (0x4D) and specular glass gradients (0.35 opacity white shine).",
+      "resolution": "Softened dark borders to 0x1F, reduced specular glare from 0.35 to 0.12. Light theme 100% untouched.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "U-01",
+      "category": "UI Layout & Overflow",
+      "title": "Faculty Dashboard and Timetable App Bar Title Ellipsis Truncation",
+      "root_cause": "Dense header action icon row caused 'Faculty Dashboard' to truncate as 'Faculty D...'.",
+      "resolution": "Applied compact VisualDensity, reduced margins, and 16sp font for app bar title.",
+      "status": "VERIFIED_FIXED"
+    }
+  ]
+}

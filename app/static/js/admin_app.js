@@ -3062,11 +3062,20 @@ function escapeHtml(str) {
     });
 }
 
+function parseIsoUtc(isoStr) {
+    if (!isoStr) return null;
+    let s = String(isoStr).trim();
+    if (!s.endsWith('Z') && !s.includes('+') && !s.slice(10).includes('-')) {
+        s += 'Z';
+    }
+    return new Date(s);
+}
+
 function formatDate(isoStr) {
     if (!isoStr) return '-';
     try {
-        const d = new Date(isoStr);
-        return d.toLocaleString();
+        const d = parseIsoUtc(isoStr);
+        return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     } catch (e) { return isoStr; }
 }
 
@@ -5348,7 +5357,9 @@ async function loadNotificationSettings() {
         const statDevices = document.getElementById('statNotifDevices');
         if (statDevices) {
             if (metrics && typeof metrics.active_device_tokens === 'number') {
-                statDevices.innerText = `${metrics.active_device_tokens} Active`;
+                const userCount = metrics.active_users_count || metrics.active_device_tokens;
+                statDevices.innerText = `${metrics.active_device_tokens} Active (${userCount} Users)`;
+                statDevices.title = `Total: ${metrics.active_device_tokens} active tokens across ${userCount} distinct users (Students: ${metrics.student_active_tokens || 0}, Faculty: ${metrics.faculty_active_tokens || 0})`;
             }
         }
 
@@ -5600,15 +5611,30 @@ async function handleSendCustomNotification(e) {
             if (res.status === 'SCHEDULED') {
                 resAlert.className = 'alert alert-info mb-3';
                 resAlert.innerHTML = `<strong><i class="fa-solid fa-calendar-check mr-1"></i> Scheduled:</strong> ${escapeHtml(res.message || 'Queued for delivery')}`;
+            } else if (res.is_simulated || res.status === 'SIMULATED') {
+                resAlert.className = 'alert alert-info mb-3';
+                resAlert.innerHTML = `<strong><i class="fa-solid fa-flask mr-1"></i> Simulated Dispatch (Test Mode):</strong> Recorded for ${res.recipients_count} recipient(s). Simulated dispatch across ${res.devices_sent || 0} device token(s) (Firebase credentials not configured).`;
+            } else if (res.status === 'PARTIAL_FAILURE' || (res.devices_sent > 0 && res.devices_failed > 0)) {
+                resAlert.className = 'alert alert-warning mb-3';
+                resAlert.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation mr-1"></i> Partial Delivery:</strong> Recorded for ${res.recipients_count} recipient(s). Push accepted for ${res.devices_sent} device(s), ${res.devices_failed || 0} failed${res.recipients_without_tokens ? ` (${res.recipients_without_tokens} recipient(s) had no active tokens)` : ''}.`;
             } else if (res.devices_sent > 0) {
                 resAlert.className = 'alert alert-success mb-3';
-                resAlert.innerHTML = `<strong><i class="fa-solid fa-circle-check mr-1"></i> Push Sent:</strong> Recorded for ${res.recipients_count} recipient(s) &amp; dispatched ${res.devices_sent} push notification(s) (${res.devices_failed || 0} failed).`;
+                resAlert.innerHTML = `<strong><i class="fa-solid fa-circle-check mr-1"></i> Push Sent:</strong> Recorded for ${res.recipients_count} recipient(s) &amp; accepted by FCM for ${res.devices_sent} device(s).`;
+            } else if (res.devices_failed > 0) {
+                resAlert.className = 'alert alert-danger mb-3';
+                resAlert.innerHTML = `<strong><i class="fa-solid fa-circle-xmark mr-1"></i> Push Delivery Failed:</strong> Stored in history for ${res.recipients_count} recipient(s), but all ${res.devices_failed} device push requests failed.`;
             } else {
                 resAlert.className = 'alert alert-warning mb-3';
                 resAlert.innerHTML = `<strong><i class="fa-solid fa-box-archive mr-1"></i> Stored in In-App Inbox:</strong> Stored for ${res.recipients_count} recipient(s). No active push device tokens registered for these recipients.`;
             }
         }
-        showToast(res.status === 'SCHEDULED' ? "Notification scheduled" : `Broadcast processed: ${res.recipients_count} in-app, ${res.devices_sent || 0} pushed`, "success");
+        let toastMsg = `Broadcast processed: ${res.recipients_count} in-app`;
+        if (res.is_simulated || res.status === 'SIMULATED') {
+            toastMsg += ` (${res.devices_sent || 0} simulated)`;
+        } else if (res.devices_sent > 0) {
+            toastMsg += `, ${res.devices_sent} pushed`;
+        }
+        showToast(res.status === 'SCHEDULED' ? "Notification scheduled" : toastMsg, (res.is_simulated || res.status === 'PARTIAL_FAILURE') ? "info" : "success");
 
         document.getElementById('notifTitle').value = '';
         document.getElementById('notifBody').value = '';
@@ -5640,8 +5666,8 @@ async function loadScheduledNotifications() {
         }
 
         tbody.innerHTML = list.map(item => {
-            const schedDate = new Date(item.scheduled_at);
-            const dateStr = schedDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+            const schedDate = parseIsoUtc(item.scheduled_at);
+            const dateStr = schedDate ? schedDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '-';
             return `
                 <tr>
                     <td><code>#${item.id}</code></td>
@@ -5701,14 +5727,20 @@ async function loadNotificationLogs() {
         }
 
         tbody.innerHTML = logs.map(l => {
-            const dt = new Date(l.created_at);
-            const dateStr = dt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+            const dt = parseIsoUtc(l.created_at);
+            const dateStr = dt ? dt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '-';
             
             let statusBadge = '<span class="badge badge-status-sent">SENT</span>';
-            if (l.status === 'PROVIDER_ACCEPTED') {
+            if (l.status === 'PROVIDER_ACCEPTED' || l.status === 'FCM_ACCEPTED') {
                 statusBadge = '<span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3);"><i class="fa-solid fa-check-double mr-1"></i>FCM ACCEPTED</span>';
-            } else if (l.status === 'STORED') {
+            } else if (l.status === 'STORED' || l.status === 'NO_TOKEN') {
                 statusBadge = '<span class="badge" style="background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3);"><i class="fa-solid fa-box-archive mr-1"></i>IN-APP ONLY</span>';
+            } else if (l.status === 'PARTIAL_FAILURE') {
+                statusBadge = '<span class="badge" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3);"><i class="fa-solid fa-triangle-exclamation mr-1"></i>PARTIAL FAILURE</span>';
+            } else if (l.status === 'RECORDED') {
+                statusBadge = '<span class="badge" style="background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3);"><i class="fa-solid fa-bookmark mr-1"></i>RECORDED</span>';
+            } else if (l.status === 'DELIVERY_CONFIRMED') {
+                statusBadge = '<span class="badge" style="background: rgba(16,185,129,0.25); color: #059669; border: 1px solid rgba(16,185,129,0.5);"><i class="fa-solid fa-circle-check mr-1"></i>CONFIRMED</span>';
             } else if (l.status === 'SIMULATED') {
                 statusBadge = '<span class="badge" style="background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3);"><i class="fa-solid fa-flask mr-1"></i>SIMULATED</span>';
             } else if (l.status === 'FAILED') {

@@ -177,5 +177,36 @@ void main() {
 
       expect(find.text('Foundations of Data Science Laboratory'), findsWidgets);
     });
+
+    testWidgets('Unrecorded day renders canonical No Record pending state without fake absent records', (WidgetTester tester) async {
+      await tester.pumpWidget(wrapWidget(
+        DailyScheduleCard(
+          entry: null,
+          dateLabel: 'Today • Thu, 15 Oct 2026',
+          selectedDate: DateTime(2026, 10, 15),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Verify headline does not say "You missed 7 classes"
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().contains('No attendance recorded today.'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Schedule will update as classes proceed.'), findsOneWidget);
+
+      // Verify bottom bar shows Pending target 75%
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().contains('Pending') && w.text.toPlainText().contains('target 75%'),
+        ),
+        findsOneWidget,
+      );
+
+      // Verify featured card and grid items are No record (Pending)
+      expect(find.text('No record'), findsWidgets);
+    });
   });
 }

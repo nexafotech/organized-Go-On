@@ -677,7 +677,7 @@ def test_duplicate_broadcast_suppression(db: Session):
     # First send: must succeed and dispatch
     resp1 = client.post("/api/v1/admin/notifications/send", json=payload, headers=headers)
     assert resp1.status_code == 200
-    assert resp1.json()["status"] == "SENT"
+    assert resp1.json()["status"] in ("SENT", "SIMULATED", "FCM_ACCEPTED")
     assert resp1.json()["recipients_count"] > 0
 
     # Immediate second send (e.g. double-click or automated retry): must be suppressed!

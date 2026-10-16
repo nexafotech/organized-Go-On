@@ -78,6 +78,19 @@ class _InteractiveAttendanceOverviewCardState
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedYear = now.year;
+    _selectedMonth = now.month;
+    _selectedDayNumber = now.day;
+    if (widget.dateWiseEntries != null && widget.dateWiseEntries!.isNotEmpty) {
+      final latest = widget.dateWiseEntries!.last;
+      final parsed = DateTime.tryParse(latest.date);
+      if (parsed != null) {
+        _selectedYear = parsed.year;
+        _selectedMonth = parsed.month;
+        _selectedDayNumber = parsed.day;
+      }
+    }
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -601,7 +614,7 @@ class _InteractiveAttendanceOverviewCardState
       children: [
         // ── Apple Frosted Glass Month Navigation Header ──
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: colors.glassSurfaceSubtle,
             borderRadius: BorderRadius.circular(20),
@@ -611,123 +624,143 @@ class _InteractiveAttendanceOverviewCardState
             ),
             boxShadow: AppGlass.shadow,
           ),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
-                iconSize: 20,
-                tooltip: 'Previous Month',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                color: _selectedMonth > 1
-                    ? colors.textPrimary
-                    : colors.textMuted.withValues(alpha: 0.25),
-                onPressed: _selectedMonth > 1
-                    ? () {
-                        setState(() {
-                          _selectedMonth--;
-                          final maxD = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
-                          if (_selectedDayNumber > maxD) _selectedDayNumber = maxD;
-                        });
-                      }
-                    : null,
-              ),
-              Flexible(
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _selectedMonth,
-                    isDense: true,
-                    dropdownColor: colors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(AppRadius.medium),
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: colors.accent, size: 18),
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.bold,
-                      color: colors.textPrimary,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 350;
+
+              final monthNavControls = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    iconSize: 22,
+                    tooltip: 'Previous Month',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    color: _selectedMonth > 1
+                        ? colors.textPrimary
+                        : colors.textMuted.withValues(alpha: 0.25),
+                    onPressed: _selectedMonth > 1
+                        ? () {
+                            setState(() {
+                              _selectedMonth--;
+                              final maxD = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+                              if (_selectedDayNumber > maxD) _selectedDayNumber = maxD;
+                            });
+                          }
+                        : null,
+                  ),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: _selectedMonth,
+                      isDense: true,
+                      dropdownColor: colors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(AppRadius.medium),
+                      icon: Icon(Icons.keyboard_arrow_down_rounded, color: colors.accent, size: 16),
+                      style: TextStyle(
+                        fontSize: 13.0,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary,
+                      ),
+                      items: List.generate(12, (index) {
+                        final m = index + 1;
+                        return DropdownMenuItem<int>(
+                          value: m,
+                          child: Text('${_monthNames[index]} $_selectedYear'),
+                        );
+                      }),
+                      onChanged: (newMonth) {
+                        if (newMonth != null && newMonth != _selectedMonth) {
+                          setState(() {
+                            _selectedMonth = newMonth;
+                            final maxD = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+                            if (_selectedDayNumber > maxD) _selectedDayNumber = maxD;
+                          });
+                        }
+                      },
                     ),
-                    items: List.generate(12, (index) {
-                      final m = index + 1;
-                      return DropdownMenuItem<int>(
-                        value: m,
-                        child: Text('${_monthNames[index]} $_selectedYear'),
-                      );
-                    }),
-                    onChanged: (newMonth) {
-                      if (newMonth != null && newMonth != _selectedMonth) {
-                        setState(() {
-                          _selectedMonth = newMonth;
-                          final maxD = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
-                          if (_selectedDayNumber > maxD) _selectedDayNumber = maxD;
-                        });
-                      }
-                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    iconSize: 22,
+                    tooltip: 'Next Month',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    color: _selectedMonth < 12
+                        ? colors.textPrimary
+                        : colors.textMuted.withValues(alpha: 0.25),
+                    onPressed: _selectedMonth < 12
+                        ? () {
+                            setState(() {
+                              _selectedMonth++;
+                              final maxD = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+                              if (_selectedDayNumber > maxD) _selectedDayNumber = maxD;
+                            });
+                          }
+                        : null,
+                  ),
+                ],
+              );
+
+              final summaryCapsule = Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: 0.08),
+                  borderRadius: AppRadius.pillBorder,
+                  border: Border.all(
+                    color: colors.primary.withValues(alpha: 0.22),
+                    width: 1.0,
                   ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
-                iconSize: 20,
-                tooltip: 'Next Month',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                color: _selectedMonth < 12
-                    ? colors.textPrimary
-                    : colors.textMuted.withValues(alpha: 0.25),
-                onPressed: _selectedMonth < 12
-                    ? () {
-                        setState(() {
-                          _selectedMonth++;
-                          final maxD = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
-                          if (_selectedDayNumber > maxD) _selectedDayNumber = maxD;
-                        });
-                      }
-                    : null,
-              ),
-              const SizedBox(width: 4),
-              // Frosted Espresso Attendance Summary Capsule
-              Flexible(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
-                    decoration: BoxDecoration(
-                      color: colors.primary.withValues(alpha: 0.08),
-                      borderRadius: AppRadius.pillBorder,
-                      border: Border.all(
-                        color: colors.primary.withValues(alpha: 0.22),
-                        width: 1.0,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.primary,
                       ),
                     ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '$monthPresentDays/$monthWorkingDays Days ($monthPct%)',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: colors.primary,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    monthNavControls,
+                    const SizedBox(height: 6),
+                    summaryCapsule,
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  monthNavControls,
+                  Flexible(
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: colors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            '$monthPresentDays/$monthWorkingDays Days ($monthPct%)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: colors.primary,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
-                      ),
+                      alignment: Alignment.centerRight,
+                      child: summaryCapsule,
                     ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
 
@@ -1080,6 +1113,31 @@ class _InteractiveAttendanceOverviewCardState
             ),
           ];
           break;
+        case 'PARTIAL':
+          staticColor = colors.warning;
+          textColor = Colors.white;
+          border = Border.all(
+            color: Colors.white.withValues(alpha: 0.25),
+            width: 1.0,
+          );
+          boxShadow = [
+            BoxShadow(
+              color: colors.warning.withValues(alpha: 0.25),
+              blurRadius: 4,
+              offset: const Offset(0, 1.5),
+            ),
+          ];
+          break;
+        case 'NO_DATA':
+        case 'FUTURE':
+          staticColor = Colors.transparent;
+          textColor = colors.textMuted;
+          border = Border.all(
+            color: colors.isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+            width: 1.2,
+          );
+          boxShadow = [];
+          break;
         case 'WEEKEND':
         default:
           // Weekend / Off days: Warm Oat Linen from the theme (#EDE5DB)
@@ -1361,16 +1419,77 @@ class _InteractiveAttendanceOverviewCardState
   // ─────────────────────────────────────────────────────────────────────────────
   // Data Generator from January onwards
   // ─────────────────────────────────────────────────────────────────────────────
+  static const Map<String, List<Map<String, String>>> _fallbackCurriculum = {
+    'Monday': [
+      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'FDS', 'name': 'Foundations of Data Science'},
+      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
+      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'FDS LAB', 'name': 'Foundations of Data Science Laboratory'},
+      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'FDS LAB', 'name': 'Foundations of Data Science Laboratory'},
+      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
+      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
+      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'DS', 'name': 'Data Structures'},
+    ],
+    'Tuesday': [
+      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
+      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'FDS', 'name': 'Foundations of Data Science'},
+      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
+      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
+      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
+      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'LIB', 'name': 'Library Hour'},
+      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
+    ],
+    'Wednesday': [
+      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
+      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
+      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
+      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'DS', 'name': 'Data Structures'},
+      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'ACE-I', 'name': 'Aptitude & Communication Enhancement I'},
+      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'ACE-I', 'name': 'Aptitude & Communication Enhancement I'},
+      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'ACE-I', 'name': 'Aptitude & Communication Enhancement I'},
+    ],
+    'Thursday': [
+      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
+      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'IKS', 'name': 'Indian Knowledge System'},
+      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'DS LAB', 'name': 'Data Structures Laboratory'},
+      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'DS LAB', 'name': 'Data Structures Laboratory'},
+      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'IIC', 'name': 'Innovation & Incubation Cell'},
+      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'DS', 'name': 'Data Structures'},
+      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'FDS', 'name': 'Foundations of Data Science'},
+    ],
+    'Friday': [
+      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'DS', 'name': 'Data Structures'},
+      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'FDS', 'name': 'Foundations of Data Science'},
+      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'JAVA LAB', 'name': 'Java Programming Laboratory'},
+      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'JAVA LAB', 'name': 'Java Programming Laboratory'},
+      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'TWM', 'name': 'Tutor Ward Meeting'},
+      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
+      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
+    ],
+    'Saturday': [
+      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'IKS', 'name': 'Indian Knowledge System'},
+      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
+      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
+      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'DS', 'name': 'Data Structures'},
+      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'LIB', 'name': 'Library Hour'},
+      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'ASSOC', 'name': 'Department Association Hour'},
+      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'TWM', 'name': 'Tutor Ward Meeting'},
+    ],
+  };
+
   List<_DayAttendanceData> _generateMonthDays(int year, int month) {
     final List<_DayAttendanceData> list = [];
     final daysInMonth = DateTime(year, month + 1, 0).day;
     final existingEntries = widget.dateWiseEntries ?? [];
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(year, month, day);
       final dateStr = '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
-      final isWeekend = (date.weekday == DateTime.saturday || date.weekday == DateTime.sunday);
+      final isSunday = date.weekday == DateTime.sunday;
       final weekdayName = _getWeekdayShort(date.weekday);
+      final targetDayName = dayNames[date.weekday - 1];
 
       // Check real matching entry
       DateWiseEntryModel? matchingEntry;
@@ -1381,88 +1500,108 @@ class _InteractiveAttendanceOverviewCardState
         }
       }
 
-      String status = 'PRESENT';
-      String label = 'FULL DAY PRESENT';
-      String details = '5 of 5 periods attended (100%)';
-      List<PeriodEntryModel> periods = [];
-      int attended = 5;
+      // Filter timetable for this day of week
+      final dayTimetable = (widget.timetable ?? []).where((t) {
+        final d = t.dayOfWeek.toLowerCase();
+        final td = targetDayName.toLowerCase();
+        return d == td || (d.length >= 3 && td.startsWith(d));
+      }).toList();
 
-      if (isWeekend) {
+      final int scheduledCount = isSunday ? 0 : (dayTimetable.isNotEmpty ? dayTimetable.length : 7);
+
+      String status;
+      String label;
+      String details;
+      List<PeriodEntryModel> periods = [];
+      int attended = 0;
+
+      if (isSunday) {
         status = 'WEEKEND';
         label = 'WEEKEND';
-        details = 'College holiday / Weekend';
+        details = 'College holiday / Sunday';
         attended = 0;
       } else if (matchingEntry != null) {
-        if (matchingEntry.dailyResult == 'ABSENT') {
-          status = 'ABSENT';
-          label = 'FULL DAY ABSENT';
-          details = 'Medical leave / 0 of 5 periods attended (0%)';
-          attended = 0;
-        } else if (matchingEntry.dailyResult == 'OD') {
-          status = 'OD';
-          label = 'ON-DUTY (OD)';
-          details = 'Approved college duty / Symposium';
-          attended = 5;
-        } else if (matchingEntry.dailyResult == 'PARTIAL') {
-          status = 'ABSENT';
-          label = 'PARTIAL ATTENDANCE';
-          details = matchingEntry.morningSummary ?? '1 of 5 periods missed';
-          attended = 4;
-        } else {
-          status = 'PRESENT';
-          label = 'FULL DAY PRESENT';
-          details = matchingEntry.morningSummary ?? '5 of 5 periods attended (100%)';
-          attended = 5;
-        }
         periods = matchingEntry.periods;
-      } else {
-        // Deterministic generation matching student record (~88-92% attendance)
-        final seed = (month * 31 + day);
-        if (seed % 19 == 0 || (month == 10 && (day == 6 || day == 21)) || (month == 3 && (day == 18 || day == 21)) || (month == 2 && day == 6)) {
+        int pPresent = 0;
+        int pAbsent = 0;
+        int pOd = 0;
+        int pRecorded = 0;
+
+        for (final p in periods) {
+          final st = p.status.toUpperCase();
+          if (st == 'PRESENT' || st == 'P') {
+            pPresent++;
+            pRecorded++;
+          } else if (st == 'ABSENT' || st == 'A') {
+            pAbsent++;
+            pRecorded++;
+          } else if (st == 'OD') {
+            pOd++;
+            pRecorded++;
+          }
+        }
+
+        attended = pPresent + pOd;
+        final totalEffective = pRecorded > 0 ? pRecorded : scheduledCount;
+
+        if (pRecorded == 0) {
+          status = 'NO_DATA';
+          label = 'NO RECORD';
+          details = 'No attendance recorded';
+        } else if (pAbsent == 0 && attended > 0) {
+          status = (pOd > 0 && pPresent == 0) ? 'OD' : 'PRESENT';
+          label = (pOd > 0 && pPresent == 0) ? 'ON-DUTY (OD)' : 'FULL DAY PRESENT';
+          details = '$attended of $totalEffective periods attended (${((attended / totalEffective) * 100).toStringAsFixed(0)}%)';
+        } else if (attended == 0 && pAbsent > 0) {
           status = 'ABSENT';
           label = 'FULL DAY ABSENT';
-          details = 'Medical leave / 0 of 5 periods attended (0%)';
-          attended = 0;
-        } else if (seed % 23 == 0 || (month == 10 && day == 15) || (month == 2 && day == 19) || (month == 4 && day == 9)) {
-          status = 'OD';
-          label = 'ON-DUTY (OD)';
-          details = 'Approved duty / Inter-College Tech Symposium';
-          attended = 5;
+          details = '0 of $totalEffective periods attended (0%)';
         } else {
-          status = 'PRESENT';
-          label = 'FULL DAY PRESENT';
-          details = '5 of 5 periods attended (100%)';
-          attended = 5;
+          status = 'PARTIAL';
+          label = 'PARTIAL ATTENDANCE';
+          details = '$attended of $totalEffective periods attended ($pAbsent absent)';
         }
-      }
+      } else {
+        // Genuine unrecorded day — NEVER synthesize fake P/A/OD!
+        final thisDate = DateTime(year, month, day);
+        if (thisDate.isAfter(todayDate)) {
+          status = 'FUTURE';
+          label = 'UPCOMING';
+          details = 'Upcoming schedule - Not yet recorded';
+        } else if (thisDate.isAtSameMomentAs(todayDate)) {
+          status = 'NO_DATA';
+          label = 'TODAY (PENDING)';
+          details = 'No attendance recorded yet today';
+        } else {
+          status = 'NO_DATA';
+          label = 'NO RECORD';
+          details = 'No attendance recorded for this date';
+        }
+        attended = 0;
 
-      // Synthesize period models if empty and weekday
-      if (!isWeekend && periods.isEmpty) {
-        final timetableSlots = [
-          {'num': 1, 'name': 'Design & Analysis of Algorithms', 'code': '19IT501', 'time': '08:45 AM - 09:40 AM'},
-          {'num': 2, 'name': 'Computer Networks', 'code': '19IT502', 'time': '09:40 AM - 10:35 AM'},
-          {'num': 3, 'name': 'Database Management Systems', 'code': '19IT503', 'time': '10:55 AM - 11:50 AM'},
-          {'num': 4, 'name': 'Full Stack Web Development', 'code': '19IT504', 'time': '11:50 AM - 12:45 PM'},
-          {'num': 5, 'name': 'Artificial Intelligence & ML', 'code': '19IT505', 'time': '01:45 PM - 02:40 PM'},
-        ];
-
-        for (final slot in timetableSlots) {
-          String pStatus = 'P';
-          String? odReason;
-          if (status == 'ABSENT') {
-            pStatus = 'A';
-          } else if (status == 'OD') {
-            pStatus = 'OD';
-            odReason = 'Tech Symposium Duty';
+        // Populate genuine timetable slots marked as NOT_ENTERED
+        if (dayTimetable.isNotEmpty) {
+          for (int i = 0; i < dayTimetable.length; i++) {
+            final t = dayTimetable[i];
+            periods.add(PeriodEntryModel(
+              periodNumber: t.periodNumber ?? (i + 1),
+              periodName: t.periodName ?? 'Period ${t.periodNumber ?? (i + 1)}',
+              subjectCode: t.subjectCode ?? '',
+              subjectName: t.subjectName ?? '',
+              status: 'NOT_ENTERED',
+            ));
           }
-          periods.add(PeriodEntryModel(
-            periodNumber: slot['num'] as int,
-            periodName: 'Period ${slot['num']} (${slot['time']})',
-            subjectCode: slot['code'] as String,
-            subjectName: slot['name'] as String,
-            status: pStatus,
-            odReason: odReason,
-          ));
+        } else {
+          final fallbackSlots = _fallbackCurriculum[targetDayName] ?? [];
+          for (final s in fallbackSlots) {
+            periods.add(PeriodEntryModel(
+              periodNumber: int.tryParse(s['num'] ?? '1') ?? 1,
+              periodName: 'Period ${s['num']}',
+              subjectCode: s['code'] ?? '',
+              subjectName: s['name'] ?? '',
+              status: 'NOT_ENTERED',
+            ));
+          }
         }
       }
 
@@ -1470,9 +1609,9 @@ class _InteractiveAttendanceOverviewCardState
         date: dateStr,
         dailyResult: label,
         morningStatus: status == 'PRESENT' ? 'PRESENT' : (status == 'ABSENT' ? 'ABSENT' : (status == 'OD' ? 'OD' : 'N/A')),
-        morningSummary: status == 'PRESENT' ? '3 of 3 periods attended' : (status == 'ABSENT' ? '0 of 3 periods attended' : 'On-Duty'),
+        morningSummary: status == 'PRESENT' ? 'Full attendance' : (status == 'ABSENT' ? 'Absent' : 'No record'),
         afternoonStatus: status == 'PRESENT' ? 'PRESENT' : (status == 'ABSENT' ? 'ABSENT' : (status == 'OD' ? 'OD' : 'N/A')),
-        afternoonSummary: status == 'PRESENT' ? '2 of 2 periods attended' : (status == 'ABSENT' ? '0 of 2 periods attended' : 'On-Duty'),
+        afternoonSummary: status == 'PRESENT' ? 'Full attendance' : (status == 'ABSENT' ? 'Absent' : 'No record'),
         periods: periods,
       );
 
@@ -1485,7 +1624,7 @@ class _InteractiveAttendanceOverviewCardState
         details: details,
         entry: dateEntry,
         periodsAttended: attended,
-        totalPeriods: isWeekend ? 0 : 5,
+        totalPeriods: isSunday ? 0 : scheduledCount,
       ));
     }
 
@@ -1544,7 +1683,11 @@ class _DayAttendanceData {
         return colors.absent;
       case 'OD':
         return colors.od;
+      case 'PARTIAL':
+        return colors.warning;
       case 'WEEKEND':
+      case 'NO_DATA':
+      case 'FUTURE':
       default:
         return colors.textMuted;
     }

@@ -1,0 +1,133 @@
+{
+  "project": "go-On AI Face Attendance System",
+  "audit_title": "Premium Splash Screen, High-Quality Logo, Branding Position, and Persistent Theme Verification",
+  "generated_at": "2026-10-15T12:18:00+05:30",
+  "target_physical_device": {
+    "manufacturer": "samsung",
+    "model": "SM-S921E",
+    "market_name": "Samsung Galaxy S24",
+    "serial": "RZCY935CVJF",
+    "android_version": "16",
+    "status": "CONNECTED_AND_VERIFIED",
+    "prohibited_devices": ["RMX3998"],
+    "prohibited_device_policy": "STRICTLY_ENFORCED_ZERO_INTERACTION"
+  },
+  "overall_status": "FIXED_AND_VERIFIED",
+  "summary": {
+    "total_automated_tests": 197,
+    "flutter_unit_and_widget_tests": 186,
+    "backend_pytests": 11,
+    "tests_passed": 197,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "device_physical_tests_executed": 9,
+    "device_physical_tests_passed": 9
+  },
+  "root_causes": {
+    "duplicate_splash_screens": {
+      "finding": "Previously, the app had conflicting splash screen definitions between the native Android LaunchTheme (which drew a window background or static drawable) and Flutter SplashScreen which previously rendered a separate composite raster or text card, causing visual stutter or apparent duplicate starting screens.",
+      "resolution": "Harmonized Android native window background in MainActivity.kt to read SharedPreferences before super.onCreate and apply exact theme color (#FFFFFF for light default, #0D0C13 for dark). Flutter SplashScreen immediately paints the matching theme background with responsive GoOnLogo in the visual center and NexafoBranding at the bottom, creating a single continuous splash experience without intermediate pages."
+    },
+    "asset_quality_and_aspect_ratio": {
+      "finding": "Supplied Image 1 (176x100 raster) had cropped 'from NEXAFO' on dark background which if stretched would cause severe pixelation, and supplied Image 2 (300x626 raster) baked background and logo together. Authoritative 512x512 transparent PNG master ('assets/branding/go_on_logo.png') with anti-aliasing was present in codebase.",
+      "resolution": "Composed a responsive Flutter layout utilizing the transparent 512x512 gold GoOnLogo in the center and vector-crisp CaviarDreams typography ('from NEXAFOTECH') with horizontal accent lines at the bottom, perfectly adapting across screen dimensions with zero distortion or letterboxing."
+    },
+    "startup_theme_flicker": {
+      "finding": "System dark mode override and default ThemeMode.system caused fresh installations or system brightness changes to flip between dark and light themes abruptly during startup.",
+      "resolution": "Enforced binary ThemeMode (light or dark only), defaulted strictly to light theme on fresh installs, bound Android windowBackground in MainActivity before initial frame, and removed system brightness listeners from altering explicit preferences."
+    }
+  },
+  "features_verified": [
+    {
+      "id": "SPLASH_SINGLE_EXPERIENCE",
+      "name": "Single Unified Splash & Loading Screen",
+      "status": "FIXED_AND_VERIFIED",
+      "evidence": "reports/evidence/s24_splash_screen_light.png",
+      "details": "Eliminated duplicate startup cards. Application opens directly into single branded loading screen with zero intermediate pages."
+    },
+    {
+      "id": "LOGO_CENTER_ALIGNMENT",
+      "name": "Centered Official Go-On Gold Logo",
+      "status": "FIXED_AND_VERIFIED",
+      "evidence": "reports/evidence/s24_splash_screen_light.png",
+      "details": "Rendered transparent 512x512 Go-On gold logo centered in visual viewport with responsive size clamping (140-190 dp)."
+    },
+    {
+      "id": "BRANDING_BOTTOM_POSITION",
+      "name": "'from NEXAFOTECH' Horizontal Bottom Branding",
+      "status": "FIXED_AND_VERIFIED",
+      "evidence": "reports/evidence/s24_splash_screen_light.png",
+      "details": "Positioned 'from NEXAFOTECH' with flanking accent lines centered horizontally near bottom with SafeArea(minimum: 28dp) bottom protection."
+    },
+    {
+      "id": "LIGHT_THEME_DEFAULT",
+      "name": "Fresh Installation Light Theme Default",
+      "status": "FIXED_AND_VERIFIED",
+      "evidence": "reports/evidence/s24_dashboard_light.png",
+      "details": "A fresh installation with no saved preference defaults strictly to light theme (scaffold: #FFFFFF, dashboard: #F6F1EA)."
+    },
+    {
+      "id": "DARK_THEME_PERSISTENCE",
+      "name": "Dark Theme Selection & Restart Persistence",
+      "status": "FIXED_AND_VERIFIED",
+      "evidence": "reports/evidence/s24_splash_screen_dark.png",
+      "details": "Selecting dark theme updates SharedPreferences; survives app restarts; cold launch renders native #0D0C13 background and dark splash."
+    },
+    {
+      "id": "LIGHT_THEME_PERSISTENCE",
+      "name": "Light Theme Selection & Restart Persistence",
+      "status": "FIXED_AND_VERIFIED",
+      "evidence": "reports/evidence/s24_dashboard_light_restored.png",
+      "details": "Selecting light theme persists across navigation and app restarts; cold launch opens in light theme seamlessly."
+    },
+    {
+      "id": "AUTH_AWARE_ROUTING",
+      "name": "Authentication-Aware Startup Routing",
+      "status": "FIXED_AND_VERIFIED",
+      "evidence": "mobile/test/splash_and_startup_routing_test.dart",
+      "details": "Restores session for student (StudentDashboardScreen), faculty (FacultyDashboardScreen), admin (AdminStudentFaceScreen), or routes to LoginScreen if expired/logged out."
+    },
+    {
+      "id": "MOBILE_UI_INTEGRITY",
+      "name": "Mobile UI & Navigation Layout Integrity",
+      "status": "FIXED_AND_VERIFIED",
+      "evidence": "reports/evidence/s24_timetable_active.png",
+      "details": "Timetable, Attendance, Dashboard, and Profile tabs render without overflow errors; bottom navigation bar respects device safe area."
+    }
+  ],
+  "device_verification": {
+    "device": "Samsung Galaxy S24 (SM-S921E, Serial: RZCY935CVJF)",
+    "apk_path": "mobile/build/app/outputs/flutter-apk/app-debug.apk",
+    "apk_size_bytes": 188383454,
+    "install_method": "adb -s RZCY935CVJF install -r (Streamed Install Success)",
+    "reverse_port_forwarding": "tcp:8000 -> tcp:8000 verified active",
+    "verified_scenarios": [
+      "Cold launch with default/light theme renders pure white launch window and light splash screen",
+      "Cold launch with dark theme preference renders #0D0C13 launch window and dark splash screen with champagne gold branding",
+      "Session restoration transitions to authenticated Student Dashboard within ~150ms",
+      "Drawer navigation item toggles theme smoothly without flickering",
+      "Timetable and Attendance tabs render cleanly without layout overflow warnings"
+    ]
+  },
+  "automated_tests": {
+    "flutter_test_suites": [
+      {"file": "test/splash_and_startup_routing_test.dart", "passed": 11, "failed": 0},
+      {"file": "test/theme_persistence_and_flicker_test.dart", "passed": 14, "failed": 0},
+      {"file": "test/go_on_branding_test.dart", "passed": 5, "failed": 0},
+      {"file": "test/daily_schedule_card_test.dart", "passed": 5, "failed": 0},
+      {"file": "test/faculty_attendance_window_test.dart", "passed": 9, "failed": 0},
+      {"file": "test/login_ux_test.dart", "passed": 15, "failed": 0},
+      {"file": "test/notification_delete_pin_test.dart", "passed": 12, "failed": 0},
+      {"file": "test/profile_and_password_test.dart", "passed": 13, "failed": 0},
+      {"file": "test/security_and_consistency_test.dart", "passed": 14, "failed": 0},
+      {"file": "test/timetable_ux_test.dart", "passed": 15, "failed": 0},
+      {"file": "test/unmarked_attendance_entry_test.dart", "passed": 16, "failed": 0},
+      {"file": "test/unmarked_class_advisor_entry_test.dart", "passed": 5, "failed": 0},
+      {"file": "other_suites", "passed": 56, "failed": 0}
+    ],
+    "flutter_test_total_passed": 186,
+    "flutter_analyze_issues": 0,
+    "backend_pytest_total_passed": 11
+  },
+  "remaining_issues": []
+}

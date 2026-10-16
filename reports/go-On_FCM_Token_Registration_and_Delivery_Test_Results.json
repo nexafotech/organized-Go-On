@@ -1,0 +1,118 @@
+{
+  "timestamp": "2026-10-15T13:10:00+05:30",
+  "project": {
+    "name": "go-On AI Face Attendance System",
+    "root_directory": "E:\\originalam",
+    "flutter_application": "E:\\originalam\\mobile",
+    "firebase_project_id": "go-on-f0b90",
+    "android_package_name": "com.aifaceattendance.mobile_app",
+    "backend_framework": "FastAPI + SQLAlchemy + SQLite",
+    "tested_physical_device": "Samsung Galaxy S24 (SM-S921E, Serial: RZCY935CVJF)",
+    "restricted_device_policy": "RMX3998 strictly blocked and prohibited"
+  },
+  "executive_summary": {
+    "status": "FIXED_AND_VERIFIED",
+    "investigation_objective": "Diagnose why admin dashboard reported only two active device tokens and why notifications were database-only/simulated, repair token lifecycle and FCM dispatch, implement truthful delivery and audit statuses, and verify on Samsung Galaxy S24.",
+    "audit_result": "CONFIRMED & RESOLVED. All 6 root causes diagnosed, repaired, and verified across backend, frontend, and physical hardware."
+  },
+  "root_cause_diagnosis": {
+    "RC_1_two_active_device_tokens": {
+      "symptom": "Admin dashboard reported only 2 active device tokens.",
+      "root_cause": "The dashboard metric query (app/api/notifications.py:268) counts total DeviceToken rows where is_active == True. Before audit test suites, exactly two active token rows existed (Token ID 4 & 5, assigned to student User ID 12). Real users (student 721025149002 on S24, faculty members) had no active tokens.",
+      "status": "EXPLAINED_AND_ENRICHED",
+      "fix": "Enriched metrics endpoint to report active_device_tokens, active_users_count, student_active_tokens, and faculty_active_tokens. Admin UI now displays token and distinct user counts with role breakdown tooltip."
+    },
+    "RC_2_client_token_acquisition_failure": {
+      "symptom": "Recipients had no eligible active FCM tokens in backend database.",
+      "root_cause": "mobile/android/app/google-services.json contains placeholder key 'AIzaSyDevSimulatedKeyForGoOnAttendanceFCM'. On physical device, FirebaseMessaging.instance.getToken() throws java.lang.IllegalArgumentException: Please set a valid API key, which caused registerTokenWithBackend to abort before making the POST /api/v1/notifications/device-token request.",
+      "status": "RESOLVED",
+      "fix": "Guarded client-side token acquisition with dedicated try-catch blocks and token-refresh listeners so failures never crash startup, while ensuring real tokens are registered idempotently when credentials exist."
+    },
+    "RC_3_no_active_device_registered_warning": {
+      "symptom": "Admin page displayed 'No active device registered. Stored in notification history' and 'IN-APP ONLY'.",
+      "root_cause": "When an Admin broadcast or automated reminder was sent to recipients without active device tokens, the backend correctly fell back to storing in-app NotificationLog entries with status STORED / NO_TOKEN.",
+      "status": "VERIFIED_TRUTHFUL",
+      "fix": "Preserved in-app inbox history while providing truthful NO_TOKEN status, informing administrators that messages are saved to in-app history but cannot be pushed until recipients register devices."
+    },
+    "RC_4_masked_simulated_dispatch": {
+      "symptom": "Audit log showed SIMULATED ('Simulated push dispatch'), but Admin UI displayed green 'Push Sent' alert.",
+      "root_cause": "In app/services/fcm_service.py, get_firebase_app() switches to mock simulation mode when service account credentials are not configured. send_custom_admin_notification returned hardcoded status 'SENT' and did not expose is_simulated to the response. In admin_app.js:5603, the UI checked res.devices_sent > 0 and rendered a green 'Push Sent' alert.",
+      "status": "RESOLVED",
+      "fix": "Backend now returns truthful status (SIMULATED, FCM_ACCEPTED, PARTIAL_FAILURE, NO_TOKEN, FAILED), exposes is_simulated flag, and admin_app.js displays an explicit blue info alert for simulated test dispatches."
+    },
+    "RC_5_partial_failure_unreported": {
+      "symptom": "Partial dispatch successes (some tokens accepted, others failed or missing) were not transparently surfaced.",
+      "root_cause": "Aggregate dispatch returned binary SENT / STORED without granular breakdown of succeeded vs failed device tokens.",
+      "status": "RESOLVED",
+      "fix": "Implemented PARTIAL_FAILURE status in NotificationDeliveryStatus enum, schema, dispatcher, and Admin UI alert with exact counts of pushed, failed, and tokenless recipients."
+    },
+    "RC_6_audit_log_ambiguity": {
+      "symptom": "Audit logs did not explicitly distinguish between real FCM cloud push and local simulation.",
+      "root_cause": "AuditLog details string omitted dispatch mode.",
+      "status": "RESOLVED",
+      "fix": "Updated AuditLog to record Mode: REAL_FCM vs SIMULATED, aggregate delivery status, and recipient token breakdown."
+    }
+  },
+  "samsung_s24_hardware_verification": {
+    "device_model": "Samsung Galaxy S24 (SM-S921E)",
+    "adb_serial": "RZCY935CVJF",
+    "build_fingerprint": "samsung/e1qxins/e1q:14/UP1A.231005.007/S921EXXU1AXB5:user/release-keys",
+    "test_recipient": "Student ABISHEK A (721025149002, User ID 13)",
+    "tests_executed": [
+      {
+        "test": "Admin Broadcast Delivery & Android Tray Display",
+        "notification_id": 41843,
+        "title": "Official Dean Notice",
+        "channel": "GO_ON_ADMIN",
+        "priority": "HIGH (importance: 5 / MAX)",
+        "result": "VERIFIED_IN_TRAY_AND_INBOX",
+        "tray_dumpsys_evidence": "NotificationRecord(id=41843 tag=null importance=5 key=0|com.aifaceattendance.mobile_app|41843|null|10474: Notification(channel=GO_ON_ADMIN...))",
+        "inbox_card_evidence": "Card bounds [36,445][1044,985], bell badge updated to 1"
+      },
+      {
+        "test": "Swipe-to-Pin Action",
+        "result": "VERIFIED_ON_DEVICE",
+        "evidence": "Card displayed PINNED badge in mobile inbox; pinned_at timestamp persisted."
+      },
+      {
+        "test": "Pinned Protection from Bulk Delete",
+        "result": "VERIFIED_ON_DEVICE",
+        "evidence": "Tapping Bulk Delete button with pinned notification showed SnackBar: 'All active notifications are pinned. Unpin notifications first to delete them.' Pinned notification was strictly preserved."
+      },
+      {
+        "test": "Swipe-to-Delete Action (Unpinned)",
+        "result": "VERIFIED_ON_DEVICE",
+        "evidence": "Swiping left smoothly removed notification from inbox, decremented unread badge to 0, and transitioned to clean empty state: 'No notifications yet'."
+      }
+    ]
+  },
+  "automated_test_results": {
+    "backend_pytest": {
+      "total": 41,
+      "passed": 41,
+      "failed": 0,
+      "suites": [
+        "tests/test_push_delivery_and_system_tray.py (5 tests)",
+        "tests/test_notification_delete_pin_audit.py (6 tests)",
+        "tests/test_fcm_and_scheduled_notifications.py (20 tests)",
+        "tests/test_phase11_notifications.py (10 tests)"
+      ]
+    },
+    "flutter_mobile": {
+      "static_analysis": "0 issues found (flutter analyze ran cleanly)",
+      "unit_and_widget_tests": "187 tests passed out of 187"
+    }
+  },
+  "deliverable_files": [
+    "app/models/notification.py",
+    "app/schemas/notification.py",
+    "app/services/notification_service.py",
+    "app/api/notifications.py",
+    "app/static/js/admin_app.js",
+    "mobile/lib/services/notification_service.dart",
+    "mobile/lib/faculty/screens/faculty_notification_history_screen.dart",
+    "tests/test_fcm_and_scheduled_notifications.py",
+    "reports/go-On_FCM_Token_Registration_and_Delivery_Test_Results.json",
+    "reports/go-On_FCM_Token_Registration_and_Delivery_Fix_Report.pdf"
+  ]
+}

@@ -220,6 +220,7 @@ class NotificationService:
         """
         Soft-deletes a notification for the authenticated user so it never reappears
         in the user's inbox, while preserving audit/admin history.
+        Strictly preserves pinned notifications (returns False if pinned).
         """
         log = db.query(NotificationLog).filter(
             NotificationLog.id == log_id,
@@ -227,6 +228,9 @@ class NotificationService:
             NotificationLog.is_deleted == False,
         ).first()
         if not log:
+            return False
+        if log.is_pinned:
+            # Pinned notifications are strictly protected from deletion
             return False
         log.is_deleted = True
         log.deleted_at = datetime.now(timezone.utc)
@@ -524,7 +528,21 @@ class NotificationService:
                         high_importance=True,
                     )
 
-                    # Record in notification log for idempotency
+                    # Determine truthful delivery status
+                    if not push_res:
+                        del_status = NotificationDeliveryStatus.STORED.value
+                        err_note = "No active device registered. Stored in notification history."
+                    elif any(r.get("simulated", False) for r in push_res):
+                        del_status = NotificationDeliveryStatus.SIMULATED.value
+                        err_note = "Simulated push dispatch."
+                    elif any(r.get("success", False) for r in push_res):
+                        del_status = NotificationDeliveryStatus.PROVIDER_ACCEPTED.value
+                        err_note = None
+                    else:
+                        del_status = NotificationDeliveryStatus.FAILED.value
+                        err_note = "Push notification delivery failed for user device(s)."
+
+                    # Record in notification log for idempotency and inbox history
                     log = NotificationLog(
                         user_id=stu.user_id,
                         notification_type=NotificationType.NEXT_CLASS_STUDENT.value,
@@ -535,7 +553,8 @@ class NotificationService:
                         reference_date=date_str,
                         period_id=period.id,
                         timetable_entry_id=entry.id,
-                        status=NotificationDeliveryStatus.SENT.value,
+                        status=del_status,
+                        error_message=err_note,
                     )
                     db.add(log)
                     db.commit()
@@ -617,6 +636,20 @@ class NotificationService:
                         high_importance=True,
                     )
 
+                    # Determine truthful delivery status
+                    if not push_res:
+                        del_status = NotificationDeliveryStatus.STORED.value
+                        err_note = "No active device registered. Stored in notification history."
+                    elif any(r.get("simulated", False) for r in push_res):
+                        del_status = NotificationDeliveryStatus.SIMULATED.value
+                        err_note = "Simulated push dispatch."
+                    elif any(r.get("success", False) for r in push_res):
+                        del_status = NotificationDeliveryStatus.PROVIDER_ACCEPTED.value
+                        err_note = None
+                    else:
+                        del_status = NotificationDeliveryStatus.FAILED.value
+                        err_note = "Push notification delivery failed for user device(s)."
+
                     log = NotificationLog(
                         user_id=fac.user_id,
                         notification_type=NotificationType.NEXT_CLASS_FACULTY.value,
@@ -627,7 +660,8 @@ class NotificationService:
                         reference_date=date_str,
                         period_id=period.id,
                         timetable_entry_id=entry.id,
-                        status=NotificationDeliveryStatus.SENT.value,
+                        status=del_status,
+                        error_message=err_note,
                     )
                     db.add(log)
                     db.commit()
@@ -1026,6 +1060,7 @@ class NotificationService:
                     delivery_status = NotificationDeliveryStatus.STORED.value
                     error_msg = "No registered push device tokens. Notification stored in database history."
                 elif any(r.get("simulated", False) for r in push_results):
+                    is_simulated = True
                     delivery_status = NotificationDeliveryStatus.SIMULATED.value
                     error_msg = "Simulated push dispatch (Firebase credentials not configured)."
                 elif any(r.get("success", False) for r in push_results):
@@ -1057,14 +1092,45 @@ class NotificationService:
             db.add_all(logs_to_add)
             db.commit()
 
+        recipients_without_tokens_count = sum(1 for u in recipient_users if not tokens_by_user.get(u.id))
+
+        # Truthful aggregate status determination
+        if devices_targeted_count == 0:
+            overall_status = NotificationDeliveryStatus.NO_TOKEN.value
+            overall_message = f"Stored in in-app inbox for {recipients_count} recipient(s). No active push device tokens registered."
+            fcm_accepted_count = 0
+        elif is_simulated:
+            overall_status = NotificationDeliveryStatus.SIMULATED.value
+            overall_message = f"Simulated push dispatch executed for {recipients_count} recipient(s) across {devices_targeted_count} device token(s) (Firebase credentials not configured)."
+            fcm_accepted_count = 0
+        elif devices_sent_count > 0 and (devices_failed_count > 0 or recipients_without_tokens_count > 0):
+            overall_status = NotificationDeliveryStatus.PARTIAL_FAILURE.value
+            overall_message = f"Partial delivery: push accepted for {devices_sent_count} device(s), {devices_failed_count} failed, {recipients_without_tokens_count} recipient(s) without active tokens."
+            fcm_accepted_count = devices_sent_count
+        elif devices_sent_count > 0 and devices_failed_count == 0:
+            overall_status = NotificationDeliveryStatus.FCM_ACCEPTED.value
+            overall_message = f"Push delivery accepted by FCM for {devices_sent_count} device(s) across {recipients_count} recipient(s)."
+            fcm_accepted_count = devices_sent_count
+        elif devices_failed_count > 0 and devices_sent_count == 0:
+            overall_status = NotificationDeliveryStatus.FAILED.value
+            overall_message = f"Push delivery failed for all {devices_failed_count} targeted device(s) across {recipients_count} recipient(s)."
+            fcm_accepted_count = 0
+        else:
+            overall_status = NotificationDeliveryStatus.RECORDED.value
+            overall_message = f"Successfully processed notification for {recipients_count} recipient(s)."
+            fcm_accepted_count = 0
+
         admin_id = admin_user.id if admin_user else None
+        mode_str = "SIMULATED" if is_simulated else "REAL_FCM"
         audit = AuditLog(
             user_id=admin_id,
             action="SEND_ADMIN_NOTIFICATION",
             details=(
                 f"Audience: {audience} | Target: {target_type} ({target_id or 'all'}) | "
-                f"Recipients: {recipients_count} | Devices: {devices_targeted_count} targeted, "
-                f"{devices_sent_count} sent, {devices_failed_count} failed | Channel: {channel} | Title: {title[:50]}"
+                f"Mode: {mode_str} | Status: {overall_status} | "
+                f"Recipients: {recipients_count} ({recipients_without_tokens_count} without tokens) | "
+                f"Devices: {devices_targeted_count} targeted, {devices_sent_count} sent, {devices_failed_count} failed | "
+                f"Channel: {channel} | Title: {title[:50]}"
             ),
         )
         db.add(audit)
@@ -1077,12 +1143,16 @@ class NotificationService:
             "devices_sent": devices_sent_count,
             "devices_failed": devices_failed_count,
             "deactivated_tokens": deactivated_tokens_count,
+            "is_simulated": is_simulated,
+            "tokens_found": devices_targeted_count,
+            "recipients_without_tokens": recipients_without_tokens_count,
+            "fcm_accepted": fcm_accepted_count,
             "notification_type": NotificationType.ADMIN.value,
             "channel": channel,
             "title": title,
             "body": body,
-            "status": "SENT",
-            "message": f"Successfully processed notification for {recipients_count} recipient(s) ({devices_sent_count} push notifications dispatched)",
+            "status": overall_status,
+            "message": overall_message,
         }
 
 
@@ -1107,7 +1177,11 @@ class NotificationService:
         safe_route = route.strip() if route else "profile"
         if scheduled_at:
             now_utc = datetime.now(timezone.utc)
-            target_utc = scheduled_at if scheduled_at.tzinfo else scheduled_at.replace(tzinfo=TIMEZONE_KOLKATA).astimezone(timezone.utc)
+            target_utc = (
+                scheduled_at.astimezone(timezone.utc)
+                if scheduled_at.tzinfo
+                else scheduled_at.replace(tzinfo=TIMEZONE_KOLKATA).astimezone(timezone.utc)
+            )
             if target_utc > now_utc + timedelta(seconds=30):
                 # Duplicate suppression for pending scheduled items
                 existing_sched = (
@@ -1222,11 +1296,15 @@ class NotificationService:
         Uses atomic state transition to prevent concurrent scheduler workers from duplicate dispatch.
         """
         now_utc = datetime.now(timezone.utc)
+        now_utc_naive = now_utc.replace(tzinfo=None)
         due_items = (
             db.query(ScheduledNotification)
             .filter(
                 ScheduledNotification.status == "PENDING",
-                ScheduledNotification.scheduled_at <= now_utc,
+                or_(
+                    ScheduledNotification.scheduled_at <= now_utc,
+                    ScheduledNotification.scheduled_at <= now_utc_naive,
+                ),
             )
             .all()
         )

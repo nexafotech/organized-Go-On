@@ -292,28 +292,28 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen> {
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: colors.textPrimary),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    const Text('• Use good, even lighting.'),
+                    Text('• Use good, even lighting.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('• Keep the camera at eye level.'),
+                    Text('• Keep the camera at eye level.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('• Keep your face fully visible.'),
+                    Text('• Keep your face fully visible.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('• Remove sunglasses/masks where possible.'),
+                    Text('• Remove sunglasses/masks where possible.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('• Keep the camera steady.'),
+                    Text('• Keep the camera steady.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('• Do not use another person\'s photo.'),
+                    Text('• Do not use another person\'s photo.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: AppSpacing.lg),
                     Text(
                       'You will capture 3 face templates:',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: colors.textPrimary),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    const Text('1. Straight / Front (0° ±5°)'),
+                    Text('1. Straight / Front (0° ±5°)', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('2. Slight Left (~15° ±5°)'),
+                    Text('2. Slight Left (~15° ±5°)', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: 4),
-                    const Text('3. Slight Right (~15° ±5°)'),
+                    Text('3. Slight Right (~15° ±5°)', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       'Follow the on-screen guide for each capture.',
@@ -372,7 +372,11 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen> {
                 ),
                 child: Text(
                   '$count / 3 Captures',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: isComplete ? Colors.white : colors.onPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -698,7 +702,7 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen> {
       ),
       body: Stack(
         children: [
-          AppScaffold.buildLiquidAmbientCanvas(),
+          AppScaffold.buildLiquidAmbientCanvas(context),
           _showingIntro
               ? _buildIntroView()
               : (isAllCompleted
@@ -873,32 +877,38 @@ class _FaceCharacterAnimation extends StatelessWidget {
   Widget build(BuildContext context) {
     final isReducedMotion = MediaQuery.of(context).disableAnimations;
 
-    return Semantics(
-      label: 'Face capture character guide',
-      child: SizedBox(
-        height: 140,
-        width: 165,
-        child: isReducedMotion
-            ? Image.asset(
-                'assets/animations/face-character-poster.png',
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-                filterQuality: FilterQuality.medium,
-                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-              )
-            : Image.asset(
-                'assets/animations/face-character-transparent.webp',
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-                gaplessPlayback: true,
-                filterQuality: FilterQuality.medium,
-                errorBuilder: (context, error, stackTrace) => Image.asset(
-                  'assets/animations/face-character-poster.png',
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  errorBuilder: (c, e, s) => const SizedBox.shrink(),
-                ),
-              ),
+    final poster = Image.asset(
+      'assets/animations/face-character-poster.png',
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+    );
+
+    final animatedAsset = Image.asset(
+      'assets/animations/face-character-transparent.webp',
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) => Image.asset(
+        'assets/animations/face-character.gif',
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) => poster,
+      ),
+    );
+
+    return RepaintBoundary(
+      child: Semantics(
+        label: 'Face capture character guide',
+        child: SizedBox(
+          height: 180,
+          width: 180,
+          child: isReducedMotion ? poster : animatedAsset,
+        ),
       ),
     );
   }

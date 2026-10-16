@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../utils/timezone_utils.dart';
 
 class NotificationItem {
   final int id;
@@ -58,14 +59,12 @@ class NotificationItem {
       status: json['status'] as String? ?? 'SENT',
       errorMessage: json['error_message'] as String?,
       isRead: json['is_read'] as bool? ?? false,
-      readAt: json['read_at'] != null ? DateTime.tryParse(json['read_at'].toString()) : null,
+      readAt: json['read_at'] != null ? TimezoneUtils.parseUtc(json['read_at']) : null,
       isPinned: json['is_pinned'] as bool? ?? false,
-      pinnedAt: json['pinned_at'] != null ? DateTime.tryParse(json['pinned_at'].toString()) : null,
+      pinnedAt: json['pinned_at'] != null ? TimezoneUtils.parseUtc(json['pinned_at']) : null,
       isDeleted: json['is_deleted'] as bool? ?? false,
-      deletedAt: json['deleted_at'] != null ? DateTime.tryParse(json['deleted_at'].toString()) : null,
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      deletedAt: json['deleted_at'] != null ? TimezoneUtils.parseUtc(json['deleted_at']) : null,
+      createdAt: TimezoneUtils.parseUtc(json['created_at']),
     );
   }
 
@@ -88,6 +87,18 @@ class NotificationItem {
     final priority = data['priority'] as String?;
     return priority?.toUpperCase() == 'HIGH' || channelId == 'GO_ON_ADMIN';
   }
+
+  /// Relative human-readable elapsed time (e.g. 'Just now', '5m ago', '2h ago', '1d ago').
+  String get relativeTime => TimezoneUtils.formatRelativeTime(createdAt);
+
+  /// Full formatted IST date and time string (e.g. '15 Oct 2026, 1:25 PM IST').
+  String get istFormatted => TimezoneUtils.formatIstDateTime(createdAt);
+
+  /// Formatted IST time string only (e.g. '1:25 PM IST').
+  String get istTimeOnly => TimezoneUtils.formatIstTime(createdAt);
+
+  /// Formatted IST calendar date string (e.g. '15 Oct 2026').
+  String get istDateOnly => TimezoneUtils.formatIstDate(createdAt);
 
   NotificationItem copyWith({
     bool? isRead,

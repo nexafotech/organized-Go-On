@@ -97,7 +97,7 @@ class HeroCard extends StatelessWidget {
         color: colors.hero.withValues(alpha: 0.90),
         borderRadius: effectiveBorderRadius,
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.18),
+          color: colors.isDark ? Colors.white.withValues(alpha: 0.18) : colors.borderStrong.withValues(alpha: 0.35),
           width: 1.2,
         ),
         gradient: LinearGradient(
@@ -202,7 +202,7 @@ class GlassCard extends StatelessWidget {
         bg = customColor ?? colors.glassSurfaceStrong;
         shadows = boxShadow ?? AppGlass.shadowElevated;
         border = customBorder ?? Border.all(color: borderColor ?? colors.glassBorderStrong, width: borderWidth);
-        gradient = customGradient ?? AppGlass.specularGradient;
+        gradient = customGradient ?? (colors.isDark ? AppGlass.darkSpecularGradient : AppGlass.specularGradient);
         defaultBlur = AppGlass.blurStrong;
         break;
       case GlassCardVariant.muted:
@@ -223,7 +223,7 @@ class GlassCard extends StatelessWidget {
         bg = customColor ?? colors.glassSurface;
         shadows = boxShadow ?? AppGlass.shadow;
         border = customBorder ?? Border.all(color: borderColor ?? colors.glassBorder, width: borderWidth);
-        gradient = customGradient ?? AppGlass.specularGradient;
+        gradient = customGradient ?? (colors.isDark ? AppGlass.darkSpecularGradient : AppGlass.specularGradient);
         defaultBlur = AppGlass.blurStandard;
         break;
     }
@@ -259,7 +259,7 @@ class GlassCard extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [
                   Colors.transparent,
-                  Colors.white.withValues(alpha: 0.35),
+                  colors.isDark ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
                   Colors.transparent,
                 ],
               ),
@@ -282,6 +282,13 @@ class GlassCard extends StatelessWidget {
               .withValues(alpha: 0.04),
           child: content,
         ),
+      );
+    } else {
+      content = Material(
+        color: Colors.transparent,
+        type: MaterialType.transparency,
+        borderRadius: effectiveBorderRadius,
+        child: content,
       );
     }
 

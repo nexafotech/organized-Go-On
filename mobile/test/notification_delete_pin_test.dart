@@ -237,5 +237,125 @@ void main() {
       expect(find.text('Notification to Pin'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    test('removeNotificationLocally strictly ignores pinned notifications', () {
+      final service = NotificationService();
+      final now = DateTime.now();
+
+      final pinnedItem = NotificationItem(
+        id: 777,
+        userId: 1,
+        notificationType: 'ADMIN',
+        channelId: 'GO_ON_ADMIN',
+        title: 'Critical Pinned Alert',
+        body: 'Must never be deleted.',
+        status: 'STORED',
+        isRead: false,
+        isPinned: true,
+        pinnedAt: now,
+        createdAt: now,
+      );
+
+      service.notifications.clear();
+      service.notifications.add(pinnedItem);
+      expect(service.notifications.length, 1);
+
+      // Attempt to locally remove pinned item
+      service.removeNotificationLocally(777);
+
+      // Must remain in list untouched!
+      expect(service.notifications.length, 1);
+      expect(service.notifications.first.id, 777);
+      expect(service.notifications.first.isPinned, true);
+    });
+
+    testWidgets('Pinned notification with HIGH priority and ANNOUNCEMENT does not overflow at 360dp', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final service = NotificationService();
+      final now = DateTime.now();
+
+      final crowdedPinnedItem = NotificationItem(
+        id: 999,
+        userId: 1,
+        notificationType: 'ADMIN',
+        channelId: 'GO_ON_ADMIN', // Generates 'ANNOUNCEMENT'
+        title: 'Semester Examination Notice',
+        body: 'Exam schedules have been published for 15-10-2026.',
+        dataPayload: '{"priority":"HIGH","route":"student_timetable"}',
+        status: 'STORED',
+        isRead: false,
+        isPinned: true,
+        pinnedAt: now,
+        createdAt: now.subtract(const Duration(hours: 6)),
+      );
+
+      service.notifications.clear();
+      service.notifications.add(crowdedPinnedItem);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<NotificationService>.value(
+          value: service,
+          child: const MaterialApp(
+            home: FacultyNotificationHistoryScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('PINNED'), findsOneWidget);
+      expect(find.text('HIGH'), findsOneWidget);
+      expect(find.text('ANNOUNCEMENT'), findsOneWidget);
+      expect(find.text('Semester Examination Notice'), findsOneWidget);
+
+      // Absolutely zero RenderFlex overflow exceptions!
+      expect(tester.takeException(), isNull);
+
+      // Attempt swipe left (delete) on pinned item
+      final dismissibleFinder = find.byKey(const ValueKey('notif_card_999'));
+      expect(dismissibleFinder, findsOneWidget);
+      await tester.drag(dismissibleFinder, const Offset(-500.0, 0.0));
+      await tester.pumpAndSettle();
+
+      // Card must still be present because it is pinned!
+      expect(find.text('Semester Examination Notice'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    test('Android Notification Channels have correct IDs and Importance', () {
+      expect(NotificationService.channelNextClass.id, 'GO_ON_NEXT_CLASS');
+      expect(NotificationService.channelAttendance.id, 'GO_ON_ATTENDANCE');
+      expect(NotificationService.channelAdmin.id, 'GO_ON_ADMIN');
+      expect(NotificationService.channelAccount.id, 'GO_ON_ACCOUNT');
+      expect(NotificationService.channelGeneral.id, 'GO_ON_GENERAL');
+    });
+
+    test('Deduplication prevents multiple notifications with same ID in system tray', () async {
+      final service = NotificationService();
+      final item = NotificationItem(
+        id: 777,
+        userId: 1,
+        notificationType: 'ADMIN',
+        channelId: 'GO_ON_ADMIN',
+        title: 'Single Notice',
+        body: 'This must not appear twice',
+        status: 'STORED',
+        isRead: false,
+        createdAt: DateTime.now(),
+      );
+
+      await service.showLocalNotification(item);
+      expect(service.knownNotificationIds.contains(777), isTrue);
+      // Calling showLocalNotification with same item is idempotent
+      await service.showLocalNotification(item);
+      expect(service.knownNotificationIds.contains(777), isTrue);
+    });
   });
 }

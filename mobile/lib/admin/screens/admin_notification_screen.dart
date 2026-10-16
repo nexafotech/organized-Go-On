@@ -3,6 +3,7 @@ import '../../core/config/api_config.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../utils/timezone_utils.dart';
 import '../../widgets/widgets.dart';
 
 class AdminNotificationScreen extends StatefulWidget {
@@ -685,7 +686,7 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> with 
           final type = item['notification_type'] ?? 'GENERAL';
           final title = item['title'] ?? 'Notification';
           final body = item['body'] ?? '';
-          final dateStr = item['created_at']?.toString().substring(0, 16) ?? '';
+          final dateStr = TimezoneUtils.formatIstDateTime(item['created_at']);
 
           return _buildCard(
             child: Row(

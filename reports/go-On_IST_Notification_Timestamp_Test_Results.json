@@ -1,0 +1,103 @@
+{
+  "project": "go-On AI Face Attendance System",
+  "task": "GO-ON MASTER BUG FIX — NOTIFICATION TIMESTAMPS MUST USE IST CORRECTLY & NOTIFICATION ACTIONS ENHANCEMENT",
+  "generated_at": "2026-10-15T14:40:00+05:30",
+  "environment": {
+    "project_root": "E:\\originalam",
+    "mobile_root": "E:\\originalam\\mobile",
+    "android_package": "com.aifaceattendance.mobile_app",
+    "authoritative_business_timezone": "Asia/Kolkata (IST, UTC+05:30)",
+    "storage_timezone_standard": "UTC (Explicit 'Z' ISO-8601)",
+    "target_device": {
+      "verified": true,
+      "manufacturer": "samsung",
+      "model": "SM-S921E",
+      "marketing_name": "Samsung Galaxy S24",
+      "serial": "RZCY935CVJF",
+      "connection_state": "device"
+    },
+    "ports": {
+      "port_8000": { "name": "FastAPI Backend", "status": "ONLINE", "endpoint": "http://localhost:8000/api/v1/health" },
+      "port_3000": { "name": "Web Gateway", "status": "ONLINE", "endpoint": "http://localhost:3000/" },
+      "port_8080": { "name": "APK & Report Distribution Portal", "status": "ONLINE", "endpoint": "http://localhost:8080/app-debug.apk" }
+    },
+    "release_artifact": {
+      "file_path": "E:\\originalam\\app-debug.apk",
+      "sha256": "ABAE540B0EC68E7941C69EA4B07AE6FCE7E73BC42092D1682D8FFCCBE666D7F6"
+    }
+  },
+  "audit_findings_and_resolutions": [
+    {
+      "issue_id": "TIMEZONE-001",
+      "component": "Pydantic Notification Schemas (app/schemas/notification.py)",
+      "defect": "Database stores UTC datetimes without timezone offset. Pydantic v2 serialized these naive datetimes into ISO strings lacking 'Z' or timezone designator, leaving parsing open to client local timezone assumptions.",
+      "resolution": "Implemented serialize_utc_iso helper ensuring naive and aware datetimes are converted to UTC and formatted with explicit 'Z' suffix. Applied @field_serializer(..., when_used='always') across NotificationLogOut, ScheduledNotificationOut, DeviceTokenOut, and AdminCustomNotificationResponse.",
+      "status": "RESOLVED_AND_VERIFIED",
+      "verified_by_tests": true
+    },
+    {
+      "issue_id": "TIMEZONE-002",
+      "component": "Mobile DateTime Parsing (mobile/lib/utils/timezone_utils.dart)",
+      "defect": "Dart DateTime.tryParse() without a 'Z' or offset designator defaults to local system time. An instant created at 07:55 UTC was interpreted as 07:55 IST instead of 13:25 IST, generating an immediate 5h 30m apparent lag ('5h ago').",
+      "resolution": "Created TimezoneUtils.parseUtc() which defensively normalizes incoming strings missing 'Z' by appending 'Z', guaranteeing isUtc=true. Relative-time calculations now compute delta in UTC reference frame, invariant to device local time.",
+      "status": "RESOLVED_AND_VERIFIED",
+      "verified_by_tests": true
+    },
+    {
+      "issue_id": "TIMEZONE-003",
+      "component": "Notification Screen Real-Time Dynamic Refresh",
+      "defect": "Notification relative timestamps remained static while the screen stayed open, becoming stale over time.",
+      "resolution": "Added Timer.periodic(const Duration(seconds: 30), ...) in FacultyNotificationHistoryScreen and StudentNotificationScreen to dynamically refresh relative times. Safely cancelled in dispose().",
+      "status": "RESOLVED_AND_VERIFIED",
+      "verified_by_tests": true
+    },
+    {
+      "issue_id": "UI-ACTION-001",
+      "component": "Notification Card Action Bar ('Tap to view')",
+      "defect": "Notification cards displayed generic 'Open View' action button without clear user affordance.",
+      "resolution": "Updated button label to 'Tap to view' with arrow forward icon. Interacting with the action button invokes _showNotificationDetails and marks the notification as read via backend POST /api/v1/notifications/{id}/read.",
+      "status": "RESOLVED_AND_VERIFIED",
+      "verified_by_tests": true
+    },
+    {
+      "issue_id": "UI-ACTION-002",
+      "component": "Notification Details Bottom Sheet ('Delete' Action Button)",
+      "defect": "Bottom sheet modal featured duplicate navigation button instead of direct management action.",
+      "resolution": "Replaced primary modal button with dedicated 'Delete' button styled with error/red background. Interacting calls backend DELETE /api/v1/notifications/{id} for soft deletion. Pinned notifications strictly reject deletion with 'Pinned notifications cannot be deleted. Unpin first.'. Linked destination navigation preserved as secondary preview row.",
+      "status": "RESOLVED_AND_VERIFIED",
+      "verified_by_tests": true
+    }
+  ],
+  "test_execution_results": {
+    "mobile_timezone_utils_tests": {
+      "file": "mobile/test/timezone_utils_test.dart",
+      "total": 16,
+      "passed": 16,
+      "failed": 0
+    },
+    "mobile_full_regression_tests": {
+      "total": 203,
+      "passed": 203,
+      "failed": 0
+    },
+    "backend_notification_timestamp_tests": {
+      "file": "tests/test_notification_timestamps.py",
+      "total": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "backend_fcm_and_scheduled_tests": {
+      "file": "tests/test_fcm_and_scheduled_notifications.py",
+      "total": 20,
+      "passed": 20,
+      "failed": 0
+    },
+    "backend_delete_pin_audit_tests": {
+      "file": "tests/test_notification_delete_pin_audit.py",
+      "total": 6,
+      "passed": 6,
+      "failed": 0
+    }
+  },
+  "overall_status": "PASSED"
+}

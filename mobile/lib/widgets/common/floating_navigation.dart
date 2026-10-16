@@ -44,9 +44,11 @@ class FloatingNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isDesktopOrLaptop = screenWidth >= 900.0;
     final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
-    return Padding(
+    final navWidget = Padding(
       padding: margin ?? const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
       child: Container(
         height: 68.0,
@@ -139,6 +141,18 @@ class FloatingNavigation extends StatelessWidget {
   ),
 ),
 );
+
+    if (isDesktopOrLaptop) {
+      return Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580.0),
+          child: navWidget,
+        ),
+      );
+    }
+
+    return navWidget;
   }
 
   Widget _buildRaisedCenterItem(

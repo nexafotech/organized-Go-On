@@ -8,26 +8,50 @@ import 'services/faculty_service.dart';
 import 'services/biometric_enrollment_service.dart';
 import 'services/admin_service.dart';
 import 'services/notification_service.dart';
+import 'core/storage/app_preferences.dart';
 import 'auth/screens/splash_screen.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('FLUTTER_ERROR_EX: ${details.exceptionAsString()}');
+    debugPrint('FLUTTER_ERROR_CONTEXT: ${details.context}');
+    debugPrint('FLUTTER_ERROR_STACK: ${details.stack}');
+  };
   NotificationService().setNavigatorKey(appNavigatorKey);
   await NotificationService().initialize();
-  runApp(const AttendanceMarkerApp());
+
+  // Restore saved theme preference before first frame to eliminate theme flash.
+  // Default strictly to light theme on fresh installs or missing storage.
+  final prefs = AppPreferencesService();
+  ThemeMode initialThemeMode = ThemeMode.light;
+  try {
+    final savedTheme = await prefs.getThemeMode();
+    if (savedTheme == 'dark') {
+      initialThemeMode = ThemeMode.dark;
+    } else {
+      initialThemeMode = ThemeMode.light;
+    }
+  } catch (_) {
+    initialThemeMode = ThemeMode.light;
+  }
+
+  runApp(AttendanceMarkerApp(initialThemeMode: initialThemeMode));
 }
 
 class AttendanceMarkerApp extends StatelessWidget {
-  const AttendanceMarkerApp({Key? key}) : super(key: key);
+  final ThemeMode initialThemeMode;
+  const AttendanceMarkerApp({Key? key, this.initialThemeMode = ThemeMode.light}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<ThemeService>(
-          create: (_) => ThemeService(),
+          create: (_) => ThemeService(initialThemeMode: initialThemeMode),
         ),
         ChangeNotifierProvider<AuthService>(
           create: (_) => AuthService(),

@@ -619,7 +619,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               },
             ),
 
-            const SizedBox(height: AppSpacing.xl),
+            // Adequate bottom clearance ensuring content scrolls completely above floating navigation bar
+            const SizedBox(height: 110),
           ],
         ),
       ),
@@ -629,104 +630,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   Widget _buildLiquidAmbientCanvas() {
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: Stack(
-          children: [
-            // Ambient Electric Indigo Orb (Upper Right)
-            Positioned(
-              top: 40,
-              right: -60,
-              child: Container(
-                width: 280,
-                height: 280,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFF6366F1).withValues(alpha: 0.16),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Ambient Liquid Emerald Orb (Mid Left)
-            Positioned(
-              top: 380,
-              left: -80,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFF10B981).withValues(alpha: 0.14),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Ambient Liquid Radiant Amber Orb (Mid Right)
-            Positioned(
-              top: 720,
-              right: -70,
-              child: Container(
-                width: 260,
-                height: 260,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFFFF8A00).withValues(alpha: 0.13),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Ambient Liquid Coral Rose Orb (Lower Left)
-            Positioned(
-              bottom: 160,
-              left: -50,
-              child: Container(
-                width: 260,
-                height: 260,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFFF43F5E).withValues(alpha: 0.12),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Ambient Liquid Violet Orb (Bottom Center)
-            Positioned(
-              bottom: -40,
-              right: 40,
-              child: Container(
-                width: 290,
-                height: 290,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFF8B5CF6).withValues(alpha: 0.14),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return AppScaffold.buildLiquidAmbientCanvas(context);
   }
 
   Widget _buildDateWiseCard(DateWiseEntryModel entry) {
@@ -904,75 +808,99 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       const StudentProfileScreen(),
     ];
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: colors.background,
-      drawer: _buildStudentDrawer(context, studentService),
-      body: SafeArea(
-        child: IndexedStack(
-          index: _currentIndex,
-          children: tabs,
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isDesktopOrLaptop = screenWidth >= 900.0;
+
+    final bottomNavWidget = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: AppGlass.shadowFloating,
         ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: AppGlass.shadowFloating,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colors.glassSurfaceStrong,
-                      colors.glassSurface,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(
-                    color: colors.glassBorderStrong,
-                    width: 1.2,
-                  ),
-                ),
-                child: BottomNavigationBar(
-                  currentIndex: _currentIndex,
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  selectedItemColor: colors.primary,
-                  unselectedItemColor: colors.textMuted,
-                  type: BottomNavigationBarType.fixed,
-                  onTap: (idx) => setState(() => _currentIndex = idx),
-                  items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.dashboard_rounded),
-                      label: 'Dashboard',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.assessment_rounded),
-                      label: 'Attendance',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.calendar_today_rounded),
-                      label: 'Timetable',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.person_rounded),
-                      label: 'Profile',
-                    ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colors.glassSurfaceStrong,
+                    colors.glassSurface,
                   ],
                 ),
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(
+                  color: colors.glassBorderStrong,
+                  width: 1.2,
+                ),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                selectedItemColor: colors.primary,
+                unselectedItemColor: colors.textMuted,
+                type: BottomNavigationBarType.fixed,
+                onTap: (idx) => setState(() => _currentIndex = idx),
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard_rounded),
+                    label: 'Dashboard',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.assessment_rounded),
+                    label: 'Attendance',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.calendar_today_rounded),
+                    label: 'Timetable',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person_rounded),
+                    label: 'Profile',
+                  ),
+                ],
               ),
             ),
           ),
         ),
       ),
+    );
+
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: colors.background,
+      drawer: _buildStudentDrawer(context, studentService),
+      body: SafeArea(
+        child: isDesktopOrLaptop
+            ? Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1080.0),
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: tabs,
+                  ),
+                ),
+              )
+            : IndexedStack(
+                index: _currentIndex,
+                children: tabs,
+              ),
+      ),
+      bottomNavigationBar: isDesktopOrLaptop
+          ? Align(
+              alignment: Alignment.bottomCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 580.0),
+                child: bottomNavWidget,
+              ),
+            )
+          : bottomNavWidget,
     );
   }
 

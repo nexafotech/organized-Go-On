@@ -7,9 +7,10 @@ import 'date_detail_sheet.dart';
 
 /// Full Day Attendance Breakdown Card
 /// Displays period-by-period attendance for the active or selected day:
-/// - Date title and status capsule (FULL DAY PRESENT / PARTIAL / ABSENT)
-/// - Attendance percentage & count summary
-/// - Interactive period badges row (P1 to P7)
+/// - Date title and status capsule (FULL DAY PRESENT / PARTIAL / ABSENT / SCHEDULED)
+/// - Attendance percentage & count summary (using real data only)
+/// - Responsive period badges grid (P1 to P7, wrapping cleanly without squishing or overlapping)
+/// - Visual Legend for Present, Absent, On-Duty, and Scheduled states
 /// - Subject-by-subject attendance list with status indicators
 /// - Action button to open full DateDetailSheet
 class FullDayBreakdownCard extends StatelessWidget {
@@ -52,39 +53,63 @@ class FullDayBreakdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final bool hasRecordedAttendance = entry != null && entry!.periods.isNotEmpty;
 
-    // Build periods from entry or fallback to timetable/subjects
-    final List<PeriodEntryModel> effectivePeriods = List.from(entry?.periods ?? []);
-    if (effectivePeriods.isEmpty) {
-      if (timetable != null && timetable!.isNotEmpty) {
-        for (int i = 0; i < timetable!.length; i++) {
-          final t = timetable![i];
+    // Resolve effective periods specifically for the target day of the week
+    final List<PeriodEntryModel> effectivePeriods = [];
+
+    if (hasRecordedAttendance) {
+      effectivePeriods.addAll(entry!.periods);
+    } else {
+      // Resolve day of week from entry date or current date
+      DateTime targetDate = DateTime.now();
+      if (entry?.date != null && entry!.date.isNotEmpty) {
+        final parsed = DateTime.tryParse(entry!.date);
+        if (parsed != null) targetDate = parsed;
+      }
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final targetDay = days[targetDate.weekday - 1];
+
+      // Filter timetable specifically for this day of week (avoids dumping all 42 weekly items)
+      final dayTimetable = (timetable ?? []).where((t) {
+        final d = t.dayOfWeek.toLowerCase();
+        final td = targetDay.toLowerCase();
+        return d == td || (d.length >= 3 && td.startsWith(d));
+      }).toList();
+
+      if (dayTimetable.isNotEmpty) {
+        for (int i = 0; i < dayTimetable.length; i++) {
+          final t = dayTimetable[i];
           effectivePeriods.add(PeriodEntryModel(
-            periodNumber: i + 1,
-            periodName: 'Period ${i + 1}',
+            periodNumber: t.periodNumber ?? (i + 1),
+            periodName: t.periodName ?? 'Period ${t.periodNumber ?? (i + 1)}',
             subjectCode: t.subjectCode,
             subjectName: t.subjectName,
-            status: 'P',
+            status: 'SCHEDULED',
           ));
         }
       } else if (subjects != null && subjects!.isNotEmpty) {
-        for (int i = 0; i < subjects!.length; i++) {
-          final s = subjects![i];
+        // Fallback to at most 7 subject periods for one single day
+        final dailySubjects = subjects!.take(7).toList();
+        for (int i = 0; i < dailySubjects.length; i++) {
+          final s = dailySubjects[i];
           effectivePeriods.add(PeriodEntryModel(
             periodNumber: i + 1,
             periodName: 'Period ${i + 1}',
             subjectCode: s.subjectCode,
             subjectName: s.subjectName,
-            status: 'P',
+            status: 'SCHEDULED',
           ));
         }
       } else {
         final fallbackSlots = [
-          {'num': 1, 'name': 'Design & Analysis of Algorithms', 'code': '19IT501'},
-          {'num': 2, 'name': 'Computer Networks', 'code': '19IT502'},
-          {'num': 3, 'name': 'Database Management Systems', 'code': '19IT503'},
-          {'num': 4, 'name': 'Full Stack Web Development', 'code': '19IT504'},
-          {'num': 5, 'name': 'Artificial Intelligence & ML', 'code': '19IT505'},
+          {'num': 1, 'name': 'Foundations of Data Science', 'code': 'FDS'},
+          {'num': 2, 'name': 'Discrete Mathematics for Computing', 'code': 'DMC'},
+          {'num': 3, 'name': 'Digital Principles & Computer Org', 'code': 'DPCO'},
+          {'num': 4, 'name': 'Data Structures', 'code': 'DS'},
+          {'num': 5, 'name': 'Object Oriented Programming Systems', 'code': 'OOPS'},
+          {'num': 6, 'name': 'Universal Human Values', 'code': 'UHV'},
+          {'num': 7, 'name': 'Indian Knowledge System', 'code': 'IKS'},
         ];
         for (final s in fallbackSlots) {
           effectivePeriods.add(PeriodEntryModel(
@@ -92,7 +117,7 @@ class FullDayBreakdownCard extends StatelessWidget {
             periodName: 'Period ${s['num']}',
             subjectCode: s['code'] as String,
             subjectName: s['name'] as String,
-            status: 'P',
+            status: 'SCHEDULED',
           ));
         }
       }
@@ -105,7 +130,10 @@ class FullDayBreakdownCard extends StatelessWidget {
 
     final String statusLabel;
     final Color statusColor;
-    if (absentCount == 0 && (presentCount > 0 || odCount > 0)) {
+    if (!hasRecordedAttendance) {
+      statusLabel = 'SCHEDULED';
+      statusColor = colors.primary;
+    } else if (absentCount == 0 && (presentCount > 0 || odCount > 0)) {
       statusLabel = 'FULL DAY PRESENT';
       statusColor = colors.present;
     } else if (presentCount == 0 && odCount == 0 && absentCount > 0) {
@@ -115,12 +143,16 @@ class FullDayBreakdownCard extends StatelessWidget {
       statusLabel = 'PARTIAL ATTENDANCE';
       statusColor = colors.warning;
     } else {
-      statusLabel = 'SCHEDULED CLASS DAY';
+      statusLabel = 'ATTENDANCE LOGGED';
       statusColor = colors.primary;
     }
 
-    final double pct = totalPeriods > 0 ? ((presentCount + odCount) / totalPeriods * 100.0) : 100.0;
+    final double pct = totalPeriods > 0 ? ((presentCount + odCount) / totalPeriods * 100.0) : 0.0;
     final formattedDateStr = _formatDate(entry?.date);
+
+    final String summarySubtitle = hasRecordedAttendance
+        ? '$presentCount of $totalPeriods periods attended (${pct.toStringAsFixed(0)}%)'
+        : '$totalPeriods scheduled periods for this day';
 
     return Container(
       decoration: BoxDecoration(
@@ -185,9 +217,9 @@ class FullDayBreakdownCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
 
-                // Attendance summary subtitle
+                // Attendance summary subtitle (truthful based on real attendance records)
                 Text(
-                  '$presentCount of $totalPeriods periods attended (${pct.toStringAsFixed(0)}%)',
+                  summarySubtitle,
                   style: TextStyle(
                     fontSize: 13,
                     color: colors.textSecondary,
@@ -196,61 +228,70 @@ class FullDayBreakdownCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
 
-                // Horizontal Period Capsules Row (P1, P2, P3, ...)
+                // Responsive Period Status Sequence (Clean Wrap layout - no horizontal squishing/overlapping)
                 if (effectivePeriods.isNotEmpty) ...[
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: effectivePeriods.map((p) {
                       Color pColor = colors.present;
                       Color pBg = colors.presentBg;
-                      String pIcon = '✓';
+                      IconData pIcon = Icons.check_rounded;
                       final s = p.status.toUpperCase();
                       if (s == 'A' || s == 'ABSENT') {
                         pColor = colors.absent;
                         pBg = colors.absentBg;
-                        pIcon = '✕';
+                        pIcon = Icons.close_rounded;
                       } else if (s == 'OD') {
                         pColor = colors.od;
                         pBg = colors.odBg;
-                        pIcon = '✦';
+                        pIcon = Icons.verified_rounded;
+                      } else if (s == 'SCHEDULED' || s == 'NO_RECORD') {
+                        pColor = colors.textMuted;
+                        pBg = colors.surfaceMuted;
+                        pIcon = Icons.schedule_rounded;
                       }
 
-                      return Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          decoration: BoxDecoration(
-                            color: pBg,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: pColor.withValues(alpha: 0.35),
-                              width: 1.0,
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: pBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: pColor.withValues(alpha: 0.35),
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'P${p.periodNumber ?? ""}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: pColor,
+                              ),
                             ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'P${p.periodNumber ?? ""}',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: pColor,
-                                ),
-                              ),
-                              const SizedBox(height: 1.5),
-                              Text(
-                                pIcon,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: pColor,
-                                ),
-                              ),
-                            ],
-                          ),
+                            const SizedBox(width: 4),
+                            Icon(pIcon, size: 12, color: pColor),
+                          ],
                         ),
                       );
                     }).toList(),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Compact Attendance Legend
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    children: [
+                      _buildLegendItem('Present', colors.present, Icons.check_rounded, colors),
+                      _buildLegendItem('Absent', colors.absent, Icons.close_rounded, colors),
+                      _buildLegendItem('On-Duty', colors.od, Icons.verified_rounded, colors),
+                      _buildLegendItem('Scheduled', colors.textMuted, Icons.schedule_rounded, colors),
+                    ],
                   ),
                   const SizedBox(height: 14),
                 ],
@@ -328,6 +369,24 @@ class FullDayBreakdownCard extends StatelessWidget {
     );
   }
 
+  Widget _buildLegendItem(String label, Color color, IconData icon, AppColors colors) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: colors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
   List<Widget> _buildSubjectRows(List<PeriodEntryModel> periods, AppColors colors) {
     if (periods.isEmpty) {
       return [
@@ -354,6 +413,9 @@ class FullDayBreakdownCard extends StatelessWidget {
       } else if (s == 'OD') {
         dotColor = colors.od;
         statusStr = 'On-Duty';
+      } else if (s == 'SCHEDULED' || s == 'NO_RECORD') {
+        dotColor = colors.textMuted;
+        statusStr = 'Scheduled';
       }
 
       final subjectTitle = p.subjectName ?? p.periodName ?? 'Period ${p.periodNumber ?? (i + 1)}';

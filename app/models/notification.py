@@ -29,6 +29,12 @@ class NotificationDeliveryStatus(str, enum.Enum):
     PROVIDER_ACCEPTED = "PROVIDER_ACCEPTED"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
+    # Truthful statuses (honest audit reporting)
+    FCM_ACCEPTED = "FCM_ACCEPTED"
+    NO_TOKEN = "NO_TOKEN"
+    RECORDED = "RECORDED"
+    DELIVERY_CONFIRMED = "DELIVERY_CONFIRMED"
+    PARTIAL_FAILURE = "PARTIAL_FAILURE"
 
 
 class DeviceToken(Base):

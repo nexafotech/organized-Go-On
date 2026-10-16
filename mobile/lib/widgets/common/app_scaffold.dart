@@ -39,6 +39,80 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     final typography = context.typography;
     final canPop = Navigator.canPop(context);
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isDesktopOrLaptop = screenWidth >= 900.0;
+
+    Widget headerRow = Row(
+      children: [
+        if (leading != null)
+          leading!
+        else if (canPop)
+          IconButton(
+            icon: Icon(Icons.arrow_back_rounded, size: AppIconSize.navHeader, color: colors.textPrimary),
+            tooltip: 'Back',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: titleWidget ??
+                        Text(
+                          title ?? '',
+                          style: typography.titleLarge.copyWith(color: colors.textPrimary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                  ),
+                  if (roleChip != null && roleChip!.isNotEmpty) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceMuted,
+                        borderRadius: AppRadius.pillBorder,
+                        border: Border.all(color: colors.borderStrong.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        roleChip!.toUpperCase(),
+                        style: typography.caption.copyWith(
+                          color: colors.accentStrong,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (subtitle != null && subtitle!.isNotEmpty)
+                Text(
+                  subtitle!,
+                  style: typography.bodySmall.copyWith(color: colors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ),
+        if (actions != null) ...actions!,
+      ],
+    );
+
+    if (isDesktopOrLaptop) {
+      headerRow = Align(
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1040.0),
+          child: headerRow,
+        ),
+      );
+    }
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
@@ -60,69 +134,10 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          child: Row(
-            children: [
-              if (leading != null)
-                leading!
-              else if (canPop)
-                IconButton(
-                  icon: Icon(Icons.arrow_back_rounded, size: AppIconSize.navHeader, color: colors.textPrimary),
-                  tooltip: 'Back',
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: titleWidget ??
-                          Text(
-                            title ?? '',
-                            style: typography.titleLarge.copyWith(color: colors.textPrimary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                    ),
-                    if (roleChip != null && roleChip!.isNotEmpty) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: colors.surfaceMuted,
-                          borderRadius: AppRadius.pillBorder,
-                          border: Border.all(color: colors.borderStrong.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          roleChip!.toUpperCase(),
-                          style: typography.caption.copyWith(
-                            color: colors.accentStrong,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (subtitle != null && subtitle!.isNotEmpty)
-                  Text(
-                    subtitle!,
-                    style: typography.bodySmall.copyWith(color: colors.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          if (actions != null) ...actions!,
-        ],
+          child: headerRow,
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }
 
@@ -159,7 +174,55 @@ class AppScaffold extends StatelessWidget {
     this.enableLiquidGlow = true,
   }) : super(key: key);
 
-  static Widget buildLiquidAmbientCanvas() {
+  static Widget buildLiquidAmbientCanvas([BuildContext? context]) {
+    final bool isDark = context != null ? context.colors.isDark : false;
+    if (!isDark) {
+      return Positioned.fill(
+        child: IgnorePointer(
+          child: Stack(
+            children: [
+              // Subtle warm cream/amber highlight (Upper Right)
+              Positioned(
+                top: -30,
+                right: -40,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFFB87B4B).withValues(alpha: 0.04),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Subtle soft warm diffusion (Lower Left)
+              Positioned(
+                bottom: 80,
+                left: -50,
+                child: Container(
+                  width: 280,
+                  height: 280,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFFD4C5B3).withValues(alpha: 0.12),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Positioned.fill(
       child: IgnorePointer(
         child: Stack(
@@ -266,19 +329,36 @@ class AppScaffold extends StatelessWidget {
     final defaultHorizontalPadding = AppSpacing.pagePadding(context);
     final effectivePadding = padding ?? EdgeInsets.symmetric(horizontal: defaultHorizontalPadding);
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isDesktopOrLaptop = screenWidth >= 900.0;
+    final maxContentWidth = isDesktopOrLaptop ? 1040.0 : double.infinity;
+
+    Widget responsiveWrap(Widget child) {
+      if (!isDesktopOrLaptop) return child;
+      return Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxContentWidth),
+          child: child,
+        ),
+      );
+    }
+
     Widget content = body;
 
     if (scrollable) {
       content = SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         padding: effectivePadding,
-        child: content,
+        child: responsiveWrap(content),
       );
     } else if (padding != null) {
       content = Padding(
         padding: effectivePadding,
-        child: content,
+        child: responsiveWrap(content),
       );
+    } else {
+      content = responsiveWrap(content);
     }
 
     if (safeArea) {
@@ -304,7 +384,15 @@ class AppScaffold extends StatelessWidget {
             bottom: 0,
             child: SafeArea(
               top: false,
-              child: floatingBottomBar!,
+              child: isDesktopOrLaptop
+                  ? Align(
+                      alignment: Alignment.bottomCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 580.0),
+                        child: floatingBottomBar!,
+                      ),
+                    )
+                  : floatingBottomBar!,
             ),
           ),
         ],
@@ -314,7 +402,7 @@ class AppScaffold extends StatelessWidget {
     final Widget finalBody = enableLiquidGlow
         ? Stack(
             children: [
-              buildLiquidAmbientCanvas(),
+              buildLiquidAmbientCanvas(context),
               content,
             ],
           )

@@ -1,0 +1,158 @@
+{
+  "system": "go-On AI Face Attendance System",
+  "audit_scope": "Faculty Portal Rebuild & Attendance Synchronization Audit (Phases 1-12)",
+  "timestamp_ist": "2026-10-16T01:15:00+05:30",
+  "project_root": "E:\\originalam",
+  "mobile_app_path": "E:\\originalam\\mobile",
+  "backend_framework": "FastAPI (Python 3.14)",
+  "database": "SQLite / PostgreSQL compatible ORM (SQLAlchemy 2.0)",
+  "target_device": "Samsung Galaxy S24 (SM-S921E)",
+  "physical_device_verification": {
+    "adb_command": "adb -s RZCY935CVJF shell getprop",
+    "status": "VERIFIED_ATTACHED",
+    "device_serial": "RZCY935CVJF",
+    "ro_product_manufacturer": "samsung",
+    "ro_product_model": "SM-S921E",
+    "ro_build_version_release": "16",
+    "ro_build_version_sdk": "36",
+    "storage_free_bytes": "76686618624 (71.4 GB)",
+    "installed_package": "com.aifaceattendance.mobile_app",
+    "apk_deployment": {
+      "apk_path": "E:\\originalam\\mobile\\build\\app\\outputs\\flutter-apk\\app-debug.apk",
+      "apk_size_bytes": 197412760,
+      "install_method": "adb -s RZCY935CVJF install -r -d",
+      "install_result": "Success",
+      "user_data_state": "Preserved"
+    },
+    "evidence_captures": {
+      "initial_light_dashboard": "reports/evidence/s24_initial_state_before_fix.png",
+      "initial_dark_dashboard": "reports/evidence/s24_initial_dark_before_fix.png",
+      "initial_attendance_screen": "reports/evidence/s24_att_old.png",
+      "initial_timetable_screen": "reports/evidence/s24_tt_old.png"
+    }
+  },
+  "summary": {
+    "flutter_tests_total": 203,
+    "flutter_tests_passed": 203,
+    "flutter_tests_failed": 0,
+    "flutter_analyzer_issues": 0,
+    "backend_sync_tests_passed": 2,
+    "backend_sync_tests_failed": 0,
+    "faculty_e2e_tests_passed": 7,
+    "faculty_e2e_tests_failed": 0,
+    "student_enrollment_tests_passed": 13,
+    "student_enrollment_tests_failed": 0,
+    "overall_status": "PASSED"
+  },
+  "defect_inventory_resolution": [
+    {
+      "id": "A-01",
+      "category": "Attendance Synchronization",
+      "title": "Faculty marked attendance not reflected in Student Subject Breakdown",
+      "root_cause": "1. Mobile Client: StudentService.fetchAttendanceReport() parsed date_wise from API response but discarded response['subjects']. 2. StudentAttendanceReportScreen only fetched data if dateWise was empty. 3. Backend Policy Engine: calculate_all_subjects_attendance filtered subjects strictly by student.class_id, omitting electives and substitute faculty assignments.",
+      "resolution": "Updated StudentService to populate _subjects and recalculate summary from API response; updated StudentAttendanceReportScreen to refresh on initState; updated AttendancePolicyEngine to query both assigned subjects and subjects with recorded attendance.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "T-01",
+      "category": "Timetable & Date/Time",
+      "title": "24-hour military timestamps displayed on faculty schedule and attendance screens",
+      "root_cause": "Faculty dashboard and attendance screens rendered raw 24-hour HH:MM strings without 12-hour AM/PM formatting.",
+      "resolution": "Created TimezoneUtils.format24hTo12h() in Flutter and format_time_12h() in timetable_engine.py. Applied 12-hour AM/PM formatting across Faculty Dashboard, Active Slot, Attendance Screen, and Class Advisor Screen.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "T-02",
+      "category": "Timetable & Date/Time",
+      "title": "Naive UTC weekday calculation mismatch in Asia/Kolkata timezone",
+      "root_cause": "FacultyDashboardScreen called DateTime.now().weekday without timezone normalization, causing wrong day selection between 00:00 and 05:30 IST.",
+      "resolution": "Implemented TimezoneUtils.istWeekdayName() and integrated with faculty dashboard weekday selector.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "D-01",
+      "category": "Dark Theme",
+      "title": "Excessive specular glare and over-bright borders in dark theme",
+      "root_cause": "AppColors.dark defined overly bright card borders (0x4D7E7594) and specular glass gradients (0.35 opacity white shine).",
+      "resolution": "Softened dark borders to 0x1F7E7594, reduced specular glare from 0.35 to 0.12, added darkSpecularGradient. Light theme left 100% untouched.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "F-01",
+      "category": "Functional & Concurrency",
+      "title": "Backend attendance concurrency exception logger NameError",
+      "root_cause": "app/engines/attendance_engine.py referenced logger.warning() in start_class_session() concurrency exception handler without defining logger module variable.",
+      "resolution": "Added authoritative logger = logging.getLogger(__name__) to attendance_engine.py.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "F-02",
+      "category": "Functional & Concurrency",
+      "title": "start_class_session naive datetime usage",
+      "root_cause": "start_class_session() called datetime.now() instead of get_ist_now().",
+      "resolution": "Replaced naive datetime.now() with get_ist_now() in attendance_engine.py.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "U-01",
+      "category": "UI Layout & Overflow",
+      "title": "Faculty Dashboard and Timetable App Bar Title Ellipsis Truncation",
+      "root_cause": "Dense header action icon row caused 'Faculty Dashboard' to truncate as 'Faculty D...' and 'Faculty Timetable' as 'Faculty Timeta...'.",
+      "resolution": "Applied compact VisualDensity and adjusted action button margins and title text sizing (16sp) ensuring full title visibility without ellipsis.",
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "R-01",
+      "category": "Role & Authorization (RBAC)",
+      "title": "fac04 Class Advisor and Multi-Faculty Assignment Access",
+      "root_cause": "Audit of database revealed fac04 is Faculty ID 6 (Shankar). Is not class advisor for any class, but is authorized substitute faculty for Class 4 assignments (ACE-I, TWM).",
+      "resolution": "Verified that fac04 can mark attendance for Class 4 assignments as authorized substitute, while Class Advisor portal correctly shows 'Not Assigned as Class Advisor' without crashing or showing unauthorized classes.",
+      "status": "VERIFIED_FIXED"
+    }
+  ],
+  "test_execution_details": {
+    "flutter_analyzer": {
+      "command": "flutter analyze",
+      "result": "No issues found! (ran in 10.4s)",
+      "status": "PASSED"
+    },
+    "flutter_unit_widget_tests": {
+      "command": "flutter test",
+      "total_tests": 203,
+      "passed_tests": 203,
+      "failed_tests": 0,
+      "execution_time_seconds": 14,
+      "status": "PASSED"
+    },
+    "backend_integration_tests": {
+      "command": "python -m pytest tests/test_attendance_sync_fix.py -v",
+      "tests": [
+        {
+          "name": "test_format_time_12h",
+          "description": "Verifies 12-hour AM/PM formatting utility converts 24h institutional schedule times accurately.",
+          "status": "PASSED"
+        },
+        {
+          "name": "test_attendance_sync_and_subject_wise_update",
+          "description": "Verifies end-to-end synchronization: faculty creates session, marks attendance -> DB persists -> AttendancePolicyEngine calculates subject attendance -> Student API returns updated subject count and percentage -> Admin API matches.",
+          "status": "PASSED"
+        }
+      ],
+      "status": "PASSED"
+    },
+    "faculty_e2e_tests": {
+      "command": "python -m pytest tests/test_faculty_attendance_e2e.py -v",
+      "total_tests": 7,
+      "passed_tests": 7,
+      "failed_tests": 0,
+      "status": "PASSED"
+    },
+    "student_pose_enrollment_tests": {
+      "command": "python -m pytest tests/test_student_face_pose_enrollment.py -v",
+      "total_tests": 13,
+      "passed_tests": 13,
+      "failed_tests": 0,
+      "status": "PASSED"
+    }
+  }
+}

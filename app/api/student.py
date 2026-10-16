@@ -429,6 +429,7 @@ def update_student_profile(
     """
     Allows authenticated student to update editable profile fields:
     full_name, email, phone, avatar_id.
+    Persists changes to the SQLite database and syncs associated User record.
     """
     if "full_name" in body and body["full_name"] is not None:
         name_str = str(body["full_name"]).strip()
@@ -446,16 +447,47 @@ def update_student_profile(
         if student.user:
             student.user.avatar_id = new_av
 
-    if "email" in body and body["email"] is not None:
-        student.email = str(body["email"]).strip()
-        if student.user:
-            student.user.email = student.email
+    if "email" in body:
+        raw_email = str(body["email"]).strip() if body["email"] is not None else ""
+        clean_email = raw_email if raw_email else None
+        if clean_email and student.user:
+            conflict = db.query(User).filter(User.email == clean_email, User.id != student.user_id).first()
+            if conflict:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Email address '{clean_email}' is already in use by another account.",
+                )
+            student.user.email = clean_email
+        elif student.user and clean_email is None:
+            # If removing email, avoid setting empty string to prevent unique constraint collision
+            pass
+        student.email = clean_email
 
-    if "phone" in body and body["phone"] is not None:
-        student.phone = str(body["phone"]).strip()
+    if "phone" in body:
+        raw_phone = str(body["phone"]).strip() if body["phone"] is not None else ""
+        student.phone = raw_phone if raw_phone else None
 
     db.commit()
     db.refresh(student)
+
+    # Audit logging
+    try:
+        audit = AuditLog(
+            action="UPDATE_STUDENT_PROFILE",
+            user_id=student.user_id,
+            target=f"student:{student.id}",
+            details=json.dumps({
+                "student_id": student.id,
+                "full_name": student.full_name,
+                "email": student.email,
+                "phone": student.phone,
+                "avatar_id": student.avatar_id,
+            }),
+        )
+        db.add(audit)
+        db.commit()
+    except Exception:
+        pass
 
     return {
         "success": True,

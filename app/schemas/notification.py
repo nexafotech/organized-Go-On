@@ -1,6 +1,18 @@
 from typing import Optional, List, Dict, Any
-from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, field_validator, field_serializer
+
+
+def serialize_utc_iso(v: Optional[datetime]) -> Optional[str]:
+    """
+    Serializes datetime values to UTC ISO-8601 with explicit 'Z' suffix.
+    Naive datetimes from the database (which are stored in UTC) are treated as UTC.
+    """
+    if v is None:
+        return None
+    if v.tzinfo is None:
+        v = v.replace(tzinfo=timezone.utc)
+    return v.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class DeviceTokenCreate(BaseModel):
@@ -18,6 +30,10 @@ class DeviceTokenOut(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("created_at", "updated_at", when_used="always")
+    def _serialize_device_token_dates(self, v: Optional[datetime]) -> Optional[str]:
+        return serialize_utc_iso(v)
 
     class Config:
         from_attributes = True
@@ -108,6 +124,14 @@ class AdminCustomNotificationResponse(BaseModel):
     devices_sent: Optional[int] = 0
     devices_failed: Optional[int] = 0
     deactivated_tokens: Optional[int] = 0
+    is_simulated: Optional[bool] = False
+    tokens_found: Optional[int] = 0
+    recipients_without_tokens: Optional[int] = 0
+    fcm_accepted: Optional[int] = 0
+
+    @field_serializer("scheduled_at", when_used="always")
+    def _serialize_admin_resp_dates(self, v: Optional[datetime]) -> Optional[str]:
+        return serialize_utc_iso(v)
 
 
 class NotificationLogOut(BaseModel):
@@ -130,6 +154,10 @@ class NotificationLogOut(BaseModel):
     is_deleted: bool = False
     deleted_at: Optional[datetime] = None
     created_at: datetime
+
+    @field_serializer("created_at", "read_at", "pinned_at", "deleted_at", when_used="always")
+    def _serialize_notif_log_dates(self, v: Optional[datetime]) -> Optional[str]:
+        return serialize_utc_iso(v)
 
     class Config:
         from_attributes = True
@@ -179,6 +207,10 @@ class ScheduledNotificationOut(BaseModel):
     status: str
     recipients_count: int
     created_at: datetime
+
+    @field_serializer("scheduled_at", "created_at", when_used="always")
+    def _serialize_scheduled_dates(self, v: Optional[datetime]) -> Optional[str]:
+        return serialize_utc_iso(v)
 
     class Config:
         from_attributes = True

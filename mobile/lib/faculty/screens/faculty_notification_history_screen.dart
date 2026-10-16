@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../models/notification_model.dart';
 import '../../services/notification_service.dart';
+import '../../utils/timezone_utils.dart';
 import '../../widgets/widgets.dart';
 
 /// Notification History Screen for Students and Faculty
@@ -19,6 +21,7 @@ class _FacultyNotificationHistoryScreenState
     extends State<FacultyNotificationHistoryScreen> {
   final ApiClient _apiClient = ApiClient();
   int _selectedFilterIndex = 0; // 0: All, 1: Unread Only
+  Timer? _relativeTimeRefreshTimer;
 
   @override
   void initState() {
@@ -26,6 +29,18 @@ class _FacultyNotificationHistoryScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadNotifications();
     });
+    // Periodically refresh relative time labels (e.g. 'Just now' -> '1m ago')
+    _relativeTimeRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _relativeTimeRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadNotifications() async {
@@ -82,7 +97,22 @@ class _FacultyNotificationHistoryScreenState
   }
 
   Future<void> _handleDelete(NotificationItem item) async {
+    final colors = context.colors;
     final notifService = Provider.of<NotificationService>(context, listen: false);
+    if (notifService.isNotificationPinned(item.id)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Pinned notifications cannot be deleted. Unpin first.'),
+            backgroundColor: colors.surface,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
     final success = await notifService.deleteNotification(_apiClient, item.id);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -268,13 +298,395 @@ class _FacultyNotificationHistoryScreenState
     }
   }
 
+  void _showNotificationDetails(NotificationItem item) {
+    if (!item.isRead) {
+      _handleMarkRead(item);
+    }
+    final colors = context.colors;
+    final channelColor = _getChannelColor(item.channelId, colors);
+    final channelName = _getChannelName(item.channelId);
+    final channelIcon = _getChannelIcon(item.channelId);
+    final isHigh = item.isHighPriority;
+    final route = item.targetRoute;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+          ),
+          decoration: BoxDecoration(
+            color: colors.surfaceElevated,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(
+              color: colors.border.withValues(alpha: 0.2),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top drag indicator
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 6),
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.textSecondary.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Title bar with close button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: channelColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(channelIcon, size: 20, color: channelColor),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            channelName.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                              color: channelColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Notification Details',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      color: colors.textSecondary,
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+
+              // Content scroll view
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Badges row
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          if (isHigh)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: colors.error.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: colors.error.withValues(alpha: 0.3)),
+                              ),
+                              child: Text(
+                                'HIGH PRIORITY',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: colors.error,
+                                ),
+                              ),
+                            ),
+                          if (item.isPinned)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: colors.warning.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: colors.warning.withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.push_pin_rounded, size: 11, color: colors.warning),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'PINNED',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: colors.warning,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: colors.surface,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: colors.border.withValues(alpha: 0.2)),
+                            ),
+                            child: Text(
+                              item.status.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: colors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Title
+                      Text(
+                        item.title,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Timestamp Card (Exact IST Date & Time + Relative Time)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: colors.border.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.schedule_rounded, size: 16, color: colors.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Standard Indian Time (IST)',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: colors.textSecondary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        TimezoneUtils.formatIstDateTime(item.createdAt),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: colors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: colors.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    item.relativeTime,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (item.readAt != null) ...[
+                              const SizedBox(height: 8),
+                              const Divider(height: 1),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.done_all_rounded, size: 14, color: colors.present),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Read: ${TimezoneUtils.formatIstDateTime(item.readAt)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Message Body
+                      Text(
+                        'Message',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceElevated,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: colors.border.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: Text(
+                          item.body,
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.45,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (route != null && route.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            _handleItemTap(item);
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: channelColor.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: channelColor.withValues(alpha: 0.25)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.open_in_new_rounded, size: 15, color: channelColor),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Linked destination: ${item.targetRoute ?? ''}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: channelColor,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.arrow_forward_ios_rounded, size: 12, color: channelColor),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // Bottom Actions
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  border: Border(top: BorderSide(color: colors.border.withValues(alpha: 0.15))),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          _handleDelete(item);
+                        },
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                        label: const Text('Delete'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colors.error,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        _handleTogglePin(item);
+                      },
+                      icon: Icon(
+                        item.isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+                        size: 16,
+                      ),
+                      label: Text(item.isPinned ? 'Unpin' : 'Pin'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.warning,
+                        side: BorderSide(color: colors.warning.withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _formatTimeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inSeconds < 60) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
+    return TimezoneUtils.formatRelativeTime(dt);
   }
 
   IconData _getChannelIcon(String channelId) {
@@ -334,59 +746,71 @@ class _FacultyNotificationHistoryScreenState
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.notifications_active_rounded, size: 22),
-            const SizedBox(width: 8),
-            const Text('Notifications'),
-            if (notifService.unreadCount > 0) ...[
+        titleSpacing: 0,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.notifications_active_rounded, size: 22),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${notifService.unreadCount}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+              const Text('Notifications'),
+              if (notifService.unreadCount > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${notifService.unreadCount}',
+                    style: TextStyle(
+                      color: colors.onPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
         elevation: 0,
         actions: [
           if (notifService.unreadCount > 0)
             IconButton(
-              icon: const Icon(Icons.done_all_rounded),
+              icon: const Icon(Icons.done_all_rounded, size: 20),
               tooltip: 'Mark all as read',
+              padding: const EdgeInsets.all(5),
+              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
               onPressed: _handleMarkAllRead,
             ),
           IconButton(
             icon: notifService.isBulkDeleting
                 ? SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: colors.textSecondary,
                     ),
                   )
-                : const Icon(Icons.delete_outline_rounded),
+                : const Icon(Icons.delete_outline_rounded, size: 20),
             tooltip: 'Delete all unpinned notifications',
+            padding: const EdgeInsets.all(5),
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
             onPressed: notifService.isBulkDeleting ? null : _handleDeleteAllUnpinned,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, size: 20),
             tooltip: 'Refresh',
+            padding: const EdgeInsets.all(5),
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
             onPressed: _loadNotifications,
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
@@ -411,13 +835,18 @@ class _FacultyNotificationHistoryScreenState
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(1, 'Unread', notifService.unreadCount, colors),
-                const Spacer(),
-                Text(
-                  'Swipe left to delete, right to pin',
-                  style: TextStyle(
-                    color: colors.textSecondary.withValues(alpha: 0.7),
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Swipe: ⇦ delete • pin ⇨',
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textSecondary.withValues(alpha: 0.7),
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
               ],
@@ -463,7 +892,7 @@ class _FacultyNotificationHistoryScreenState
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : colors.textSecondary,
+                color: isSelected ? colors.onPrimary : colors.textSecondary,
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
@@ -474,14 +903,14 @@ class _FacultyNotificationHistoryScreenState
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? Colors.white.withValues(alpha: 0.25)
+                      ? colors.onPrimary.withValues(alpha: 0.25)
                       : colors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '$count',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : colors.primary,
+                    color: isSelected ? colors.onPrimary : colors.primary,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -614,7 +1043,6 @@ class _FacultyNotificationHistoryScreenState
     final channelColor = _getChannelColor(item.channelId, colors);
     final channelName = _getChannelName(item.channelId);
     final icon = _getChannelIcon(item.channelId);
-    final hasRoute = item.targetRoute != null && item.targetRoute!.isNotEmpty;
 
     return Dismissible(
       key: ValueKey('notif_card_${item.id}'),
@@ -684,6 +1112,18 @@ class _FacultyNotificationHistoryScreenState
           return false;
         } else if (direction == DismissDirection.endToStart) {
           // Swipe Left: Delete
+          if (notifService.isNotificationPinned(item.id)) {
+            // Strictly protect pinned notifications from deletion
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Pinned notifications cannot be deleted. Unpin first.'),
+                backgroundColor: colors.surface,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            return false;
+          }
           // Immediately and synchronously unregister from local list before tree rebuild
           notifService.removeNotificationLocally(item.id);
           return true;
@@ -705,171 +1145,216 @@ class _FacultyNotificationHistoryScreenState
             ? colors.warning.withValues(alpha: 0.6)
             : (!item.isRead ? channelColor.withValues(alpha: 0.4) : null),
         child: InkWell(
-          onTap: () => _handleItemTap(item),
+          onTap: () => _showNotificationDetails(item),
           borderRadius: BorderRadius.circular(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Row: Channel Badge, Pinned Badge, Priority, Timestamp, Actions Menu
+              // Header Row: Badges on left (Wrap) and Trailing Actions on right
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: channelColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: channelColor.withValues(alpha: 0.3),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  Expanded(
+                    child: Wrap(
+                      spacing: 5,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Icon(icon, size: 12, color: channelColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          channelName.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: channelColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (item.isPinned) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: colors.warning.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: colors.warning.withValues(alpha: 0.5),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.push_pin_rounded, size: 11, color: colors.warning),
-                          const SizedBox(width: 3),
-                          Text(
-                            'PINNED',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: colors.warning,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: channelColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: channelColor.withValues(alpha: 0.3),
+                              width: 0.8,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (item.isHighPriority) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: colors.error.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'HIGH',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: colors.error,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  Text(
-                    _formatTimeAgo(item.createdAt),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  if (!item.isRead) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: channelColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: channelColor.withValues(alpha: 0.6),
-                            blurRadius: 4,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  // Accessibility action pop-up menu
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      size: 18,
-                      color: colors.textSecondary,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: 'Options',
-                    onSelected: (action) {
-                      switch (action) {
-                        case 'pin':
-                          _handleTogglePin(item);
-                          break;
-                        case 'read':
-                          _handleMarkRead(item);
-                          break;
-                        case 'delete':
-                          _handleDelete(item);
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'pin',
-                        child: Row(
-                          children: [
-                            Icon(
-                              item.isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
-                              size: 16,
-                              color: colors.warning,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(item.isPinned ? 'Unpin' : 'Pin to Top'),
-                          ],
-                        ),
-                      ),
-                      if (!item.isRead)
-                        PopupMenuItem(
-                          value: 'read',
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.done_rounded, size: 16, color: colors.primary),
-                              const SizedBox(width: 8),
-                              const Text('Mark as Read'),
+                              Icon(icon, size: 12, color: channelColor),
+                              const SizedBox(width: 4),
+                              Text(
+                                channelName.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: channelColor,
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline_rounded, size: 16, color: colors.error),
-                            const SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: colors.error)),
-                          ],
+                        if (item.isPinned)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: colors.warning.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: colors.warning.withValues(alpha: 0.5),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.push_pin_rounded, size: 11, color: colors.warning),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'PINNED',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: colors.warning,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (item.isHighPriority)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: colors.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'HIGH',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: colors.error,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Tooltip(
+                        message: TimezoneUtils.formatIstDateTime(item.createdAt),
+                        child: Text(
+                          _formatTimeAgo(item.createdAt),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colors.textSecondary,
+                          ),
                         ),
+                      ),
+                      if (!item.isRead) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: channelColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: channelColor.withValues(alpha: 0.6),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      PopupMenuButton<String>(
+                        icon: Icon(
+                          Icons.more_vert_rounded,
+                          size: 18,
+                          color: colors.textSecondary,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        tooltip: 'Options',
+                        onSelected: (action) {
+                          switch (action) {
+                            case 'details':
+                              _showNotificationDetails(item);
+                              break;
+                            case 'pin':
+                              _handleTogglePin(item);
+                              break;
+                            case 'read':
+                              _handleMarkRead(item);
+                              break;
+                            case 'delete':
+                              if (item.isPinned) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Pinned notifications cannot be deleted. Unpin first.'),
+                                    backgroundColor: colors.surface,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
+                              _handleDelete(item);
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'details',
+                            child: Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded, size: 16, color: colors.primary),
+                                const SizedBox(width: 8),
+                                const Text('View Details'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'pin',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  item.isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded,
+                                  size: 16,
+                                  color: colors.warning,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(item.isPinned ? 'Unpin' : 'Pin to Top'),
+                              ],
+                            ),
+                          ),
+                          if (!item.isRead)
+                            PopupMenuItem(
+                              value: 'read',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.done_rounded, size: 16, color: colors.primary),
+                                  const SizedBox(width: 8),
+                                  const Text('Mark as Read'),
+                                ],
+                              ),
+                            ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            enabled: !item.isPinned,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  item.isPinned ? Icons.lock_outline_rounded : Icons.delete_outline_rounded,
+                                  size: 16,
+                                  color: item.isPinned ? colors.textSecondary : colors.error,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  item.isPinned ? 'Protected (Pinned)' : 'Delete',
+                                  style: TextStyle(color: item.isPinned ? colors.textSecondary : colors.error),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -917,30 +1402,28 @@ class _FacultyNotificationHistoryScreenState
                 ),
               ),
 
-              // Action Bar (if deep link route available)
-              if (hasRoute) ...[
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => _handleItemTap(item),
-                    icon: Icon(Icons.arrow_forward_rounded, size: 14, color: channelColor),
-                    label: Text(
-                      'Open View',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: channelColor,
-                      ),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              // Tap to View Action
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _showNotificationDetails(item),
+                  icon: Icon(Icons.arrow_forward_rounded, size: 14, color: channelColor),
+                  label: Text(
+                    'Tap to view',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: channelColor,
                     ),
                   ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
-              ],
+              ),
             ],
           ),
         ),

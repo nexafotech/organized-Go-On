@@ -137,7 +137,7 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
+            color: colors.isDark ? Colors.black.withValues(alpha: 0.4) : const Color(0x242B1A13),
             blurRadius: 28,
             offset: const Offset(0, -6),
           ),

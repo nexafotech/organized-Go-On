@@ -13,39 +13,44 @@ class AttendanceLegend extends StatelessWidget {
     required Color color,
     required Color bgColor,
     IconData? icon,
-    String? note,
   }) {
     final colors = context.colors;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5.5),
       decoration: BoxDecoration(
         color: colors.glassSurfaceSubtle,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.glassBorderStrong),
+        border: Border.all(
+          color: colors.isDark ? colors.glassBorderStrong : const Color(0xFFE2E8F0),
+          width: 1.0,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 24,
-            height: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: color.withValues(alpha: 0.7), width: 1.1),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: color.withValues(alpha: 0.65), width: 1.0),
             ),
             child: Text(
               code,
               style: TextStyle(
                 color: color,
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          if (icon != null) ...[
+            const SizedBox(width: 5),
+            Icon(icon, size: 12.5, color: color),
+          ],
+          const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(
@@ -54,17 +59,6 @@ class AttendanceLegend extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          if (note != null && note.isNotEmpty) ...[
-            const SizedBox(width: 5),
-            Text(
-              '($note)',
-              style: TextStyle(
-                color: colors.textMuted,
-                fontSize: 10,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -89,16 +83,39 @@ class AttendanceLegend extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(Icons.info_outline_rounded, size: 16, color: colors.primary),
-              const SizedBox(width: 8),
-              Text(
-                'ATTENDANCE STATUS LEGEND',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 16, color: colors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ATTENDANCE STATUS LEGEND',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  'Academic Policy',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: colors.primary,
+                  ),
                 ),
               ),
             ],
@@ -130,7 +147,6 @@ class AttendanceLegend extends StatelessWidget {
                 label: 'On Duty',
                 color: colors.od,
                 bgColor: colors.odBg,
-                note: 'Counted as Present',
                 icon: Icons.badge_outlined,
               ),
               _buildLegendItem(
@@ -139,6 +155,7 @@ class AttendanceLegend extends StatelessWidget {
                 label: 'Half Day Present',
                 color: colors.warning,
                 bgColor: colors.warningBg,
+                icon: Icons.star_half_rounded,
               ),
               _buildLegendItem(
                 context,
@@ -146,6 +163,7 @@ class AttendanceLegend extends StatelessWidget {
                 label: 'Half Day Absent',
                 color: colors.error,
                 bgColor: colors.errorBg,
+                icon: Icons.hourglass_bottom_rounded,
               ),
               _buildLegendItem(
                 context,
@@ -153,7 +171,6 @@ class AttendanceLegend extends StatelessWidget {
                 label: 'Lunch Break',
                 color: colors.lunch,
                 bgColor: colors.lunchBg,
-                note: '12:50-13:40 Not Counted',
                 icon: Icons.restaurant_rounded,
               ),
               _buildLegendItem(
@@ -165,6 +182,36 @@ class AttendanceLegend extends StatelessWidget {
                 icon: Icons.remove_rounded,
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: colors.glassSurfaceSubtle,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: colors.isDark ? colors.glassBorderStrong : const Color(0xFFE2E8F0),
+                width: 0.9,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.policy_outlined, size: 13, color: colors.primary),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    'Policy: On Duty (OD) is credited as Present. Lunch Interval (12:50 PM – 01:40 PM) is non-teaching and strictly excluded from calculation denominators.',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                      color: colors.textMuted,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

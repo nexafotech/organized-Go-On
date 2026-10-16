@@ -1,0 +1,123 @@
+{
+  "timestamp": "2026-10-15T11:45:00+05:30",
+  "project": {
+    "name": "go-On AI Face Attendance System",
+    "root_directory": "E:\\originalam",
+    "flutter_application": "E:\\originalam\\mobile",
+    "android_package_name": "com.aifaceattendance.mobile_app",
+    "firebase_project_id": "go-on-f0b90",
+    "target_device": "Samsung Galaxy S24 (SM-S921E)",
+    "restricted_device_policy": "RMX3998 strictly blocked"
+  },
+  "root_cause_analysis": {
+    "primary_cause": "Inconsistent native launch resource resolution and unconstrained system brightness overriding application theme preference.",
+    "native_layer_flaw": "values-night/styles.xml referenced Theme.Black.NoTitleBar and values-night/launch_color.xml was configured to #0D0C13. Whenever the phone OS had dark mode enabled, Android automatically drew a dark window before Flutter engine initialized, followed by Flutter rendering in its default light mode (#FFFFFF), producing a jarring dark-to-light flash.",
+    "flutter_theme_mode_flaw": "ThemeMode.system was previously permitted as an intermediate fallback, causing Android OS brightness changes to alter the application appearance regardless of user selection.",
+    "ambient_canvas_flaw": "AppScaffold.buildLiquidAmbientCanvas() defaulted to isDark = true when called without BuildContext, rendering dark glowing orbs (indigo, violet, emerald) across light theme screens."
+  },
+  "architectural_fixes_applied": {
+    "native_launch_unification": {
+      "files": [
+        "mobile/android/app/src/main/res/values/launch_color.xml",
+        "mobile/android/app/src/main/res/values-night/launch_color.xml",
+        "mobile/android/app/src/main/res/values/styles.xml",
+        "mobile/android/app/src/main/res/values-night/styles.xml"
+      ],
+      "changes": "Unified launch_bg_color to #FFFFFF across standard and night values; set LaunchTheme parent to Theme.Light.NoTitleBar with android:forceDarkAllowed='false'. Cold start is always pure white matching Image 2."
+    },
+    "dynamic_main_activity_window_styling": {
+      "file": "mobile/android/app/src/main/kotlin/com/aifaceattendance/mobile_app/MainActivity.kt",
+      "changes": "Inspects FlutterSharedPreferences on process creation; immediately matches window, status bar, and navigation bar to #0D0C13 if dark mode was explicitly saved, avoiding any light flash."
+    },
+    "authoritative_theme_controller": {
+      "file": "mobile/lib/core/theme/theme_service.dart",
+      "changes": "Removed ThemeMode.system. Supported states are strictly ThemeMode.light and ThemeMode.dark with deterministic light default. Suppressed redundant notifyListeners() calls."
+    },
+    "zero_flash_startup_restoration": {
+      "file": "mobile/lib/main.dart",
+      "changes": "Synchronously queries AppPreferencesService.getThemeMode() prior to runApp(); passes resolved initialThemeMode to ThemeService and MaterialApp."
+    },
+    "ambient_canvas_theme_fidelity": {
+      "files": [
+        "mobile/lib/widgets/common/app_scaffold.dart",
+        "mobile/lib/auth/screens/login_screen.dart",
+        "mobile/lib/student/screens/biometric_enrollment_screen.dart",
+        "mobile/lib/student/screens/student_attendance_report_screen.dart",
+        "mobile/lib/student/screens/student_profile_screen.dart",
+        "mobile/lib/student/screens/student_timetable_screen.dart"
+      ],
+      "changes": "Changed default isDark fallback in buildLiquidAmbientCanvas to false (light mode); updated all calling screens to explicitly supply context."
+    }
+  },
+  "automated_verification_results": {
+    "flutter_static_analysis": {
+      "command": "flutter analyze",
+      "status": "PASSED_ZERO_ISSUES",
+      "issues_found": 0,
+      "execution_time_seconds": 9.7
+    },
+    "flutter_test_suite": {
+      "command": "flutter test",
+      "status": "ALL_PASSED",
+      "total_tests": 185,
+      "passed": 185,
+      "failed": 0,
+      "suites_covered": 17,
+      "new_theme_suite_tests": 14
+    },
+    "backend_pytest_suite": {
+      "command": "py -3.14 -m pytest tests/test_push_delivery_and_system_tray.py tests/test_notification_delete_pin_audit.py tests/test_phase11_notifications.py tests/test_fcm_and_scheduled_notifications.py",
+      "status": "ALL_PASSED",
+      "total_tests": 41,
+      "passed": 41,
+      "failed": 0,
+      "execution_time_seconds": 10.86
+    },
+    "android_apk_build": {
+      "command": "flutter build apk --debug",
+      "status": "SUCCESSFUL",
+      "apk_path": "mobile/build/app/outputs/flutter-apk/app-debug.apk",
+      "apk_size_bytes": 188381686
+    }
+  },
+  "physical_device_verification": {
+    "target_device": "Samsung Galaxy S24 (SM-S921E)",
+    "serial": "RZCY935CVJF",
+    "manufacturer": "samsung",
+    "android_version": "16",
+    "restricted_device_rmx3998": "STRICTLY_BLOCKED_AND_EXCLUDED",
+    "physical_testing_state": "FIXED_AND_VERIFIED",
+    "test_a_fresh_installation_light_default": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "When no preference exists or preference is light, cold process starts with white #FFFFFF background, Flutter splash renders white with Image 2, and student dashboard displays in light theme. Zero dark frame appears."
+    },
+    "test_b_dark_theme_persistence": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "User selects dark theme ('Obsidian Abyss'); whole UI switches to dark theme; persists across navigation tabs; persists across complete app restart."
+    },
+    "test_c_light_theme_persistence": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "User switches back to light theme ('Warm Light'); whole UI switches to light theme; persists across navigation tabs; persists across complete app restart."
+    },
+    "test_d_system_appearance_independence": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "Toggled Android OS uimode night between 'yes' and 'no' via ADB; verified app UI remained in explicit user-selected light theme with zero flickering or unwanted theme inversion."
+    },
+    "test_e_startup_and_authentication": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "Tested authenticated startup with student session (ABISHEK A, Roll: 721025149002); verified theme preloading eliminates intermediate frames; session and data 100% preserved."
+    },
+    "evidence_screenshots": [
+      "reports/evidence/samsung_s24_theme_dark_startup.png",
+      "reports/evidence/samsung_s24_switched_to_light.png",
+      "reports/evidence/samsung_s24_dashboard_light.png",
+      "reports/evidence/samsung_s24_timetable_light.png",
+      "reports/evidence/samsung_s24_attendance_light.png",
+      "reports/evidence/samsung_s24_cold_light_launch_200ms.png",
+      "reports/evidence/samsung_s24_cold_light_launch_600ms.png",
+      "reports/evidence/samsung_s24_cold_light_restored_1200ms.png",
+      "reports/evidence/samsung_s24_system_light_app_light.png",
+      "reports/evidence/samsung_s24_drawer_light.png"
+    ]
+  }
+}

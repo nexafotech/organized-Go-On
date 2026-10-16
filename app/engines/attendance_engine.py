@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
+import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
@@ -10,7 +11,9 @@ from app.models.academic import TimetableEntry, FacultyAssignment, ClassSection,
 from app.models.student import Student
 from app.models.attendance import ClassSession, AttendanceRecord, SessionStatus, AttendanceStatus, RecognitionSource, ReviewStatus
 from app.models.audit import AuditLog
-from app.engines.timetable_engine import get_active_and_upcoming_class, get_ist_now
+from app.engines.timetable_engine import get_active_and_upcoming_class, get_ist_now, format_time_12h
+
+logger = logging.getLogger(__name__)
 
 def start_class_session(
     db: Session,
@@ -23,7 +26,7 @@ def start_class_session(
     Prevents duplicate active sessions for the same timetable entry and date.
     """
     if dt is None:
-        dt = datetime.now()
+        dt = get_ist_now()
 
     date_str = dt.strftime("%Y-%m-%d")
 
@@ -400,11 +403,11 @@ def get_faculty_available_attendance_periods(
             elif start <= current_time_str < end:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {end}"
+                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
             else:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {end}"
+                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
 
         return {
             "timetable_entry_id": entry.id,
@@ -536,7 +539,7 @@ def get_faculty_periods_for_date(
             else:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {end}"
+                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
 
         periods.append({
             "timetable_entry_id": entry.id,
@@ -635,7 +638,7 @@ def get_faculty_attendance_roster(
         if current_time_str < entry.period.end_time:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Attendance isn't open yet. This period ends at {entry.period.end_time}."
+                detail=f"Attendance isn't open yet. This period ends at {format_time_12h(entry.period.end_time)}."
             )
 
     # 6. Check existing session and records
@@ -771,7 +774,7 @@ def submit_faculty_attendance(
         if current_time_str < entry.period.end_time:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Attendance isn't open yet. This period ends at {entry.period.end_time}."
+                detail=f"Attendance isn't open yet. This period ends at {format_time_12h(entry.period.end_time)}."
             )
 
     # 6. Validate all student IDs belong to the class
@@ -967,7 +970,7 @@ def get_class_advisor_available_periods(
             else:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {end}"
+                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
 
         subject_fac_name = entry.assignment.display_faculty_name if entry.assignment else "Unassigned"
 
@@ -1121,7 +1124,7 @@ def get_class_advisor_periods_for_date(
             else:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {end}"
+                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
 
         subject_fac_name = entry.assignment.display_faculty_name if entry.assignment else "Unassigned"
 
@@ -1232,7 +1235,7 @@ def get_class_advisor_attendance_roster(
     if date_str == today_date_str and current_time_str < entry.period.end_time:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Attendance cannot be entered before the period ends at {entry.period.end_time}."
+            detail=f"Attendance cannot be entered before the period ends at {format_time_12h(entry.period.end_time)}."
         )
 
     # 6. Existing records
@@ -1365,7 +1368,7 @@ def submit_class_advisor_attendance(
     if date_str == today_date_str and current_time_str < entry.period.end_time:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Attendance cannot be entered before the period ends at {entry.period.end_time}."
+            detail=f"Attendance cannot be entered before the period ends at {format_time_12h(entry.period.end_time)}."
         )
 
     # 6. Validate student enrollment

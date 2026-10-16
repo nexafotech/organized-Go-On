@@ -1,0 +1,167 @@
+{
+  "timestamp": "2026-10-15T11:20:00+05:30",
+  "project": {
+    "name": "go-On AI Face Attendance System",
+    "root_directory": "E:\\originalam",
+    "flutter_application": "E:\\originalam\\mobile",
+    "android_package_name": "com.aifaceattendance.mobile_app",
+    "firebase_project_id": "go-on-f0b90",
+    "target_device": "Samsung Galaxy S24 (SM-S921E)",
+    "restricted_device_policy": "RMX3998 strictly blocked"
+  },
+  "authoritative_design_references": {
+    "image_1_old_splash": {
+      "description": "Old brown Go-On splash screen containing the logo, Go-On text, and loading indicator inside a brown GlassCard.",
+      "source_path": "C:/Users/rethi/.gemini/antigravity/brain/cbcd6c53-a938-4b70-bb52-a72859f357bc/.user_uploaded/media_1792040990298_bf4a86fc.png",
+      "resolution": "472x1024",
+      "audit_result": "CONFIRMED_REMOVED",
+      "findings": "Previously rendered by Flutter SplashScreen in mobile/lib/auth/screens/splash_screen.dart using GlassCard(variant: GlassCardVariant.hero) and colors.hero (#2B1A13) background, preceded by Android native launch_background.xml using #2B1A13."
+    },
+    "image_2_new_splash": {
+      "description": "New branded loading screen: white background (#FFFFFF), gold Go-On logo, and 'from NEXAFO' branding.",
+      "source_path": "C:/Users/rethi/.gemini/antigravity/brain/cbcd6c53-a938-4b70-bb52-a72859f357bc/.user_uploaded/media_1792041036824_d5dd6f08.png",
+      "resolution": "576x1024",
+      "aspect_ratio": "576 / 1024 (9:16)",
+      "target_asset_path": "mobile/assets/images/go_on_splash.png",
+      "companion_dark_asset_path": "mobile/assets/images/go_on_splash_dark.png",
+      "audit_result": "CONFIRMED_INTEGRATED_BYTE_FOR_BYTE",
+      "sha256_hash": "f094bbe1499970e5247610d69c4f06eef4298a5a1fd985be1066267fe910a4ad"
+    }
+  },
+  "implementation_phases": {
+    "phase_1_inspection": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "Identified dual splash sources: native Android launch_background.xml using #2B1A13 and Flutter SplashScreen using colors.hero gradient with GlassCard."
+    },
+    "phase_2_asset_replacement": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "Image 2 registered in pubspec.yaml under assets/images/ and assets/branding/; native launch background updated to launch_bg_color (#FFFFFF in light, #0D0C13 in night)."
+    },
+    "phase_3_real_loading_screen": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "SplashScreen acts as an authentic startup loading state that initiates session restoration, registers push tokens, and routes users immediately without arbitrary delays."
+    },
+    "phase_4_theme_and_session_restoration": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "User theme mode preference preloaded in main.dart prior to runApp() and injected into ThemeService, eliminating visible theme flash."
+    },
+    "phase_5_authentication_aware_routing": {
+      "status": "FIXED_AND_VERIFIED",
+      "destinations": {
+        "logged_out": "LoginScreen (pushReplacement)",
+        "student": "StudentDashboardScreen (pushReplacement)",
+        "faculty": "FacultyDashboardScreen (pushReplacement)",
+        "admin": "AdminStudentFaceScreen (pushReplacement)",
+        "expired_session": "LoginScreen with sessionExpired=true",
+        "network_failure": "SplashScreen with retry banner; user credentials preserved"
+      }
+    },
+    "phase_6_lifecycle_and_navigation": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "_hasNavigated guard prevents duplicate navigation on rebuilds; pushReplacement removes splash from back stack so back button never returns to splash."
+    },
+    "phase_7_theme_optimization": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "Light theme uses white background (#FFFFFF) with exact Image 2; dark theme uses obsidian (#0D0C13) with companion dark asset; gold logo and NEXAFO branding preserved in both."
+    },
+    "phase_8_mobile_ui_responsiveness": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "Clean 576/1024 AspectRatio inside BoxFit.contain ensures no distortion, cropping, or overflow across phone screen widths."
+    },
+    "phase_9_10_feature_preservation": {
+      "status": "FIXED_AND_VERIFIED",
+      "details": "FCM notifications, token registration, swipe-to-delete, swipe-to-pin, bulk delete, and timetable views preserved with zero regressions."
+    }
+  },
+  "automated_verification_results": {
+    "flutter_static_analysis": {
+      "command": "flutter analyze",
+      "issues_found": 0,
+      "status": "PASSED_ZERO_ISSUES",
+      "execution_time_seconds": 11.4
+    },
+    "flutter_tests": {
+      "command": "flutter test",
+      "total_tests": 171,
+      "passed": 171,
+      "failed": 0,
+      "status": "ALL_PASSED",
+      "suites_covered": [
+        "test/splash_and_startup_routing_test.dart (10 tests)",
+        "test/notification_delete_pin_test.dart (9 tests)",
+        "test/notification_bulk_delete_test.dart (6 tests)",
+        "test/notification_service_test.dart (3 tests)",
+        "test/login_ux_test.dart (12 tests)",
+        "test/widget_test.dart (1 test)",
+        "test/timetable_ux_test.dart (18 tests)",
+        "test/profile_and_password_test.dart (14 tests)",
+        "test/attendance_report_test.dart (15 tests)",
+        "test/biometric_enrollment_test.dart (11 tests)",
+        "test/unmarked_attendance_entry_test.dart (16 tests)",
+        "test/unmarked_class_advisor_entry_test.dart (14 tests)",
+        "test/faculty_dashboard_debug_test.dart (12 tests)",
+        "test/faculty_attendance_window_test.dart (10 tests)",
+        "test/admin_face_enrollment_test.dart (8 tests)",
+        "test/security_and_consistency_test.dart (12 tests)"
+      ]
+    },
+    "backend_pytest": {
+      "command": "py -3.14 -m pytest tests/test_push_delivery_and_system_tray.py tests/test_notification_delete_pin_audit.py tests/test_phase11_notifications.py tests/test_fcm_and_scheduled_notifications.py",
+      "total_tests": 41,
+      "passed": 41,
+      "failed": 0,
+      "status": "ALL_PASSED",
+      "execution_time_seconds": 9.94
+    },
+    "android_apk_build": {
+      "command": "flutter build apk --debug",
+      "status": "SUCCESSFUL",
+      "apk_path": "mobile/build/app/outputs/flutter-apk/app-debug.apk",
+      "apk_size_bytes": 188380250,
+      "bundled_assets_verified": [
+        "assets/flutter_assets/assets/images/go_on_splash.png",
+        "assets/flutter_assets/assets/images/go_on_splash_dark.png",
+        "assets/flutter_assets/assets/branding/go_on_splash.png",
+        "assets/flutter_assets/assets/branding/go_on_splash_dark.png"
+      ]
+    }
+  },
+  "physical_device_verification": {
+    "target_device": "Samsung Galaxy S24 (SM-S921E)",
+    "serial": "RZCY935CVJF",
+    "manufacturer": "samsung",
+    "android_os_version": "16",
+    "screen_resolution": "1080x2340",
+    "connection_status": "CONNECTED (Positively identified via ADB properties: samsung, SM-S921E, RZCY935CVJF)",
+    "fallback_device_rmx3998": "STRICTLY_BLOCKED_AND_EXCLUDED",
+    "physical_testing_state": "FIXED_AND_VERIFIED",
+    "installation": {
+      "mode": "Streamed In-Place Update (adb install -r)",
+      "command": "adb -s RZCY935CVJF install -r mobile/build/app/outputs/flutter-apk/app-debug.apk",
+      "result": "Success",
+      "signing_certificate": "Debug Keystore Signature Match",
+      "package_path": "package:/data/app/~~g96b_SPPzs891UnJN7knSw==/com.aifaceattendance.mobile_app-FR0i_0xgTwmGAJtO9E0Ohw==/base.apk"
+    },
+    "data_preservation": {
+      "session_retained": true,
+      "authenticated_user": "ABISHEK A",
+      "roll_number": "721025149002",
+      "role": "STUDENT",
+      "attendance_percentage": "90.5%",
+      "secure_storage_cleared": false,
+      "relogin_required": false
+    },
+    "runtime_behavior": {
+      "cold_start_native_layer": "Clean neutral launch background with gold icon; old brown launch background eliminated",
+      "flutter_splash_screen": "Image 2 rendered byte-for-byte; gold logo with 'from NEXAFO' on white background (#FFFFFF); dark obsidian (#0D0C13) in dark theme; no GlassCard; no distortion",
+      "startup_routing": "Immediate automatic route to StudentDashboardScreen upon session restoration; zero redirect loop; zero splash back-stack history",
+      "network_resilience": "Stored credentials retained during temporary backend disconnection; smooth restoration when backend connected via reverse port forwarding"
+    },
+    "evidence_artifacts": [
+      "reports/evidence/samsung_s24_cold_splash.png",
+      "reports/evidence/samsung_s24_launch_700ms.png",
+      "reports/evidence/samsung_s24_app_launch.png",
+      "reports/evidence/samsung_s24_dashboard_restored.png"
+    ]
+  }
+}

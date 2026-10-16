@@ -334,13 +334,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final studentService = Provider.of<StudentService>(context, listen: false);
-      if (studentService.dateWise.isEmpty) {
-        studentService.fetchAttendanceReport();
-      }
-      if (studentService.timetable.isEmpty) {
-        studentService.fetchTimetable();
-      }
+      _refreshData();
     });
   }
 
@@ -351,6 +345,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
       for (final e in dateWise) {
         if (e.date == _selectedDate) return e;
       }
+      return null;
     }
 
     // Try finding today's date
@@ -909,7 +904,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
                         Icon(
                           Icons.today_rounded,
                           size: 14,
-                          color: !_showOverallAttendance ? Colors.white : colors.textMuted,
+                          color: !_showOverallAttendance ? colors.onPrimary : colors.textMuted,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -917,7 +912,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: !_showOverallAttendance ? Colors.white : colors.textSecondary,
+                            color: !_showOverallAttendance ? colors.onPrimary : colors.textSecondary,
                           ),
                         ),
                       ],
@@ -946,7 +941,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
                         Icon(
                           Icons.insights_rounded,
                           size: 14,
-                          color: _showOverallAttendance ? Colors.white : colors.textMuted,
+                          color: _showOverallAttendance ? colors.onPrimary : colors.textMuted,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -954,7 +949,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: _showOverallAttendance ? Colors.white : colors.textSecondary,
+                            color: _showOverallAttendance ? colors.onPrimary : colors.textSecondary,
                           ),
                         ),
                       ],
@@ -1002,92 +997,96 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
     final now = DateTime.now();
     final todayStr =
         "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final effectiveDate = activeDaily?.date ?? todayStr;
+    final effectiveDate = _selectedDate ?? (activeDaily?.date ?? todayStr);
     final dateLabel = _formatDateLabel(effectiveDate);
+    final dt = DateTime.tryParse(effectiveDate) ?? now;
+    final isToday = dt.year == now.year && dt.month == now.month && dt.day == now.day;
+    final isFuture = dt.isAfter(DateTime(now.year, now.month, now.day));
 
-    int dayTotal = 0;
+    // Resolve scheduled teaching periods for this day of week from timetable
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final targetDay = days[dt.weekday - 1];
+    final studentService = Provider.of<StudentService>(context, listen: false);
+    final dayTimetable = studentService.timetable.where((t) {
+      final d = t.dayOfWeek.toLowerCase();
+      final td = targetDay.toLowerCase();
+      return d == td || (d.length >= 3 && td.startsWith(d));
+    }).toList();
+
+    final int scheduledTeachingPeriods = dt.weekday == DateTime.sunday
+        ? 0
+        : (dayTimetable.isNotEmpty ? dayTimetable.length : 7);
+
     int dayPresent = 0;
     int dayAbsent = 0;
     int dayOd = 0;
+    int recordedTotal = 0;
 
     if (activeDaily != null) {
       for (final p in activeDaily.periods) {
         final st = p.status.toUpperCase();
-        if (st == 'PRESENT') {
+        if (st == 'PRESENT' || st == 'P') {
           dayPresent++;
-          dayTotal++;
-        } else if (st == 'ABSENT') {
+          recordedTotal++;
+        } else if (st == 'ABSENT' || st == 'A') {
           dayAbsent++;
-          dayTotal++;
+          recordedTotal++;
         } else if (st == 'OD') {
           dayOd++;
-          dayTotal++;
-        } else if (st != 'NOT_ENTERED') {
-          dayTotal++;
+          recordedTotal++;
         }
       }
     }
 
-    final double dayPercentage = dayTotal > 0
-        ? (((dayPresent + dayOd) / dayTotal) * 100.0).clamp(0.0, 100.0)
-        : 0.0;
-
+    final double dayPercentage;
     final String dayStatus;
-    if (activeDaily?.dailyResult != null && activeDaily!.dailyResult!.isNotEmpty) {
-      final dr = activeDaily.dailyResult!.toUpperCase();
-      if (dr.contains('FULL DAY PRESENT') || dr == 'PRESENT') {
-        dayStatus = 'FULL DAY';
-      } else if (dr.contains('HALF-DAY') || dr.contains('PARTIAL')) {
-        dayStatus = 'PARTIAL';
-      } else if (dr.contains('ABSENT')) {
-        dayStatus = 'ABSENT';
-      } else if (dr.contains('OD')) {
-        dayStatus = 'OD';
-      } else {
-        dayStatus = dayPercentage >= 75.0 ? 'OK' : 'CRITICAL';
-      }
-    } else {
-      dayStatus = dayTotal == 0 ? 'NO_DATA' : (dayPercentage >= 75.0 ? 'OK' : 'CRITICAL');
-    }
-
     final String dayAlertMessage;
-    if (dayTotal == 0) {
-      dayAlertMessage = 'No attendance recorded for this date.';
-    } else if (dayAbsent == 0 && (dayPresent + dayOd) > 0) {
-      dayAlertMessage = 'Full Attendance: All $dayTotal scheduled periods attended.';
-    } else if (dayPresent > 0 && dayAbsent > 0) {
-      dayAlertMessage = 'Partial Attendance: Attended ${dayPresent + dayOd} of $dayTotal periods ($dayAbsent absent).';
-    } else if (dayPresent == 0 && dayAbsent > 0) {
-      dayAlertMessage = 'Absent for all $dayTotal scheduled periods.';
-    } else if (dayOd > 0 && dayAbsent == 0) {
-      dayAlertMessage = 'On-Duty approved for $dayOd scheduled periods.';
-    } else {
-      dayAlertMessage = 'Daily Attendance: $dayPresent Present, $dayAbsent Absent, $dayOd OD.';
-    }
 
-    final currentIndex = activeDaily != null ? dateWise.indexOf(activeDaily) : -1;
-    final hasPrev = currentIndex > 0;
-    final hasNext = currentIndex >= 0 && currentIndex < dateWise.length - 1;
+    if (scheduledTeachingPeriods == 0) {
+      dayStatus = 'WEEKEND';
+      dayPercentage = 0.0;
+      dayAlertMessage = 'College holiday / Weekend. No classes scheduled.';
+    } else if (recordedTotal == 0) {
+      dayStatus = 'NO_DATA';
+      dayPercentage = 0.0;
+      dayAlertMessage = isToday
+          ? 'No attendance recorded yet today.'
+          : (isFuture ? 'Classes have not yet begun for this date.' : 'No attendance recorded for this date.');
+    } else if (recordedTotal < scheduledTeachingPeriods) {
+      dayStatus = 'PARTIAL';
+      dayPercentage = ((dayPresent + dayOd) / recordedTotal * 100.0).clamp(0.0, 100.0);
+      dayAlertMessage =
+          'Provisional: ${dayPresent + dayOd} attended of $recordedTotal recorded (${scheduledTeachingPeriods - recordedTotal} pending).';
+    } else {
+      dayPercentage = ((dayPresent + dayOd) / scheduledTeachingPeriods * 100.0).clamp(0.0, 100.0);
+      if (dayAbsent == 0) {
+        dayStatus = (dayPresent + dayOd) > 0 ? 'FULL DAY' : 'OK';
+        dayAlertMessage = 'Full Attendance: All $scheduledTeachingPeriods scheduled periods attended.';
+      } else {
+        dayStatus = dayPercentage >= (summary?.minimumRequired ?? 75.0) ? 'OK' : 'CRITICAL';
+        dayAlertMessage =
+            'Finalized: ${dayPresent + dayOd} of $scheduledTeachingPeriods periods attended ($dayAbsent absent).';
+      }
+    }
 
     final dateSwitcher = Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         InkWell(
-          onTap: hasPrev
-              ? () => setState(() => _selectedDate = dateWise[currentIndex - 1].date)
-              : null,
+          onTap: () {
+            final currentDt = DateTime.tryParse(effectiveDate) ?? now;
+            final prevDt = currentDt.subtract(const Duration(days: 1));
+            final prevStr =
+                "${prevDt.year.toString().padLeft(4, '0')}-${prevDt.month.toString().padLeft(2, '0')}-${prevDt.day.toString().padLeft(2, '0')}";
+            setState(() => _selectedDate = prevStr);
+          },
           borderRadius: BorderRadius.circular(10),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
-              color: hasPrev
-                  ? colors.glassSurfaceStrong
-                  : colors.glassSurface.withValues(alpha: 0.3),
+              color: colors.glassSurfaceStrong,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: hasPrev
-                    ? colors.glassBorderStrong
-                    : colors.glassBorder.withValues(alpha: 0.3),
+                color: colors.glassBorderStrong,
               ),
             ),
             child: Row(
@@ -1096,78 +1095,104 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
                 Icon(
                   Icons.chevron_left_rounded,
                   size: 16,
-                  color: hasPrev ? colors.textPrimary : colors.textMuted.withValues(alpha: 0.4),
+                  color: colors.textPrimary,
                 ),
-                const SizedBox(width: 3),
+                const SizedBox(width: 2),
                 Text(
-                  'Prev Day',
+                  'Prev',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: hasPrev ? colors.textSecondary : colors.textMuted.withValues(alpha: 0.4),
+                    color: colors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: colors.primary.withValues(alpha: 0.08),
+        const SizedBox(width: 6),
+        Expanded(
+          child: InkWell(
+            onTap: () async {
+              final currentDt = DateTime.tryParse(effectiveDate) ?? now;
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: currentDt,
+                firstDate: DateTime(now.year - 1),
+                lastDate: DateTime(now.year + 1),
+              );
+              if (picked != null) {
+                final pickedStr =
+                    "${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                setState(() => _selectedDate = pickedStr);
+              }
+            },
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.calendar_month_rounded, size: 14, color: colors.primary),
-              const SizedBox(width: 6),
-              Text(
-                dateLabel,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: colors.primary,
-                ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
               ),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.calendar_month_rounded, size: 14, color: colors.primary),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      dateLabel,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: colors.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
+        const SizedBox(width: 6),
         InkWell(
-          onTap: hasNext
-              ? () => setState(() => _selectedDate = dateWise[currentIndex + 1].date)
-              : null,
+          onTap: () {
+            final currentDt = DateTime.tryParse(effectiveDate) ?? now;
+            final nextDt = currentDt.add(const Duration(days: 1));
+            final nextStr =
+                "${nextDt.year.toString().padLeft(4, '0')}-${nextDt.month.toString().padLeft(2, '0')}-${nextDt.day.toString().padLeft(2, '0')}";
+            setState(() => _selectedDate = nextStr);
+          },
           borderRadius: BorderRadius.circular(10),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
-              color: hasNext
-                  ? colors.glassSurfaceStrong
-                  : colors.glassSurface.withValues(alpha: 0.3),
+              color: colors.glassSurfaceStrong,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: hasNext
-                    ? colors.glassBorderStrong
-                    : colors.glassBorder.withValues(alpha: 0.3),
+                color: colors.glassBorderStrong,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Next Day',
+                  'Next',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: hasNext ? colors.textSecondary : colors.textMuted.withValues(alpha: 0.4),
+                    color: colors.textSecondary,
                   ),
                 ),
-                const SizedBox(width: 3),
+                const SizedBox(width: 2),
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 16,
-                  color: hasNext ? colors.textPrimary : colors.textMuted.withValues(alpha: 0.4),
+                  color: colors.textPrimary,
                 ),
               ],
             ),
@@ -1188,14 +1213,14 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
             subtitle: dateLabel,
             icon: Icons.today_rounded,
             percentage: dayPercentage,
-            total: dayTotal,
+            total: recordedTotal > 0 ? scheduledTeachingPeriods : 0,
             present: dayPresent,
             absent: dayAbsent,
             od: dayOd,
             status: dayStatus,
             minimumRequired: summary?.minimumRequired ?? 75.0,
             alertMessage: dayAlertMessage,
-            headerAction: dateWise.length > 1 ? dateSwitcher : null,
+            headerAction: dateSwitcher,
           ),
         ),
       ],
@@ -1213,7 +1238,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
     final now = DateTime.now();
     final todayStr =
         "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    final effectiveDate = activeDaily?.date ?? todayStr;
+    final effectiveDate = _selectedDate ?? (activeDaily?.date ?? todayStr);
     final dateLabel = _formatDateLabel(effectiveDate);
 
     final Widget bodyContent = studentService.isLoading && summary == null
@@ -1224,7 +1249,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
               onRefresh: _refreshData,
               child: Stack(
                 children: [
-                  AppScaffold.buildLiquidAmbientCanvas(),
+                  AppScaffold.buildLiquidAmbientCanvas(context),
                   SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
@@ -1318,6 +1343,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
                               timetable: studentService.timetable,
                               subjects: subjects,
                               dateLabel: dateLabel,
+                              selectedDate: DateTime.tryParse(effectiveDate),
                             ),
                           )
                         else if (subjects.isEmpty)
@@ -1346,7 +1372,8 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
                           padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
                           child: AttendanceLegend(),
                         ),
-                        const SizedBox(height: AppSpacing.xxl),
+                        // Adequate bottom clearance ensuring content scrolls completely above floating navigation bar
+                        const SizedBox(height: 110),
                       ],
                     ),
                   ),

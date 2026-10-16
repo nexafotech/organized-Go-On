@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -163,7 +164,12 @@ class ScheduleSlotConfig {
 }
 
 class StudentTimetableScreen extends StatefulWidget {
-  const StudentTimetableScreen({Key? key}) : super(key: key);
+  final DateTime? simulatedTime;
+
+  const StudentTimetableScreen({
+    Key? key,
+    this.simulatedTime,
+  }) : super(key: key);
 
   @override
   State<StudentTimetableScreen> createState() => _StudentTimetableScreenState();
@@ -205,14 +211,20 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
 
   TimetableViewMode _viewMode = TimetableViewMode.dayAgenda;
   late String _selectedDay;
-  bool _simulateLiveClass = true;
   String? _selectedCardPeriodKey;
   TimetableHighlightTone _highlightTone = TimetableHighlightTone.sapphireIndigo;
+
+  Timer? _liveClockTimer;
+  late DateTime _currentTime;
+
+  DateTime get _now => widget.simulatedTime ?? _currentTime;
 
   @override
   void initState() {
     super.initState();
-    _selectedDay = _getCurrentWeekdayName();
+    _currentTime = DateTime.now();
+    _selectedDay = _getInitialWeekday();
+    _startLiveTicker();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final studentService = Provider.of<StudentService>(context, listen: false);
       if (studentService.timetable.isEmpty) {
@@ -221,8 +233,32 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     });
   }
 
-  String _getCurrentWeekdayName() {
-    final now = DateTime.now();
+  @override
+  void dispose() {
+    _liveClockTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLiveTicker() {
+    if (widget.simulatedTime != null) return;
+    _liveClockTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted) return;
+      final prevWeekday = _getCurrentWeekdayName(_currentTime);
+      final newNow = DateTime.now();
+      final newWeekday = _getCurrentWeekdayName(newNow);
+
+      setState(() {
+        _currentTime = newNow;
+        // If viewing today when midnight rolls over, update to the new today
+        if (_selectedDay == prevWeekday) {
+          _selectedDay = newNow.weekday == DateTime.sunday ? 'MONDAY' : newWeekday;
+        }
+      });
+    });
+  }
+
+  String _getCurrentWeekdayName([DateTime? dt]) {
+    final now = dt ?? _now;
     switch (now.weekday) {
       case DateTime.monday:
         return 'MONDAY';
@@ -241,6 +277,14 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
       default:
         return 'MONDAY';
     }
+  }
+
+  String _getInitialWeekday() {
+    final now = _now;
+    if (now.weekday == DateTime.sunday) {
+      return 'MONDAY'; // Colleges are closed on Sunday, default to first day of academic week
+    }
+    return _getCurrentWeekdayName(now);
   }
 
   bool _isToday(String day) {
@@ -266,39 +310,14 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     return -1;
   }
 
-  bool _hasAnyRealActivePeriod() {
-    final now = DateTime.now();
-    final nowMin = now.hour * 60 + now.minute;
-    for (final slot in _slots) {
-      if (!slot.isBreak) {
-        final start = _parseTimeToMinutes(slot.startTime);
-        final end = _parseTimeToMinutes(slot.endTime);
-        if (start != -1 && end != -1 && nowMin >= start && nowMin <= end) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
   bool _isItemActiveNow(TimetableItemModel item) {
     if (!_isToday(item.dayOfWeek)) return false;
     final startMin = _parseTimeToMinutes(item.startTime);
     final endMin = _parseTimeToMinutes(item.endTime);
     if (startMin == -1 || endMin == -1) return false;
-    final now = DateTime.now();
+    final now = _now;
     final nowMin = now.hour * 60 + now.minute;
-    if (nowMin >= startMin && nowMin <= endMin) {
-      return true;
-    }
-    // Simulation fallback: ONLY activate if NO real period is currently within active hours
-    if (_simulateLiveClass) {
-      final hasRealActive = _hasAnyRealActivePeriod();
-      if (!hasRealActive && item.periodNumber == 2) {
-        return true;
-      }
-    }
-    return false;
+    return nowMin >= startMin && nowMin < endMin;
   }
 
   PeriodClassStatus _determinePeriodStatus(TimetableItemModel item, List<TimetableItemModel> dayItems) {
@@ -310,26 +329,19 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
       return PeriodClassStatus.none;
     }
 
-    if (_isItemActiveNow(item)) {
-      return PeriodClassStatus.activeNow;
-    }
-
     final startMinutes = _parseTimeToMinutes(item.startTime);
     final endMinutes = _parseTimeToMinutes(item.endTime);
 
     if (startMinutes == -1 || endMinutes == -1) {
-      if (_simulateLiveClass && item.periodNumber != null && item.periodNumber! < 2) {
-        return PeriodClassStatus.completed;
-      }
       return PeriodClassStatus.none;
     }
 
-    final now = DateTime.now();
+    final now = _now;
     final nowMinutes = now.hour * 60 + now.minute;
 
-    if (nowMinutes >= startMinutes && nowMinutes <= endMinutes) {
+    if (nowMinutes >= startMinutes && nowMinutes < endMinutes) {
       return PeriodClassStatus.activeNow;
-    } else if (nowMinutes > endMinutes || (_simulateLiveClass && item.periodNumber != null && item.periodNumber! < 2)) {
+    } else if (nowMinutes >= endMinutes) {
       return PeriodClassStatus.completed;
     } else if (nowMinutes < startMinutes) {
       return PeriodClassStatus.upcoming;
@@ -733,7 +745,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
       backgroundColor: colors.background,
       body: Stack(
         children: [
-          AppScaffold.buildLiquidAmbientCanvas(),
+          AppScaffold.buildLiquidAmbientCanvas(context),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -881,7 +893,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 20),
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 110),
           child: needsHorizontalScroll
               ? SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -1416,7 +1428,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   DateTime _getDateForWeekday(int weekdayIndex) {
-    final now = DateTime.now();
+    final now = _now;
     final monday = now.subtract(Duration(days: now.weekday - 1));
     return monday.add(Duration(days: weekdayIndex));
   }
@@ -1451,15 +1463,17 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     final startMin = _parseTimeToMinutes(item.startTime);
     final endMin = _parseTimeToMinutes(item.endTime);
     if (startMin == -1 || endMin == -1 || endMin <= startMin) {
-      return 0.58; // aesthetic preview ratio matching reference design
+      return 0.0;
     }
-    final now = DateTime.now();
+    final now = _now;
     final nowMin = now.hour * 60 + now.minute;
-    if (nowMin >= startMin && nowMin <= endMin) {
+    if (nowMin >= startMin && nowMin < endMin) {
       final ratio = (nowMin - startMin) / (endMin - startMin);
-      return ratio.clamp(0.08, 0.95);
+      return ratio.clamp(0.05, 1.0);
+    } else if (nowMin >= endMin) {
+      return 1.0;
     }
-    return 0.58;
+    return 0.0;
   }
 
   Widget _buildDayAgendaView(
@@ -1482,12 +1496,20 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
       return aStart.compareTo(bStart);
     });
 
+    final bool isViewingToday = _isToday(_selectedDay);
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
       children: [
         // 1. Week Strip (Mon 12, Tue 13, Wed 14, Thu 15, Fri 16, Sat 17)
         _buildWeekDayStrip(colors, hasSaturdayClasses),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
+
+        // Live status indicator when viewing today
+        if (isViewingToday && dayItems.isNotEmpty) ...[
+          _buildLiveDayStatusBanner(dayItems, colors),
+          const SizedBox(height: 14),
+        ],
 
         // 2. Schedule Timeline List
         if (dayItems.isEmpty)
@@ -1505,15 +1527,180 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (showTeaBreakBefore)
-                  _buildTimelineBreakDivider('Tea break · 10:35', colors),
+                  _buildTimelineBreakDivider('Tea break · 10:35', colors, isTeaBreak: true),
                 if (showLunchBreakBefore)
-                  _buildTimelineBreakDivider('Lunch · 12:45', colors),
+                  _buildTimelineBreakDivider('Lunch · 12:45', colors, isLunchBreak: true),
                 _buildTimelinePeriodRow(item, status, colors, palette),
                 const SizedBox(height: 12),
               ],
             );
           }),
       ],
+    );
+  }
+
+  Widget _buildLiveDayStatusBanner(List<TimetableItemModel> dayItems, AppColors colors) {
+    final now = _now;
+    final nowMin = now.hour * 60 + now.minute;
+    final hasActive = dayItems.any((item) => _isItemActiveNow(item));
+
+    final firstStart = _parseTimeToMinutes(dayItems.first.startTime);
+    final lastEnd = _parseTimeToMinutes(dayItems.last.endTime);
+
+    if (hasActive) {
+      final activeItem = dayItems.firstWhere((item) => _isItemActiveNow(item));
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: (colors.isDark ? colors.accent : const Color(0xFF0B7A55)).withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: (colors.isDark ? colors.accent : const Color(0xFF0B7A55)).withValues(alpha: 0.35),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.isDark ? colors.accent : const Color(0xFF0B7A55),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'LIVE CLASS IN SESSION',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: colors.isDark ? colors.accent : const Color(0xFF0B7A55),
+                letterSpacing: 0.4,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Period ${activeItem.periodNumber ?? 1}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: colors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final bool isTeaBreak = nowMin >= 635 && nowMin < 655;
+    final bool isLunchBreak = nowMin >= 765 && nowMin < 825;
+
+    if (isTeaBreak) {
+      return _buildStatusChip(
+        icon: Icons.coffee_rounded,
+        title: 'Tea Break · In Progress',
+        subtitle: 'Classes resume at 10:55 AM (Period 3)',
+        colors: colors,
+      );
+    }
+
+    if (isLunchBreak) {
+      return _buildStatusChip(
+        icon: Icons.restaurant_rounded,
+        title: 'Lunch Break · In Progress',
+        subtitle: 'Classes resume at 01:45 PM (Period 5)',
+        colors: colors,
+      );
+    }
+
+    if (firstStart != -1 && nowMin < firstStart) {
+      final startStr = _formatStartTime(dayItems.first.startTime);
+      final firstSubject = dayItems.first.subjectName ?? dayItems.first.subjectCode ?? 'Period 1';
+      return _buildStatusChip(
+        icon: Icons.schedule_rounded,
+        title: "Today's classes start at $startStr",
+        subtitle: 'First class: $firstSubject',
+        colors: colors,
+      );
+    }
+
+    if (lastEnd != -1 && nowMin >= lastEnd) {
+      return _buildStatusChip(
+        icon: Icons.task_alt_rounded,
+        title: 'All classes completed for today',
+        subtitle: '${dayItems.length} periods completed',
+        colors: colors,
+        isSuccess: true,
+      );
+    }
+
+    return _buildStatusChip(
+      icon: Icons.hourglass_top_rounded,
+      title: 'Class Break',
+      subtitle: 'Next class starting shortly',
+      colors: colors,
+    );
+  }
+
+  Widget _buildStatusChip({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required AppColors colors,
+    bool isSuccess = false,
+  }) {
+    final accentColor = isSuccess
+        ? (colors.isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+        : (colors.isDark ? colors.accent : const Color(0xFFB87B4B));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.isDark ? colors.surfaceElevated : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: colors.isDark ? colors.border : const Color(0xFFE5E5EB),
+          width: 1.1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: colors.isDark ? 0.2 : 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: accentColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1524,6 +1711,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
         final dayCode = _weekdays[offset];
         final label = _dayLabels[offset];
         final isSelected = dayCode.toUpperCase() == _selectedDay.toUpperCase();
+        final isToday = dayCode.toUpperCase() == _getCurrentWeekdayName().toUpperCase();
         final date = _getDateForWeekday(offset);
 
         return Expanded(
@@ -1543,8 +1731,10 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
                   border: Border.all(
                     color: isSelected
                         ? (colors.isDark ? colors.borderStrong : const Color(0xFF161922))
-                        : Colors.transparent,
-                    width: 1.2,
+                        : (isToday
+                            ? (colors.isDark ? colors.accent : const Color(0xFFB87B4B))
+                            : Colors.transparent),
+                    width: isSelected ? 1.4 : (isToday ? 1.3 : 1.0),
                   ),
                   boxShadow: isSelected
                       ? [
@@ -1559,15 +1749,34 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected
-                            ? Colors.white
-                            : (colors.isDark ? colors.textSecondary : const Color(0xFF4A4E57)),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : (colors.isDark ? colors.textSecondary : const Color(0xFF4A4E57)),
+                          ),
+                        ),
+                        if (isToday) ...[
+                          const SizedBox(width: 3.5),
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isSelected
+                                  ? (colors.isDark ? colors.accent : const Color(0xFF34D399))
+                                  : (colors.isDark ? colors.accent : const Color(0xFFB87B4B)),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -1641,7 +1850,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     AppColors colors,
     HighlightPalette palette,
   ) {
-    final periodNum = item.periodNumber ?? 2;
+    final periodNum = item.periodNumber ?? 1;
     final endTimeStr = _formatEndTime(item.endTime);
     final subjectTitle = (item.subjectName != null && item.subjectName!.trim().isNotEmpty)
         ? item.subjectName!.trim()
@@ -1668,6 +1877,10 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     }
 
     final progress = _calculatePeriodProgress(item);
+    final endMin = _parseTimeToMinutes(item.endTime);
+    final now = _now;
+    final nowMin = now.hour * 60 + now.minute;
+    final remainingMins = (endMin != -1 && endMin > nowMin) ? (endMin - nowMin) : null;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1699,7 +1912,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: [NOW • PERIOD 2] and [until 10:35]
+          // Top Row: [NOW • PERIOD X] and [until 10:35 (20m left)]
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1742,13 +1955,29 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
                 ),
               ),
               if (endTimeStr.isNotEmpty)
-                Text(
-                  'until $endTimeStr',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: colors.onHeroSecondary,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'until $endTimeStr',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.onHeroSecondary,
+                      ),
+                    ),
+                    if (remainingMins != null && remainingMins > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${remainingMins}m left)',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: colors.onHeroSecondary.withValues(alpha: 0.75),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
             ],
           ),
@@ -1779,22 +2008,52 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
             ),
           ],
 
-          // Subtle metadata line for test assertions and full course details
-          if (item.subjectCode != null && item.subjectCode!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              'P$periodNum • ${item.startTime ?? ""} - ${item.endTime ?? ""} • Code: ${item.subjectCode}${facultyStr.isNotEmpty ? " • Faculty: $facultyStr" : ""}',
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
-                color: colors.onHeroSecondary.withValues(alpha: 0.75),
+          // Structured metadata elements so text finders, test assertions, and accessibility work identically to standard card
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'P$periodNum',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: colors.onHeroSecondary,
+                ),
               ),
-            ),
-          ],
+              if (item.startTime != null && item.endTime != null)
+                Text(
+                  '${item.startTime} - ${item.endTime}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colors.onHeroSecondary,
+                  ),
+                ),
+              if (item.subjectCode != null && item.subjectCode!.isNotEmpty)
+                Text(
+                  'Code: ${item.subjectCode}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colors.onHeroSecondary,
+                  ),
+                ),
+              Text(
+                item.facultyName != null
+                    ? 'Faculty: ${item.facultyName}'
+                    : 'Faculty: Faculty assignment pending',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colors.onHeroSecondary,
+                ),
+              ),
+            ],
+          ),
 
           const SizedBox(height: 14),
 
-          // Progress Bar
+          // Live dynamic Progress Bar
           Container(
             height: 4.5,
             width: double.infinity,
@@ -1914,32 +2173,82 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     );
   }
 
-  Widget _buildTimelineBreakDivider(String label, AppColors colors) {
+  Widget _buildTimelineBreakDivider(
+    String label,
+    AppColors colors, {
+    bool isTeaBreak = false,
+    bool isLunchBreak = false,
+  }) {
+    final now = _now;
+    final nowMin = now.hour * 60 + now.minute;
+    final bool isBreakActive = _isToday(_selectedDay) && (
+      (isTeaBreak && nowMin >= 635 && nowMin < 655) ||
+      (isLunchBreak && nowMin >= 765 && nowMin < 825)
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
           Expanded(
             child: Divider(
-              color: colors.isDark ? colors.border : const Color(0xFFE2E2E8),
-              thickness: 1,
+              color: isBreakActive
+                  ? (colors.isDark ? colors.accent : const Color(0xFFB87B4B)).withValues(alpha: 0.5)
+                  : (colors.isDark ? colors.border : const Color(0xFFE2E2E8)),
+              thickness: isBreakActive ? 1.5 : 1,
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: colors.isDark ? colors.textMuted : const Color(0xFF6E737B),
-              ),
-            ),
+            child: isBreakActive
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (colors.isDark ? colors.accent : const Color(0xFFB87B4B)).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: colors.isDark ? colors.accent : const Color(0xFFB87B4B),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colors.isDark ? colors.accent : const Color(0xFFB87B4B),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$label · NOW',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: colors.isDark ? colors.accent : const Color(0xFF2B1A13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: colors.isDark ? colors.textMuted : const Color(0xFF6E737B),
+                    ),
+                  ),
           ),
           Expanded(
             child: Divider(
-              color: colors.isDark ? colors.border : const Color(0xFFE2E2E8),
-              thickness: 1,
+              color: isBreakActive
+                  ? (colors.isDark ? colors.accent : const Color(0xFFB87B4B)).withValues(alpha: 0.5)
+                  : (colors.isDark ? colors.border : const Color(0xFFE2E2E8)),
+              thickness: isBreakActive ? 1.5 : 1,
             ),
           ),
         ],

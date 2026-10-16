@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../models/student_model.dart';
@@ -108,44 +109,52 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     final newEmail = _emailController.text.trim();
     final newPhone = _phoneController.text.trim();
 
-    final success = await widget.studentService.updateProfileDetails(
-      fullName: newName.isNotEmpty ? newName : null,
-      email: newEmail.isNotEmpty ? newEmail : null,
-      phone: newPhone.isNotEmpty ? newPhone : null,
-      avatarId: _currentAvatarId.isNotEmpty ? _currentAvatarId : null,
-    );
-
-    if (!mounted) return;
-
-    if (success) {
-      setState(() => _isSaving = false);
-      Navigator.of(context).pop();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Profile details updated successfully!',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF0B7A55),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-        ),
+    try {
+      final success = await widget.studentService.updateProfileDetails(
+        fullName: newName.isNotEmpty ? newName : null,
+        email: newEmail,
+        phone: newPhone,
+        avatarId: _currentAvatarId.isNotEmpty ? _currentAvatarId : null,
       );
-    } else {
+
+      if (!mounted) return;
+
+      if (success) {
+        setState(() => _isSaving = false);
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Profile details updated successfully!',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF0B7A55),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        setState(() {
+          _isSaving = false;
+          _errorMessage = 'Failed to save profile changes. Please try again.';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _errorMessage = 'Failed to save profile changes. Please try again.';
+        _errorMessage = e is ApiException ? e.message : 'Failed to update profile. Please try again.';
       });
     }
   }
@@ -177,7 +186,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
+            color: colors.isDark ? Colors.black.withValues(alpha: 0.35) : const Color(0x242B1A13),
             blurRadius: 28,
             offset: const Offset(0, -6),
           ),

@@ -5,6 +5,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../widgets/widgets.dart';
 import '../../models/faculty_attendance_model.dart';
 import '../../services/faculty_service.dart';
+import '../../utils/timezone_utils.dart';
 import 'faculty_class_advisor_entry_screen.dart';
 
 class FacultyClassAdvisorScreen extends StatefulWidget {
@@ -20,7 +21,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
   String? _errorMessage;
   ClassAdvisorAvailablePeriodsResponse? _data;
 
-  DateTime _selectedPastDate = DateTime.now().subtract(const Duration(days: 2));
+  DateTime _selectedPastDate = DateTime.now().subtract(const Duration(days: 1));
   bool _isLoadingPast = false;
   String? _pastErrorMessage;
   ClassAdvisorPeriodsForDateResponse? _pastData;
@@ -126,7 +127,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
           dayOfWeek: period.dayOfWeek,
           periodName: period.periodName,
           periodNumber: period.periodNumber,
-          periodTime: '${period.startTime} - ${period.endTime}',
+          periodTime: '${TimezoneUtils.format24hTo12h(period.startTime)} - ${TimezoneUtils.format24hTo12h(period.endTime)}',
           subjectCode: period.subjectCode,
           subjectName: period.subjectName,
           className: period.className,
@@ -833,7 +834,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  '${period.startTime} – ${period.endTime}',
+                  '${TimezoneUtils.format24hTo12h(period.startTime)} – ${TimezoneUtils.format24hTo12h(period.endTime)}',
                   style: typography.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
                     color: colors.textSecondary,
@@ -875,7 +876,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      period.lockReason ?? 'Opens after period ends at ${period.endTime}',
+                      period.lockReason ?? 'Opens after period ends at ${TimezoneUtils.format24hTo12h(period.endTime)}',
                       style: TextStyle(fontSize: 11, color: colors.warning, fontWeight: FontWeight.w500),
                       softWrap: true,
                     ),

@@ -28,6 +28,13 @@ class AuthService extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get sessionExpired => _sessionExpired;
 
+  bool get isNetworkError => _errorMessage != null && !_sessionExpired && _currentUser == null;
+
+  Future<bool> hasStoredToken() async {
+    final token = await _secureStorage.getAccessToken();
+    return token != null && token.isNotEmpty;
+  }
+
   void setMockUser(UserModel user) {
     _currentUser = user;
     _isLoading = false;
@@ -79,8 +86,9 @@ class AuthService extends ChangeNotifier {
   /// 1. Read token from secure storage
   /// 2. If missing -> return null (show login)
   /// 3. If token exists -> call /api/v1/auth/me
-  /// 4. If 401/403 or failure -> clear secure session and return null
-  /// 5. Route strictly based on authoritative backend role
+  /// 4. If 401/403 -> clear secure session and return null
+  /// 5. If network error (statusCode == 0) -> preserve session, return null with isNetworkError
+  /// 6. Route strictly based on authoritative backend role
   Future<UserModel?> restoreSession() async {
     if (_isLoading) return _currentUser;
     _isLoading = true;
@@ -101,29 +109,34 @@ class AuthService extends ChangeNotifier {
       _sessionExpired = false;
       _isLoading = false;
       notifyListeners();
-      // Register device token for push notifications
+      // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
+      NotificationService().startInAppPolling(_apiClient);
       return _currentUser;
     } on ApiException catch (e) {
-      await _secureStorage.clearSession();
       _currentUser = null;
       _isLoading = false;
-      if (e.statusCode == 401) {
-        _errorMessage = 'Your session has expired. Please sign in again.';
+      if (e.statusCode == 401 || e.statusCode == 403) {
+        await _secureStorage.clearSession();
         _sessionExpired = true;
-      } else if (e.statusCode == 403) {
-        _errorMessage = _formatErrorMessage(e, defaultMessage: 'Your account is disabled. Please contact Admin.');
+        _errorMessage = e.statusCode == 401
+            ? 'Your session has expired. Please sign in again.'
+            : _formatErrorMessage(e, defaultMessage: 'Your account is disabled. Please contact Admin.');
       } else if (e.statusCode == 0) {
+        // Network or connectivity error: DO NOT delete user's stored session!
+        _sessionExpired = false;
         _errorMessage = 'Unable to reach the server. Check your connection or server address.';
       } else {
+        _sessionExpired = false;
         _errorMessage = e.message;
       }
       notifyListeners();
       return null;
     } catch (e) {
-      await _secureStorage.clearSession();
+      // General network/socket/timeout error: DO NOT clear session!
       _currentUser = null;
       _isLoading = false;
+      _sessionExpired = false;
       _errorMessage = 'Unable to reach the server. Check your connection or server address.';
       notifyListeners();
       return null;
@@ -158,8 +171,9 @@ class AuthService extends ChangeNotifier {
       _currentUser = UserModel.fromJson(profileMap);
       _isLoading = false;
       notifyListeners();
-      // Register device token for push notifications
+      // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
+      NotificationService().startInAppPolling(_apiClient);
       return _currentUser;
     } on ApiException catch (e) {
       _isLoading = false;
@@ -202,8 +216,9 @@ class AuthService extends ChangeNotifier {
       _currentUser = UserModel.fromJson(profileMap);
       _isLoading = false;
       notifyListeners();
-      // Register device token for push notifications
+      // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
+      NotificationService().startInAppPolling(_apiClient);
       return _currentUser;
     } on ApiException catch (e) {
       _isLoading = false;
@@ -344,6 +359,7 @@ class AuthService extends ChangeNotifier {
   /// Logout
   Future<void> logout() async {
     try {
+      NotificationService().stopInAppPolling();
       await NotificationService().unregisterTokenFromBackend(_apiClient);
     } catch (_) {}
 

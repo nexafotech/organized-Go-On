@@ -133,7 +133,7 @@ class StudentProfileScreen extends StatelessWidget {
 
     return Stack(
       children: [
-        AppScaffold.buildLiquidAmbientCanvas(),
+        AppScaffold.buildLiquidAmbientCanvas(context),
         RefreshIndicator(
           color: colors.primary,
           backgroundColor: colors.surface,
@@ -497,7 +497,8 @@ class StudentProfileScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxl),
+                // Safe bottom clearance for floating navigation bar
+                const SizedBox(height: 110),
               ],
             ),
           ),

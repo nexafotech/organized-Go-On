@@ -302,8 +302,11 @@ def test_13_and_14_and_15_three_step_enrollment_lifecycle():
     db = SessionLocal()
     # Authenticate as student AKASH A (721024149001)
     student = db.query(Student).filter(Student.roll_number == "721024149001").first()
-    assert student is not None, "Test student 721024149001 not found"
+    student_id = student.id
     user = student.user
+    user.locked_until = None
+    user.failed_login_attempts = 0
+    db.commit()
     token = create_access_token(subject=str(user.id), role=user.role.value)
     headers = {"Authorization": f"Bearer {token}"}
     db.close()
@@ -414,12 +417,12 @@ def test_13_and_14_and_15_three_step_enrollment_lifecycle():
 
         # --- Requirement 15: All stored embeddings belong to authenticated student ---
         db = SessionLocal()
-        student_embs = db.query(FaceEmbedding).filter(FaceEmbedding.student_id == student.id).all()
+        student_embs = db.query(FaceEmbedding).filter(FaceEmbedding.student_id == student_id).all()
         assert len(student_embs) == 3
 
         # Verify metadata
         for emb in student_embs:
-            assert emb.student_id == student.id
+            assert emb.student_id == student_id
             assert emb.dimension == 512
             assert emb.model_name == "w600k_r50"
             assert emb.detector_name == "scrfd_10g_kps"
@@ -434,6 +437,6 @@ def test_13_and_14_and_15_three_step_enrollment_lifecycle():
         # Reset and clean up to maintain student database invariant
         client.post("/api/v1/student/enroll-face/reset", headers=headers)
         db = SessionLocal()
-        final_student_count = db.query(FaceEmbedding).filter(FaceEmbedding.student_id == student.id).count()
+        final_student_count = db.query(FaceEmbedding).filter(FaceEmbedding.student_id == student_id).count()
         db.close()
         assert final_student_count == 0, f"Cleanup failed: {final_student_count} student embeddings remaining!"

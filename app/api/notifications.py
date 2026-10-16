@@ -175,13 +175,30 @@ def delete_notification(
 ):
     """
     Soft-deletes a notification for the current authenticated user.
+    Pinned notifications are strictly protected and cannot be deleted until unpinned.
     The notification will no longer appear in the user's inbox or unread count.
     """
-    success = NotificationService.soft_delete_notification(db=db, log_id=log_id, user_id=current_user.id)
-    if not success:
+    log = db.query(NotificationLog).filter(
+        NotificationLog.id == log_id,
+        NotificationLog.user_id == current_user.id,
+        NotificationLog.is_deleted == False,
+    ).first()
+    if not log:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Notification not found or access denied",
+        )
+    if log.is_pinned:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pinned notifications cannot be deleted. Please unpin before deleting.",
+        )
+
+    success = NotificationService.soft_delete_notification(db=db, log_id=log_id, user_id=current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to delete notification or notification is pinned",
         )
     return {
         "success": True,
@@ -249,6 +266,19 @@ def get_notification_metrics(
     and reminder configuration state.
     """
     active_tokens = db.query(DeviceToken).filter(DeviceToken.is_active == True).count()
+    active_users_count = db.query(DeviceToken.user_id).filter(DeviceToken.is_active == True).distinct().count()
+    student_active_tokens = (
+        db.query(DeviceToken)
+        .join(User, DeviceToken.user_id == User.id)
+        .filter(DeviceToken.is_active == True, User.role == "STUDENT")
+        .count()
+    )
+    faculty_active_tokens = (
+        db.query(DeviceToken)
+        .join(User, DeviceToken.user_id == User.id)
+        .filter(DeviceToken.is_active == True, User.role == "FACULTY")
+        .count()
+    )
     total_logs = db.query(NotificationLog).count()
     pending_scheduled = db.query(ScheduledNotification).filter(ScheduledNotification.status == "PENDING").count()
     settings = NotificationService.get_settings(db)
@@ -256,6 +286,9 @@ def get_notification_metrics(
     last_heartbeat = db.query(SystemSetting).filter(SystemSetting.key == "notification.last_reminder_check_at").first()
     return {
         "active_device_tokens": active_tokens,
+        "active_users_count": active_users_count,
+        "student_active_tokens": student_active_tokens,
+        "faculty_active_tokens": faculty_active_tokens,
         "total_dispatched_logs": total_logs,
         "pending_scheduled": pending_scheduled,
         "last_scheduler_heartbeat": last_heartbeat.value if last_heartbeat else None,

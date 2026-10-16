@@ -46,7 +46,7 @@ class DailySchedulePeriodItem {
         return const Color(0xFF3D4FB8); // Royal Indigo (Design Token #3D4FB8)
       case 'NO_RECORD':
       default:
-        return colors.isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+        return colors.isDark ? colors.accentStrong : const Color(0xFFB87B4B); // Accent Amber (Design Token #B87B4B)
     }
   }
 
@@ -62,7 +62,7 @@ class DailySchedulePeriodItem {
         return colors.isDark ? const Color(0x243D4FB8) : const Color(0xFFEEF2FF);
       case 'NO_RECORD':
       default:
-        return colors.isDark ? colors.surfaceMuted : const Color(0xFFF8FAFC);
+        return colors.isDark ? colors.surfaceMuted : const Color(0xFFF6F1EA);
     }
   }
 
@@ -78,7 +78,7 @@ class DailySchedulePeriodItem {
         return colors.isDark ? const Color(0x4D3D4FB8) : const Color(0xFFC7D2FE);
       case 'NO_RECORD':
       default:
-        return colors.isDark ? colors.glassBorderStrong : const Color(0xFFE2E8F0);
+        return colors.isDark ? colors.glassBorderStrong : const Color(0xFFE8D7C7);
     }
   }
 
@@ -94,7 +94,7 @@ class DailySchedulePeriodItem {
         return const Color(0xFF3D4FB8);
       case 'NO_RECORD':
       default:
-        return colors.isDark ? const Color(0xFF1E293B) : const Color(0xFF2563EB);
+        return colors.isDark ? colors.hero : const Color(0xFF2B1A13);
     }
   }
 
@@ -123,13 +123,13 @@ class DailySchedulePeriodItem {
       case 'NO_RECORD':
       default:
         return colors.isDark
-            ? const LinearGradient(
-                colors: [Color(0xFF1E293B), Color(0xFF334155)],
+            ? LinearGradient(
+                colors: [colors.hero, colors.heroRaised],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
             : const LinearGradient(
-                colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                colors: [Color(0xFF2B1A13), Color(0xFF3E261C)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               );
@@ -144,6 +144,7 @@ class DailyScheduleCard extends StatefulWidget {
   final List<TimetableItemModel>? timetable;
   final List<SubjectAttendanceModel>? subjects;
   final String? dateLabel;
+  final DateTime? selectedDate;
 
   const DailyScheduleCard({
     Key? key,
@@ -151,6 +152,7 @@ class DailyScheduleCard extends StatefulWidget {
     this.timetable,
     this.subjects,
     this.dateLabel,
+    this.selectedDate,
   }) : super(key: key);
 
   @override
@@ -254,6 +256,15 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
     ],
   };
 
+  DateTime _resolveEffectiveDate() {
+    if (widget.selectedDate != null) return widget.selectedDate!;
+    if (widget.entry != null && widget.entry!.date.isNotEmpty) {
+      final parsed = DateTime.tryParse(widget.entry!.date);
+      if (parsed != null) return parsed;
+    }
+    return DateTime.now();
+  }
+
   List<DailySchedulePeriodItem> _resolvePeriods() {
     final entry = widget.entry;
     final timetable = widget.timetable ?? [];
@@ -261,10 +272,12 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
 
     // Determine target day of week
     String targetDay = 'Monday';
-    if (entry != null && entry.date.isNotEmpty) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    if (widget.selectedDate != null) {
+      targetDay = days[widget.selectedDate!.weekday - 1];
+    } else if (entry != null && entry.date.isNotEmpty) {
       final parsed = DateTime.tryParse(entry.date);
       if (parsed != null) {
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         targetDay = days[parsed.weekday - 1];
       }
     } else if (widget.dateLabel != null && widget.dateLabel!.isNotEmpty) {
@@ -286,7 +299,6 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
       }
     } else {
       final now = DateTime.now();
-      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       targetDay = days[now.weekday - 1];
     }
 
@@ -412,7 +424,7 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
       return items;
     }
 
-    // 2. Fallback to full 7 periods for the target day
+    // 2. Fallback to full 7 periods for the target day (Canonical NO_RECORD Pending)
     return List.generate(7, (i) {
       final slotInfo = getSlotInfo(i + 1);
       return DailySchedulePeriodItem(
@@ -420,7 +432,7 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
         time: slotInfo['time']!,
         code: slotInfo['code']!,
         name: slotInfo['name']!,
-        status: 'ABSENT',
+        status: 'NO_RECORD',
       );
     });
   }
@@ -430,10 +442,10 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
       // Remove "Today • " prefix if present for clean date display
       return widget.dateLabel!.replaceFirst('Today • ', '');
     }
-    final now = DateTime.now();
+    final dt = _resolveEffectiveDate();
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
+    return '${weekdays[dt.weekday - 1]}, ${dt.day} ${months[dt.month - 1]}';
   }
 
   @override
@@ -453,6 +465,12 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
     final double overallTodayPct = recordedTotal > 0
         ? ((attendedCount / recordedTotal) * 100.0).clamp(0.0, 100.0)
         : 0.0;
+
+    final effectiveDt = _resolveEffectiveDate();
+    final now = DateTime.now();
+    final isToday = effectiveDt.year == now.year && effectiveDt.month == now.month && effectiveDt.day == now.day;
+    final isFuture = DateTime(effectiveDt.year, effectiveDt.month, effectiveDt.day).isAfter(DateTime(now.year, now.month, now.day));
+    final isPast = DateTime(effectiveDt.year, effectiveDt.month, effectiveDt.day).isBefore(DateTime(now.year, now.month, now.day));
 
     final dateText = _formatHeaderDate();
 
@@ -519,7 +537,11 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
                   ),
                   const TextSpan(text: ' today.'),
                 ] else ...[
-                  const TextSpan(text: 'No attendance recorded today.'),
+                  TextSpan(
+                    text: isToday || widget.dateLabel == null || widget.dateLabel!.toLowerCase().contains('today')
+                        ? 'No attendance recorded today.'
+                        : (isFuture ? 'Upcoming schedule.' : 'No attendance recorded for this date.'),
+                  ),
                 ],
               ],
             ),
@@ -528,7 +550,13 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
 
           // 3. Subtitle: "Schedule will update as classes proceed."
           Text(
-            'Schedule will update as classes proceed.',
+            isFuture
+                ? 'Classes have not yet begun for this date.'
+                : ((isToday || (widget.dateLabel != null && widget.dateLabel!.toLowerCase().contains('today')))
+                    ? 'Schedule will update as classes proceed.'
+                    : (isPast && recordedTotal == 0
+                        ? 'No period attendance was logged by faculty.'
+                        : 'Schedule will update as classes proceed.')),
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w400,
@@ -600,7 +628,9 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
                                   ? const Color(0xFFB42318)
                                   : (isPresent
                                       ? const Color(0xFF0B7A55)
-                                      : (isOd ? const Color(0xFF3D4FB8) : const Color(0xFF2563EB))),
+                                      : (isOd
+                                          ? const Color(0xFF3D4FB8)
+                                          : (colors.isDark ? colors.accentStrong : const Color(0xFFB87B4B)))),
                               width: 2.5,
                             )
                           : border,
@@ -611,7 +641,9 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
                                         ? const Color(0xFFB42318)
                                         : (isPresent
                                             ? const Color(0xFF0B7A55)
-                                            : (isOd ? const Color(0xFF3D4FB8) : const Color(0xFF2563EB))))
+                                            : (isOd
+                                                ? const Color(0xFF3D4FB8)
+                                                : (colors.isDark ? colors.accentStrong : const Color(0xFFB87B4B)))))
                                     .withValues(alpha: 0.35),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
@@ -642,7 +674,7 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '08:45 AM',
+                  periods.isNotEmpty ? periods.first.time : '08:45 AM',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -658,7 +690,7 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
                   ),
                 ),
                 Text(
-                  '04:20 PM',
+                  periods.length >= 7 ? (periods[6].time.contains('03:20') ? '04:10 PM' : '04:20 PM') : '04:20 PM',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -670,64 +702,99 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
           ),
           const SizedBox(height: 6),
 
-          // 7. Legend: ● Present   ● Absent   ○ No record
-          Row(
+          // 7. Legend: ● Present   ● Absent   ● On Duty   ○ No record
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0B7A55),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                'Present',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFB42318),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                'Absent',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: colors.textMuted.withValues(alpha: 0.6),
-                    width: 1.2,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF0B7A55),
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Present',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 5),
-              Text(
-                'No record',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textSecondary,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFB42318),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Absent',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF3D4FB8),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'On Duty',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: colors.isDark ? colors.accentStrong : const Color(0xFFB87B4B),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'No record',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -739,9 +806,19 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
             decoration: BoxDecoration(
               gradient: featuredPeriod.getHeroGradient(colors),
               borderRadius: BorderRadius.circular(20),
+              border: featuredPeriod.status == 'NO_RECORD'
+                  ? Border.all(
+                      color: (colors.isDark ? colors.accentStrong : const Color(0xFFB87B4B))
+                          .withValues(alpha: 0.35),
+                      width: 1.2,
+                    )
+                  : null,
               boxShadow: [
                 BoxShadow(
-                  color: featuredPeriod.getStatusColor(colors).withValues(alpha: 0.35),
+                  color: (featuredPeriod.status == 'NO_RECORD'
+                          ? (colors.isDark ? colors.hero : const Color(0xFF2B1A13))
+                          : featuredPeriod.getStatusColor(colors))
+                      .withValues(alpha: 0.35),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -947,18 +1024,28 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
                         color: colors.textMuted,
                       ),
                       children: [
-                        TextSpan(
-                          text: '${overallTodayPct.toStringAsFixed(0)}% ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: overallTodayPct >= 75.0
-                                ? const Color(0xFF0B7A55)
-                                : (overallTodayPct >= 70.0
-                                    ? const Color(0xFFB87B4B)
-                                    : const Color(0xFFB42318)),
+                        if (recordedTotal > 0) ...[
+                          TextSpan(
+                            text: '${overallTodayPct.toStringAsFixed(0)}% ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: overallTodayPct >= 75.0
+                                  ? const Color(0xFF0B7A55)
+                                  : (overallTodayPct >= 70.0
+                                      ? const Color(0xFFB87B4B)
+                                      : const Color(0xFFB42318)),
+                            ),
                           ),
-                        ),
-                        const TextSpan(text: 'target 75%'),
+                          const TextSpan(text: 'target 75%'),
+                        ] else ...[
+                          const TextSpan(
+                            text: 'Pending ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const TextSpan(text: 'target 75%'),
+                        ],
                       ],
                     ),
                   ),
@@ -970,7 +1057,9 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final totalWidth = constraints.maxWidth;
-                  final fillFraction = (overallTodayPct / 100.0).clamp(0.0, 1.0);
+                  final fillFraction = recordedTotal > 0
+                      ? (overallTodayPct / 100.0).clamp(0.0, 1.0)
+                      : 0.0;
                   final fillWidth = totalWidth * fillFraction;
                   final tickPosition = totalWidth * 0.75;
                   final barColor = overallTodayPct >= 75.0

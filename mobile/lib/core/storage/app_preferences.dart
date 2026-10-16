@@ -7,12 +7,29 @@ class AppPreferencesService {
 
   Future<void> saveThemeMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyThemeMode, mode);
+    // Strictly sanitize to 'dark' or 'light'
+    final sanitized = (mode == 'dark') ? 'dark' : 'light';
+    await prefs.setString(_keyThemeMode, sanitized);
   }
 
   Future<String?> getThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyThemeMode);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_keyThemeMode);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String> getThemeModeWithDefault() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final mode = prefs.getString(_keyThemeMode);
+      if (mode == 'dark') return 'dark';
+      return 'light';
+    } catch (_) {
+      return 'light';
+    }
   }
 
   Future<void> saveSelectedRoleTab(String role) async {

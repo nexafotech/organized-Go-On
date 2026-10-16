@@ -33,7 +33,7 @@ class GoOnLogo extends StatelessWidget {
       color: color,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.high,
-      cacheWidth: (size * dpr).ceil().clamp(32, 512),
+      cacheWidth: (size * dpr).ceil().clamp(32, 1024),
       semanticLabel: GoOnBrand.logoSemanticLabel,
     );
   }
@@ -121,6 +121,75 @@ class GoOnLockup extends StatelessWidget {
           child: label,
         ),
       ],
+    );
+  }
+}
+
+/// The authoritative "from NEXAFOTECH" footer branding with flanking accent lines (matching Image 1).
+class NexafoBranding extends StatelessWidget {
+  const NexafoBranding({
+    Key? key,
+    this.isDark,
+  }) : super(key: key);
+
+  /// Force dark or light mode palette. If null, inferred from context brightness.
+  final bool? isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = isDark ?? (Theme.of(context).brightness == Brightness.dark);
+    // Dark mode: Warm champagne gold (#D5CBB8) from Image 1 on Obsidian (#0D0C13)
+    // Light mode: Sophisticated espresso bronze (#6B5B50) with high contrast (>6:1) on White (#FFFFFF)
+    final textColor = dark ? const Color(0xFFD5CBB8) : const Color(0xFF6B5B50);
+    final ruleColor = dark ? const Color(0x99D5CBB8) : const Color(0x806B5B50);
+
+    return Semantics(
+      label: 'from NEXAFOTECH',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'from',
+            style: TextStyle(
+              fontFamily: 'CaviarDreams',
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: textColor.withValues(alpha: 0.85),
+              letterSpacing: 2.0,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 24,
+                height: 1.2,
+                color: ruleColor,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'NEXAFOTECH',
+                style: TextStyle(
+                  fontFamily: 'CaviarDreams',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                  letterSpacing: 4.5,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                width: 24,
+                height: 1.2,
+                color: ruleColor,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

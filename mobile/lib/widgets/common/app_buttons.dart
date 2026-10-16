@@ -133,12 +133,14 @@ class _PrimaryButtonState extends State<PrimaryButton> with SingleTickerProvider
               boxShadow: isEnabled
                   ? [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
+                        color: colors.isDark ? Colors.black.withValues(alpha: 0.35) : const Color(0x1F2B1A13),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
                       BoxShadow(
-                        color: const Color(0xFF818CF8).withValues(alpha: 0.18),
+                        color: colors.isDark
+                            ? const Color(0xFF818CF8).withValues(alpha: 0.18)
+                            : colors.primary.withValues(alpha: 0.12),
                         blurRadius: 20,
                         spreadRadius: -2,
                       ),
@@ -158,7 +160,9 @@ class _PrimaryButtonState extends State<PrimaryButton> with SingleTickerProvider
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(
-                    color: isEnabled ? Colors.white.withValues(alpha: 0.35) : Colors.transparent,
+                    color: isEnabled
+                        ? (colors.isDark ? Colors.white.withValues(alpha: 0.35) : Colors.transparent)
+                        : Colors.transparent,
                     width: 1.1,
                   ),
                 ),
