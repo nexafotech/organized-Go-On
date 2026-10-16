@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../core/config/api_config.dart';
 import '../core/network/api_client.dart';
 import '../core/storage/secure_storage.dart';
+import '../core/storage/app_preferences.dart';
 import '../models/user_model.dart';
 import 'notification_service.dart';
 
@@ -35,6 +36,13 @@ class AuthService extends ChangeNotifier {
     return token != null && token.isNotEmpty;
   }
 
+  void setInitialCachedUser(UserModel user) {
+    _currentUser = user;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   void setMockUser(UserModel user) {
     _currentUser = user;
     _isLoading = false;
@@ -59,6 +67,7 @@ class AuthService extends ChangeNotifier {
   void _handleUnauthorized() {
     _currentUser = null;
     _secureStorage.clearSession();
+    AppPreferencesService().clearCachedUser();
     _sessionExpired = true;
     _errorMessage = 'Your session has expired. Please sign in again.';
     notifyListeners();
@@ -109,6 +118,9 @@ class AuthService extends ChangeNotifier {
       _sessionExpired = false;
       _isLoading = false;
       notifyListeners();
+      try {
+        await AppPreferencesService().saveCachedUser(_currentUser!);
+      } catch (_) {}
       // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
       NotificationService().startInAppPolling(_apiClient);
@@ -118,6 +130,9 @@ class AuthService extends ChangeNotifier {
       _isLoading = false;
       if (e.statusCode == 401 || e.statusCode == 403) {
         await _secureStorage.clearSession();
+        try {
+          await AppPreferencesService().clearCachedUser();
+        } catch (_) {}
         _sessionExpired = true;
         _errorMessage = e.statusCode == 401
             ? 'Your session has expired. Please sign in again.'
@@ -171,6 +186,9 @@ class AuthService extends ChangeNotifier {
       _currentUser = UserModel.fromJson(profileMap);
       _isLoading = false;
       notifyListeners();
+      try {
+        await AppPreferencesService().saveCachedUser(_currentUser!);
+      } catch (_) {}
       // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
       NotificationService().startInAppPolling(_apiClient);
@@ -216,6 +234,9 @@ class AuthService extends ChangeNotifier {
       _currentUser = UserModel.fromJson(profileMap);
       _isLoading = false;
       notifyListeners();
+      try {
+        await AppPreferencesService().saveCachedUser(_currentUser!);
+      } catch (_) {}
       // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
       NotificationService().startInAppPolling(_apiClient);
@@ -372,6 +393,9 @@ class AuthService extends ChangeNotifier {
     } catch (_) {}
 
     await _secureStorage.clearSession();
+    try {
+      await AppPreferencesService().clearCachedUser();
+    } catch (_) {}
     NotificationService().clearUserData();
     _currentUser = null;
     _sessionExpired = false;

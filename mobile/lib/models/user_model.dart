@@ -41,6 +41,22 @@ class UserModel {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'username': username,
+      'email': email,
+      'role': role,
+      'is_active': isActive,
+      'full_name': fullName,
+      'faculty_profile_id': facultyProfileId,
+      'force_password_change': forcePasswordChange,
+      'is_class_advisor': isClassAdvisor,
+      'advised_class_id': advisedClassId,
+      'advised_class_name': advisedClassName,
+    };
+  }
+
   bool get isStudent => role == 'STUDENT';
   bool get isFaculty => role == 'FACULTY' || role == 'ADMIN';
   bool get isAdmin => role == 'ADMIN';

@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/user_model.dart';
 
 class AppPreferencesService {
   static const String _keySelectedRoleTab = 'pref_selected_role_tab';
   static const String _keyCustomBackendUrl = 'pref_custom_backend_url';
   static const String _keyThemeMode = 'pref_theme_mode';
+  static const String _keyCachedUser = 'pref_cached_user';
 
   Future<void> saveThemeMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
@@ -50,5 +53,30 @@ class AppPreferencesService {
   Future<String?> getCustomBackendUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyCustomBackendUrl);
+  }
+
+  Future<void> saveCachedUser(UserModel user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyCachedUser, jsonEncode(user.toJson()));
+    } catch (_) {}
+  }
+
+  Future<UserModel?> getCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString(_keyCachedUser);
+      if (str == null || str.isEmpty) return null;
+      return UserModel.fromJson(jsonDecode(str) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> clearCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyCachedUser);
+    } catch (_) {}
   }
 }

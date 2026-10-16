@@ -272,30 +272,28 @@ void main() {
       );
     }
 
-    testWidgets('SplashScreen renders white background and GoOnLogo/NexafoBranding on light startup', (tester) async {
+    testWidgets('Startup renders white background without logo page on light startup', (tester) async {
       await tester.pumpWidget(buildAppWithTheme(ThemeMode.light));
 
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
       expect(scaffold.backgroundColor, equals(Colors.white));
 
-      final logoFinder = find.byType(GoOnLogo);
-      expect(logoFinder, findsOneWidget);
-      final brandingFinder = find.byType(NexafoBranding);
-      expect(brandingFinder, findsOneWidget);
-      expect(find.text('NEXAFOTECH'), findsOneWidget);
+      // Unwanted logo and branding must NOT exist
+      expect(find.byType(GoOnLogo), findsNothing);
+      expect(find.byType(NexafoBranding), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('SplashScreen renders obsidian background and GoOnLogo/NexafoBranding on dark startup', (tester) async {
+    testWidgets('Startup renders obsidian background without logo page on dark startup', (tester) async {
       await tester.pumpWidget(buildAppWithTheme(ThemeMode.dark));
 
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
       expect(scaffold.backgroundColor, equals(const Color(0xFF0D0C13)));
 
-      final logoFinder = find.byType(GoOnLogo);
-      expect(logoFinder, findsOneWidget);
-      final brandingFinder = find.byType(NexafoBranding);
-      expect(brandingFinder, findsOneWidget);
-      expect(find.text('NEXAFOTECH'), findsOneWidget);
+      // Unwanted logo and branding must NOT exist
+      expect(find.byType(GoOnLogo), findsNothing);
+      expect(find.byType(NexafoBranding), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
   });
 

@@ -131,8 +131,8 @@ void main() {
     );
   }
 
-  group('New Branded Loading Screen (Image 2) Visual Verification', () {
-    testWidgets('Renders official Go-On gold logo and bottom NexafoBranding in light mode', (tester) async {
+  group('Unwanted Logo Loading Screen Removal Verification', () {
+    testWidgets('Does NOT render full-screen logo page or NexafoBranding in light mode', (tester) async {
       fakeAuth.configure(user: null); // logged out
 
       await tester.pumpWidget(createSplashWidget(themeMode: ThemeMode.light));
@@ -141,31 +141,17 @@ void main() {
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
       expect(scaffold.backgroundColor, Colors.white);
 
-      // 2. Must render the centered official Go-On gold logo
-      final logoFinder = find.byType(GoOnLogo);
-      final imageWidget = tester.widget<Image>(find.descendant(of: logoFinder, matching: find.byType(Image)));
-      final imageProvider = imageWidget.image;
-      final assetName = imageProvider is ResizeImage
-          ? (imageProvider.imageProvider as AssetImage).assetName
-          : (imageProvider as AssetImage).assetName;
-      expect(assetName, 'assets/branding/go_on_logo.png');
-      expect(imageWidget.fit, BoxFit.contain);
+      // 2. Unwanted full-screen logo page must NOT exist
+      expect(find.byType(GoOnLogo), findsNothing);
+      expect(find.byType(NexafoBranding), findsNothing);
+      expect(find.text('from'), findsNothing);
+      expect(find.text('NEXAFOTECH'), findsNothing);
 
-      // 3. Must render the bottom "from NEXAFOTECH" branding with safe-area protection
-      final brandingFinder = find.byType(NexafoBranding);
-      expect(brandingFinder, findsOneWidget);
-      expect(find.text('from'), findsOneWidget);
-      expect(find.text('NEXAFOTECH'), findsOneWidget);
-
-      // Verify safe-area protection
-      expect(find.descendant(of: find.byType(SafeArea), matching: find.byType(NexafoBranding)), findsOneWidget);
-
-      // 4. Old brown card elements must NOT exist in widget tree
-      expect(find.text('Go-On'), findsNothing); // Old text lockup was removed
-      expect(find.byType(CircularProgressIndicator), findsNothing); // Old spinner was removed
+      // 3. Renders clean minimal progress indicator
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('Renders gold logo and bottom NexafoBranding on obsidian dark background in dark mode', (tester) async {
+    testWidgets('Does NOT render full-screen logo page on dark background in dark mode', (tester) async {
       fakeAuth.configure(user: null);
 
       await tester.pumpWidget(createSplashWidget(themeMode: ThemeMode.dark));
@@ -174,18 +160,13 @@ void main() {
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
       expect(scaffold.backgroundColor, const Color(0xFF0D0C13));
 
-      // 2. Must render official Go-On logo
-      final logoFinder = find.byType(GoOnLogo);
-      expect(logoFinder, findsOneWidget);
-
-      // 3. Must render "from NEXAFOTECH" branding
-      final brandingFinder = find.byType(NexafoBranding);
-      expect(brandingFinder, findsOneWidget);
-      expect(find.text('from'), findsOneWidget);
-      expect(find.text('NEXAFOTECH'), findsOneWidget);
+      // 2. Unwanted full-screen logo must NOT exist
+      expect(find.byType(GoOnLogo), findsNothing);
+      expect(find.byType(NexafoBranding), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('Responsive layout adapts across different device sizes without overflow', (tester) async {
+    testWidgets('Direct transition without overflow across device viewports', (tester) async {
       fakeAuth.configure(user: null);
 
       // Test small phone size (360 x 640)
@@ -198,16 +179,14 @@ void main() {
 
       await tester.pumpWidget(createSplashWidget(themeMode: ThemeMode.light));
       expect(tester.takeException(), isNull);
-      expect(find.byType(GoOnLogo), findsOneWidget);
-      expect(find.byType(NexafoBranding), findsOneWidget);
+      expect(find.byType(GoOnLogo), findsNothing);
 
-      // Test tall modern phone size (412 x 915 - Samsung S24 aspect)
+      // Test tall modern phone size (Samsung S24 aspect)
       tester.view.physicalSize = const Size(1080, 2340);
       tester.view.devicePixelRatio = 2.625;
       await tester.pumpWidget(createSplashWidget(themeMode: ThemeMode.light));
       expect(tester.takeException(), isNull);
-      expect(find.byType(GoOnLogo), findsOneWidget);
-      expect(find.byType(NexafoBranding), findsOneWidget);
+      expect(find.byType(GoOnLogo), findsNothing);
     });
   });
 
