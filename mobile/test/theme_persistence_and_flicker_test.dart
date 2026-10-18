@@ -265,35 +265,35 @@ void main() {
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
               themeMode: themeService.themeMode,
-              home: const SplashScreen(),
+              home: const SplashScreen(minDisplayMs: 0),
             );
           },
         ),
       );
     }
 
-    testWidgets('Startup renders white background without logo page on light startup', (tester) async {
+    testWidgets('Startup renders white background and light splash image on light startup', (tester) async {
       await tester.pumpWidget(buildAppWithTheme(ThemeMode.light));
 
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
       expect(scaffold.backgroundColor, equals(Colors.white));
 
-      // Unwanted logo and branding must NOT exist
-      expect(find.byType(GoOnLogo), findsNothing);
-      expect(find.byType(NexafoBranding), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      final imageFinder = find.byType(Image);
+      expect(imageFinder, findsOneWidget);
+      final imageWidget = tester.widget<Image>(imageFinder);
+      expect((imageWidget.image as AssetImage).assetName, 'assets/branding/go_on_splash.png');
     });
 
-    testWidgets('Startup renders obsidian background without logo page on dark startup', (tester) async {
+    testWidgets('Startup renders obsidian background and dark splash image on dark startup', (tester) async {
       await tester.pumpWidget(buildAppWithTheme(ThemeMode.dark));
 
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-      expect(scaffold.backgroundColor, equals(const Color(0xFF0D0C13)));
+      expect(scaffold.backgroundColor, equals(const Color(0xFF04050A)));
 
-      // Unwanted logo and branding must NOT exist
-      expect(find.byType(GoOnLogo), findsNothing);
-      expect(find.byType(NexafoBranding), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      final imageFinder = find.byType(Image);
+      expect(imageFinder, findsOneWidget);
+      final imageWidget = tester.widget<Image>(imageFinder);
+      expect((imageWidget.image as AssetImage).assetName, 'assets/branding/go_on_splash_dark.png');
     });
   });
 

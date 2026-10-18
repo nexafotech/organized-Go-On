@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 import 'package:attendance_marker_mobile/main.dart';
-import 'package:attendance_marker_mobile/auth/screens/login_screen.dart';
+import 'package:attendance_marker_mobile/auth/screens/splash_screen.dart';
 
 void main() {
-  testWidgets('App launches directly to LoginScreen on fresh start without splash', (WidgetTester tester) async {
+  testWidgets('App renders adaptive splash screen initially', (WidgetTester tester) async {
     await tester.pumpWidget(const AttendanceMarkerApp());
-    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.byType(SplashScreen), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
   });
 }

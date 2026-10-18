@@ -13,9 +13,9 @@ class MainActivity : FlutterActivity() {
             val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val savedTheme = prefs.getString("flutter.pref_theme_mode", null)
             if (savedTheme == "dark") {
-                window.setBackgroundDrawable(ColorDrawable(Color.parseColor("#0D0C13")))
-                window.statusBarColor = Color.parseColor("#0D0C13")
-                window.navigationBarColor = Color.parseColor("#0D0C13")
+                window.setBackgroundDrawable(ColorDrawable(Color.parseColor("#04050A")))
+                window.statusBarColor = Color.parseColor("#04050A")
+                window.navigationBarColor = Color.parseColor("#04050A")
             } else {
                 window.setBackgroundDrawable(ColorDrawable(Color.parseColor("#FFFFFF")))
                 window.statusBarColor = Color.parseColor("#FFFFFF")

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -9,7 +10,12 @@ import '../../admin/screens/admin_student_face_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  final int minDisplayMs;
+
+  const SplashScreen({
+    Key? key,
+    this.minDisplayMs = 800,
+  }) : super(key: key);
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -18,6 +24,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   bool _hasNavigated = false;
   String? _errorMessage;
+  Timer? _displayTimer;
 
   @override
   void initState() {
@@ -27,10 +34,17 @@ class _SplashScreenState extends State<SplashScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _displayTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _checkAuthentication() async {
     if (_hasNavigated) return;
 
     final authService = Provider.of<AuthService>(context, listen: false);
+
     UserModel? user;
     try {
       user = await authService.restoreSession();
@@ -39,6 +53,20 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     if (!mounted) return;
+
+    if (widget.minDisplayMs > 0) {
+      _displayTimer?.cancel();
+      _displayTimer = Timer(Duration(milliseconds: widget.minDisplayMs), () {
+        if (!mounted) return;
+        _onAuthResolved(user, authService);
+      });
+    } else {
+      _onAuthResolved(user, authService);
+    }
+  }
+
+  Future<void> _onAuthResolved(UserModel? user, AuthService authService) async {
+    if (_hasNavigated || !mounted) return;
 
     if (user != null) {
       _navigateSafely(user);
@@ -78,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen> {
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
         },
-        transitionDuration: const Duration(milliseconds: 150),
+        transitionDuration: const Duration(milliseconds: 200),
       ),
     );
   }
@@ -86,7 +114,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF0D0C13) : Colors.white;
+    final backgroundColor = isDark ? const Color(0xFF04050A) : Colors.white;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -97,9 +125,9 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
       child: Scaffold(
         backgroundColor: backgroundColor,
-        body: Center(
-          child: _errorMessage != null
-              ? Padding(
+        body: _errorMessage != null
+            ? Center(
+                child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -129,18 +157,29 @@ class _SplashScreenState extends State<SplashScreen> {
                       ),
                     ],
                   ),
-                )
-              : SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isDark ? const Color(0xFFD4AF37) : const Color(0xFFB8860B),
-                    ),
+                ),
+              )
+            : SizedBox.expand(
+                child: SafeArea(
+                  child: Image.asset(
+                    isDark
+                        ? 'assets/branding/go_on_splash_dark.png'
+                        : 'assets/branding/go_on_splash.png',
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Image.asset(
+                          'assets/branding/go_on_logo.png',
+                          width: 140,
+                          height: 140,
+                          fit: BoxFit.contain,
+                        ),
+                      );
+                    },
                   ),
                 ),
-        ),
+              ),
       ),
     );
   }

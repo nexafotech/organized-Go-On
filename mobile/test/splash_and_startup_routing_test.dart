@@ -126,13 +126,13 @@ void main() {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: themeMode,
-        home: const SplashScreen(),
+        home: const SplashScreen(minDisplayMs: 0),
       ),
     );
   }
 
-  group('Unwanted Logo Loading Screen Removal Verification', () {
-    testWidgets('Does NOT render full-screen logo page or NexafoBranding in light mode', (tester) async {
+  group('Adaptive Splash Screen Visual & Theme Verification', () {
+    testWidgets('Renders clean light splash image and white background in light mode', (tester) async {
       fakeAuth.configure(user: null); // logged out
 
       await tester.pumpWidget(createSplashWidget(themeMode: ThemeMode.light));
@@ -141,32 +141,34 @@ void main() {
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
       expect(scaffold.backgroundColor, Colors.white);
 
-      // 2. Unwanted full-screen logo page must NOT exist
-      expect(find.byType(GoOnLogo), findsNothing);
-      expect(find.byType(NexafoBranding), findsNothing);
-      expect(find.text('from'), findsNothing);
-      expect(find.text('NEXAFOTECH'), findsNothing);
-
-      // 3. Renders clean minimal progress indicator
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // 2. Renders light splash image
+      final imageFinder = find.byType(Image);
+      expect(imageFinder, findsOneWidget);
+      final imageWidget = tester.widget<Image>(imageFinder);
+      final imageProvider = imageWidget.image as AssetImage;
+      expect(imageProvider.assetName, 'assets/branding/go_on_splash.png');
+      expect(imageWidget.fit, BoxFit.contain);
     });
 
-    testWidgets('Does NOT render full-screen logo page on dark background in dark mode', (tester) async {
+    testWidgets('Renders dark splash image and obsidian dark background in dark mode', (tester) async {
       fakeAuth.configure(user: null);
 
       await tester.pumpWidget(createSplashWidget(themeMode: ThemeMode.dark));
 
-      // 1. Scaffold background must be obsidian dark
+      // 1. Scaffold background must be near-black #04050A in dark mode
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-      expect(scaffold.backgroundColor, const Color(0xFF0D0C13));
+      expect(scaffold.backgroundColor, const Color(0xFF04050A));
 
-      // 2. Unwanted full-screen logo must NOT exist
-      expect(find.byType(GoOnLogo), findsNothing);
-      expect(find.byType(NexafoBranding), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // 2. Renders dark splash image
+      final imageFinder = find.byType(Image);
+      expect(imageFinder, findsOneWidget);
+      final imageWidget = tester.widget<Image>(imageFinder);
+      final imageProvider = imageWidget.image as AssetImage;
+      expect(imageProvider.assetName, 'assets/branding/go_on_splash_dark.png');
+      expect(imageWidget.fit, BoxFit.contain);
     });
 
-    testWidgets('Direct transition without overflow across device viewports', (tester) async {
+    testWidgets('Adaptive layout adapts across different device sizes without overflow', (tester) async {
       fakeAuth.configure(user: null);
 
       // Test small phone size (360 x 640)
@@ -179,14 +181,14 @@ void main() {
 
       await tester.pumpWidget(createSplashWidget(themeMode: ThemeMode.light));
       expect(tester.takeException(), isNull);
-      expect(find.byType(GoOnLogo), findsNothing);
+      expect(find.byType(Image), findsOneWidget);
 
       // Test tall modern phone size (Samsung S24 aspect)
       tester.view.physicalSize = const Size(1080, 2340);
       tester.view.devicePixelRatio = 2.625;
       await tester.pumpWidget(createSplashWidget(themeMode: ThemeMode.light));
       expect(tester.takeException(), isNull);
-      expect(find.byType(GoOnLogo), findsNothing);
+      expect(find.byType(Image), findsOneWidget);
     });
   });
 
