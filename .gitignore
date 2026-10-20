@@ -35,10 +35,11 @@ firebase-credentials.json
 /college_data/official_name_lists/*.jpg
 /college_data/official_name_lists/*.png
 
-# ── Python Virtual Environment (lib/) ─────────────────────
-# lib/ is a local venv. Use requirements.txt to reproduce.
-/lib/
-!/lib/README.md
+# ── Python Virtual Environment ─────────────────────────────
+.venv/
+venv/
+ENV/
+env/
 
 # Python caches
 __pycache__/
@@ -61,14 +62,19 @@ ios/.symlinks/
 .dart_tool/
 
 # ── APK / Binary Release Files ────────────────────────────
-*.apk
+/*.apk
+mobile/build/**/*.apk
 *.aab
 *.ipa
-# Keep release directory structure (README only)
+# Allow intentional APK releases in release/ and dist/
+!/release/*.apk
+!/dist/*.apk
 !/release/.gitkeep
 !/release/README.md
+!/dist/.gitkeep
+!/dist/README.md
 
-# Scratch scripts & temporary dumps
+# ── Scratch scripts & temporary dumps ─────────────────────
 scratch/
 .quarantine/
 scratch_*.txt
