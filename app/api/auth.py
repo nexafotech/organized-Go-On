@@ -387,10 +387,19 @@ def get_current_user_profile(
     is_class_advisor = False
     advised_class_id = None
     advised_class_name = None
+    department = None
+    employee_id = None
+    avatar_id = current_user.avatar_id
+    phone = None
 
     if current_user.role == UserRole.FACULTY and current_user.faculty_profile:
         faculty_profile_id = current_user.faculty_profile.id
         full_name = current_user.faculty_profile.full_name
+        department = current_user.faculty_profile.department
+        employee_id = current_user.faculty_profile.employee_id
+        phone = current_user.faculty_profile.phone
+        if current_user.faculty_profile.avatar_id:
+            avatar_id = current_user.faculty_profile.avatar_id
         cs = db.query(ClassSection).filter(ClassSection.class_advisor_id == faculty_profile_id).first()
         if cs:
             is_class_advisor = True
@@ -400,6 +409,9 @@ def get_current_user_profile(
         full_name = "Administrator"
     elif current_user.role == UserRole.STUDENT and current_user.student_profile:
         full_name = current_user.student_profile.full_name
+        phone = current_user.student_profile.phone
+        if current_user.student_profile.avatar_id:
+            avatar_id = current_user.student_profile.avatar_id
 
     return UserOut(
         id=current_user.id,
@@ -409,6 +421,10 @@ def get_current_user_profile(
         is_active=current_user.is_active,
         faculty_profile_id=faculty_profile_id,
         full_name=full_name,
+        department=department,
+        employee_id=employee_id,
+        avatar_id=avatar_id,
+        phone=phone,
         is_class_advisor=is_class_advisor,
         advised_class_id=advised_class_id,
         advised_class_name=advised_class_name,

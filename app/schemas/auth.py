@@ -18,6 +18,10 @@ class UserOut(BaseModel):
     is_active: bool
     faculty_profile_id: Optional[int] = None
     full_name: Optional[str] = None
+    department: Optional[str] = None
+    employee_id: Optional[str] = None
+    avatar_id: Optional[str] = None
+    phone: Optional[str] = None
     is_class_advisor: bool = False
     advised_class_id: Optional[int] = None
     advised_class_name: Optional[str] = None

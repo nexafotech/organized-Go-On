@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'app_tokens.dart';
 
 export 'app_tokens.dart';
@@ -80,6 +81,7 @@ class AppTheme {
       brightness: Brightness.light,
       fontFamily: AppTypography.fontBody,
       scaffoldBackgroundColor: c.background,
+      canvasColor: c.background,
       primaryColor: c.primary,
       colorScheme: ColorScheme.light(
         primary: c.primary,
@@ -109,6 +111,14 @@ class AppTheme {
         centerTitle: true,
         titleTextStyle: t.titleLarge.copyWith(color: c.textPrimary),
         iconTheme: IconThemeData(color: c.textPrimary),
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: Color(0xFFF6F1EA),
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -231,6 +241,7 @@ class AppTheme {
       brightness: Brightness.dark,
       fontFamily: AppTypography.fontBody,
       scaffoldBackgroundColor: c.background,
+      canvasColor: c.background,
       primaryColor: c.primary,
       colorScheme: ColorScheme.dark(
         primary: c.primary,
@@ -258,6 +269,14 @@ class AppTheme {
         centerTitle: true,
         titleTextStyle: t.titleLarge.copyWith(color: c.textPrimary, fontWeight: FontWeight.w700),
         iconTheme: IconThemeData(color: c.textPrimary),
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: Color(0xFF0D0C13),
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.transparent,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

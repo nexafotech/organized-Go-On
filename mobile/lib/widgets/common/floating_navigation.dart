@@ -145,6 +145,7 @@ class FloatingNavigation extends StatelessWidget {
     if (isDesktopOrLaptop) {
       return Align(
         alignment: Alignment.bottomCenter,
+        heightFactor: 1.0,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 580.0),
           child: navWidget,

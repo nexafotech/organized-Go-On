@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/theme/theme_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/student_service.dart';
 import '../../models/student_model.dart';
@@ -278,65 +277,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             ),
                           ),
                           // Notification Bell with unread badge counter
-                          Builder(
-                            builder: (context) {
-                              NotificationService? notifService;
-                              try {
-                                notifService = Provider.of<NotificationService>(context);
-                              } catch (_) {
-                                return const SizedBox.shrink();
-                              }
-                              final unread = notifService.unreadCount;
-                              return Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  IconButton(
-                                    padding: const EdgeInsets.all(6),
-                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                    icon: Icon(
-                                      unread > 0
-                                          ? Icons.notifications_active_rounded
-                                          : Icons.notifications_outlined,
-                                      color: unread > 0 ? colors.accent : colors.textSecondary,
-                                      size: 22,
-                                    ),
-                                    tooltip: 'Notifications',
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => const FacultyNotificationHistoryScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  if (unread > 0)
-                                    Positioned(
-                                      top: 4,
-                                      right: 4,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(2.5),
-                                        decoration: BoxDecoration(
-                                          color: colors.primary,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        constraints: const BoxConstraints(
-                                          minWidth: 16,
-                                          minHeight: 16,
-                                        ),
-                                        child: Text(
-                                          unread > 9 ? '9+' : '$unread',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              );
-                            },
+                          NotificationBellWidget(
+                            activeColor: colors.accent,
+                            inactiveColor: colors.textSecondary,
+                            badgeColor: colors.error,
+                            badgeBorderColor: colors.glassSurfaceStrong,
                           ),
                           const SizedBox(width: 4),
                           UserAvatarWidget(
@@ -403,34 +348,46 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         ],
                       ),
                       if (summary.className != null && summary.className!.isNotEmpty)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.school_outlined, size: 14, color: colors.textMuted),
-                            const SizedBox(width: 4),
-                            Text(
-                              summary.className!,
-                              style: TextStyle(
-                                color: colors.textSecondary,
-                                fontSize: 12,
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 120),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.school_outlined, size: 14, color: colors.textMuted),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  summary.className!,
+                                  style: TextStyle(
+                                    color: colors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       if (summary.department != null && summary.department!.isNotEmpty)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.apartment_rounded, size: 14, color: colors.textMuted),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${summary.department}${summary.semester != null ? " • Sem ${summary.semester}" : ""}',
-                              style: TextStyle(
-                                color: colors.textMuted,
-                                fontSize: 12,
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 120),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.apartment_rounded, size: 14, color: colors.textMuted),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  '${summary.department}${summary.semester != null ? " • Sem ${summary.semester}" : ""}',
+                                  style: TextStyle(
+                                    color: colors.textMuted,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                     ],
                   ),
@@ -503,6 +460,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             SubjectPetalChartCard(
               subjects: studentService.subjects,
               timetable: studentService.timetable,
+              dateWiseEntries: studentService.dateWise,
               minimumRequired: summary.minimumRequired,
             ),
 
@@ -708,29 +666,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           ),
           children: [
             Divider(height: 1, color: colors.border),
-            const SizedBox(height: AppSpacing.sm),
-            // Institutional Lunch Break Banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: colors.lunchBg,
-                borderRadius: AppRadius.smallBorder,
-                border: Border.all(color: colors.lunch.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.restaurant_rounded, size: 14, color: colors.lunch),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Lunch Break: ${entry.lunchInterval} • Not counted',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.lunch),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             if (entry.periods.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -877,8 +813,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       drawer: _buildStudentDrawer(context, studentService),
       body: SafeArea(
         child: isDesktopOrLaptop
-            ? Align(
-                alignment: Alignment.topCenter,
+            ? Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1080.0),
                   child: IndexedStack(
@@ -895,6 +830,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       bottomNavigationBar: isDesktopOrLaptop
           ? Align(
               alignment: Alignment.bottomCenter,
+              heightFactor: 1.0,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 580.0),
                 child: bottomNavWidget,
@@ -1130,21 +1066,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     ChangePasswordDialog.show(context);
                   },
                 ),
-                SafeThemeConsumer(
-                  builder: (context, themeService, _) {
-                    final isDark = themeService.isDarkMode;
-                    return _buildDrawerItem(
-                      icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                      title: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
-                      subtitle: isDark ? 'Warm Cream & Roasted Espresso' : 'Deep Obsidian & Liquid Glass',
-                      isSelected: false,
-                      colors: colors,
-                      onTap: () {
-                        themeService.toggleTheme();
-                      },
-                    );
-                  },
-                ),
               ],
             ),
           ),
@@ -1177,15 +1098,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         ),
                       ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.logout_rounded, color: colors.error, size: 20),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Sign Out',
-                            style: TextStyle(
-                              color: colors.error,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Sign Out',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: colors.error,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
@@ -1243,48 +1168,51 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           width: 1.1,
         ),
       ),
-      child: ListTile(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        leading: Icon(
-          icon,
-          color: isSelected ? colors.primary : colors.textSecondary,
-          size: 22,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? colors.textPrimary : colors.textSecondary,
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: colors.textMuted,
-            fontSize: 11,
+          leading: Icon(
+            icon,
+            color: isSelected ? colors.primary : colors.textSecondary,
+            size: 22,
           ),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? colors.textPrimary : colors.textSecondary,
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              color: colors.textMuted,
+              fontSize: 11,
+            ),
+          ),
+          trailing: isSelected
+              ? Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.present,
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.present.withValues(alpha: 0.4),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                )
+              : null,
+          onTap: onTap,
+          dense: true,
         ),
-        trailing: isSelected
-            ? Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.present,
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.present.withValues(alpha: 0.4),
-                      blurRadius: 6,
-                    ),
-                  ],
-                ),
-              )
-            : null,
-        onTap: onTap,
-        dense: true,
       ),
     );
   }

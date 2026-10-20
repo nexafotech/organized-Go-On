@@ -15,6 +15,7 @@ from app.models.policy import SystemSetting
 from app.models.academic import TimetableEntry, Period, FacultyAssignment, ClassSection, Subject, assignment_authorized_faculty
 from app.models.student import Student
 from app.models.user import User, Faculty, UserRole
+from app.models.attendance import ClassSession, AttendanceStatus
 from app.models.audit import AuditLog
 from app.services.fcm_service import FCMService
 
@@ -336,7 +337,7 @@ class NotificationService:
             NotificationLog.user_id == user_id,
             NotificationLog.is_read == False,
             NotificationLog.is_deleted == False,
-        ).update({"is_read": True, "read_at": now})
+        ).update({"is_read": True, "read_at": now}, synchronize_session="fetch")
         db.commit()
         return updated
 
@@ -701,6 +702,180 @@ class NotificationService:
             "student_reminders_skipped": student_skipped,
             "faculty_reminders_skipped": faculty_skipped,
             "details": details,
+        }
+
+    @staticmethod
+    def send_attendance_marking_notifications(
+        db: Session,
+        session_id: int,
+        records_data: List[Any],
+    ) -> Dict[str, Any]:
+        """
+        Dispatches attendance notification alerts and records in-app notification logs
+        for students marked Present, Absent, or On-Duty in a class session.
+        Respects the 'notification.attendance_status_enabled' setting.
+        Ensures idempotent updates if attendance is modified or corrected.
+        """
+        if not records_data:
+            return {"sent": 0, "status": "no_records"}
+
+        settings = NotificationService.get_settings(db)
+        if not settings.get("attendance_status_enabled", True):
+            logger.info("Attendance notifications are disabled in notification settings.")
+            return {"sent": 0, "status": "disabled"}
+
+        session = db.query(ClassSession).filter(ClassSession.id == session_id).first()
+        if not session:
+            logger.warning(f"ClassSession #{session_id} not found for attendance notification dispatch.")
+            return {"sent": 0, "status": "session_not_found"}
+
+        entry = session.timetable_entry
+        period = entry.period if entry else None
+        subject = entry.assignment.subject if (entry and entry.assignment) else None
+
+        subj_display = (subject.name or subject.code) if subject else "Class"
+        period_name = period.name if period else (f"Period {entry.period_id}" if entry else "Period")
+        date_str = session.date
+        now_utc = datetime.now(timezone.utc)
+
+        sent_count = 0
+        skipped_count = 0
+
+        for r in records_data:
+            sid = None
+            raw_status = None
+            od_r = None
+
+            if isinstance(r, dict):
+                sid = r.get("student_id")
+                raw_status = r.get("status")
+                od_r = r.get("od_reason")
+            elif hasattr(r, "student_id"):
+                sid = getattr(r, "student_id")
+                raw_status = getattr(r, "status")
+                od_r = getattr(r, "od_reason", None)
+            else:
+                continue
+
+            if hasattr(raw_status, "value"):
+                st_val = str(raw_status.value).upper()
+            else:
+                st_val = str(raw_status).upper() if raw_status is not None else ""
+
+            # Only notify on confirmed marked statuses: PRESENT, ABSENT, OD
+            if st_val not in ("PRESENT", "ABSENT", "OD"):
+                skipped_count += 1
+                continue
+
+            student = db.query(Student).filter(Student.id == sid).first()
+            if not student or not student.user_id:
+                skipped_count += 1
+                continue
+
+            user = student.user
+            if not user or not user.is_active:
+                skipped_count += 1
+                continue
+
+            if st_val == "PRESENT":
+                status_label = "Present"
+                body = f"You were marked Present for {subj_display} ({period_name}) on {date_str}."
+                is_high = False
+            elif st_val == "ABSENT":
+                status_label = "Absent"
+                body = f"You were marked Absent for {subj_display} ({period_name}) on {date_str}. If this is an error, please contact your faculty/class advisor."
+                is_high = True
+            elif st_val == "OD":
+                status_label = "On-Duty"
+                reason_str = f" Reason: {od_r}." if od_r else ""
+                body = f"You were marked On-Duty for {subj_display} ({period_name}) on {date_str}.{reason_str}"
+                is_high = False
+
+            title = f"Go-On • Attendance: {status_label}"
+            data_payload = {
+                "type": "attendance",
+                "route": "student_attendance",
+                "status": st_val,
+                "subject": subj_display,
+                "period": period_name,
+                "date": date_str,
+                "period_id": str(period.id) if period else "",
+                "timetable_entry_id": str(entry.id) if entry else "",
+                "session_id": str(session.id),
+            }
+
+            # 1. Dispatch push notification via FCM
+            push_res = FCMService.send_push_to_user_devices(
+                db=db,
+                user_id=user.id,
+                title=title,
+                body=body,
+                data=data_payload,
+                channel_id=NotificationChannel.GO_ON_ATTENDANCE.value,
+                high_importance=is_high,
+            )
+
+            # 2. Determine delivery status
+            if not push_res:
+                del_status = NotificationDeliveryStatus.STORED.value
+                err_note = "No active device registered. Stored in notification history."
+            elif any(res.get("simulated", False) for res in push_res):
+                del_status = NotificationDeliveryStatus.SIMULATED.value
+                err_note = "Simulated push dispatch."
+            elif any(res.get("success", False) for res in push_res):
+                del_status = NotificationDeliveryStatus.PROVIDER_ACCEPTED.value
+                err_note = None
+            else:
+                del_status = NotificationDeliveryStatus.FAILED.value
+                err_note = "Push notification delivery failed for user device(s)."
+
+            # 3. Create or update NotificationLog (idempotency by user, date, and timetable slot)
+            existing_log = (
+                db.query(NotificationLog)
+                .filter(
+                    NotificationLog.user_id == user.id,
+                    NotificationLog.notification_type == NotificationType.ATTENDANCE.value,
+                    NotificationLog.reference_date == date_str,
+                    NotificationLog.timetable_entry_id == (entry.id if entry else None),
+                )
+                .first()
+            )
+
+            if existing_log:
+                existing_log.title = title
+                existing_log.body = body
+                existing_log.data_payload = json.dumps(data_payload)
+                existing_log.status = del_status
+                existing_log.error_message = err_note
+                existing_log.is_read = False
+                existing_log.is_deleted = False
+                existing_log.created_at = now_utc
+            else:
+                log = NotificationLog(
+                    user_id=user.id,
+                    notification_type=NotificationType.ATTENDANCE.value,
+                    channel_id=NotificationChannel.GO_ON_ATTENDANCE.value,
+                    title=title,
+                    body=body,
+                    data_payload=json.dumps(data_payload),
+                    reference_date=date_str,
+                    period_id=period.id if period else None,
+                    timetable_entry_id=entry.id if entry else None,
+                    status=del_status,
+                    error_message=err_note,
+                    is_read=False,
+                    created_at=now_utc,
+                )
+                db.add(log)
+
+            sent_count += 1
+
+        db.commit()
+        return {
+            "sent": sent_count,
+            "skipped": skipped_count,
+            "session_id": session_id,
+            "date": date_str,
         }
 
     @staticmethod

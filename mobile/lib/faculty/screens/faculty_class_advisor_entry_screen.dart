@@ -395,7 +395,11 @@ class _FacultyClassAdvisorEntryScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: AppRadius.cardBorder),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         title: Row(
           children: [
             Icon(Icons.verified_rounded, color: colors.present, size: 26),
@@ -411,101 +415,49 @@ class _FacultyClassAdvisorEntryScreenState
             ),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Class: ${summary.className} | Date: ${summary.date}',
-                style: typography.caption.copyWith(color: colors.textMuted),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: colors.surfaceMuted,
-                  borderRadius: AppRadius.mediumBorder,
-                  border: Border.all(color: colors.glassBorder),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.75,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Class: ${summary.className} | Date: ${summary.date}',
+                  style: typography.caption.copyWith(color: colors.textMuted),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildSummaryStat('Full Day Present', '${summary.fullDayPresentCount}', colors.present),
-                        _buildSummaryStat('Half-Day Present', '${summary.halfDayPresentCount}', colors.present),
-                        _buildSummaryStat('Full Day Absent', '${summary.fullDayAbsentCount}', colors.error),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildSummaryStat('On Duty (OD)', '${summary.odCount}', colors.warning),
-                        _buildSummaryStat('Partial / Mixed', '${summary.partialCount}', colors.warning),
-                        _buildSummaryStat('Not Entered', '${summary.notEnteredCount}', colors.textMuted),
-                      ],
-                    ),
-                  ],
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceMuted,
+                    borderRadius: AppRadius.mediumBorder,
+                    border: Border.all(color: colors.glassBorder),
+                  ),
+                  child: DailyAttendanceSummaryMetrics(summary: summary),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: colors.warningBg,
-                  borderRadius: AppRadius.smallBorder,
-                  border: Border.all(color: colors.warning.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.restaurant, size: 16, color: colors.warning),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Lunch Break: ${summary.lunchInterval} • Not counted',
-                        style: TextStyle(fontSize: 11, color: colors.warning, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.primary,
-              foregroundColor: colors.onPrimary,
-              shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.primary,
+                foregroundColor: colors.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSummaryStat(String label, String value, Color color) {
-    final typography = context.typography;
-    final colors = context.colors;
-
-    return Column(
-      children: [
-        Text(
-          value,
-          style: typography.numericLarge.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
-            fontSize: 18,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(label, style: typography.caption.copyWith(color: colors.textMuted)),
-      ],
     );
   }
 

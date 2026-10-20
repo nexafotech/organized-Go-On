@@ -7,6 +7,7 @@ import '../../models/faculty_attendance_model.dart';
 import '../../services/faculty_service.dart';
 import '../../utils/timezone_utils.dart';
 import 'faculty_attendance_entry_screen.dart';
+import '../widgets/faculty_calendar_theme.dart';
 
 class FacultyAttendanceScreen extends StatefulWidget {
   final bool isStandalone;
@@ -17,7 +18,8 @@ class FacultyAttendanceScreen extends StatefulWidget {
       _FacultyAttendanceScreenState();
 }
 
-class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
+class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   String? _errorMessage;
   AvailablePeriodsResponse? _data;
@@ -27,13 +29,51 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
   String? _pastErrorMessage;
   FacultyPeriodsForDateResponse? _pastData;
 
+  late TabController _tabController;
+  final ScrollController _todayScrollController = ScrollController();
+  final ScrollController _yesterdayScrollController = ScrollController();
+  final ScrollController _pastScrollController = ScrollController();
+
+  final Map<int, GlobalKey> _todayPeriodKeys = {};
+  final Map<int, GlobalKey> _yesterdayPeriodKeys = {};
+  final Map<int, GlobalKey> _pastPeriodKeys = {};
+
+  int? _pendingScrollPeriodNumber;
+  int? _pendingScrollTabIndex;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAvailablePeriods();
       _loadPastPeriods(_selectedPastDate);
     });
+  }
+
+  void _onTabChanged() {
+    _pendingScrollPeriodNumber = null;
+    _pendingScrollTabIndex = null;
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+    _todayScrollController.dispose();
+    _yesterdayScrollController.dispose();
+    _pastScrollController.dispose();
+    super.dispose();
+  }
+
+  GlobalKey _getOrCreatePeriodKey(int tabIndex, int periodNumber) {
+    final map = tabIndex == 0
+        ? _todayPeriodKeys
+        : tabIndex == 1
+            ? _yesterdayPeriodKeys
+            : _pastPeriodKeys;
+    return map.putIfAbsent(periodNumber, () => GlobalKey());
   }
 
   Future<void> _loadPastPeriods(DateTime date) async {
@@ -81,6 +121,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
       initialDate: _selectedPastDate.isAfter(now) ? now : _selectedPastDate,
       firstDate: DateTime(2025, 1, 1),
       lastDate: now,
+      builder: (context, child) => buildFacultyDatePickerTheme(context, child!),
     );
     if (picked != null) {
       _loadPastPeriods(picked);
@@ -124,6 +165,9 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
   }
 
   void _openEntryScreen(AvailablePeriodItem period) async {
+    final currentTabIndex = _tabController.index;
+    final savedPeriodNumber = period.periodNumber;
+
     final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => FacultyAttendanceEntryScreen(
@@ -139,10 +183,97 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
       ),
     );
 
-    if (result == true) {
-      _loadAvailablePeriods();
-      _loadPastPeriods(_selectedPastDate);
+    if (result == true && mounted) {
+      if (currentTabIndex == 2) {
+        await _loadPastPeriods(_selectedPastDate);
+      } else {
+        await _loadAvailablePeriods();
+      }
+
+      if (!mounted) return;
+      if (_tabController.index != currentTabIndex) return;
+
+      final List<AvailablePeriodItem> activePeriods;
+      if (currentTabIndex == 0) {
+        activePeriods = _data?.todayPeriods ?? [];
+      } else if (currentTabIndex == 1) {
+        activePeriods = _data?.yesterdayPeriods ?? [];
+      } else {
+        activePeriods = _pastData?.periods ?? [];
+      }
+
+      final sortedPeriods = List<AvailablePeriodItem>.from(activePeriods)
+        ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber));
+
+      AvailablePeriodItem? nextEligiblePeriod;
+      for (final p in sortedPeriods) {
+        if (p.periodNumber > savedPeriodNumber) {
+          final bool isAlreadyMarked = p.status == 'ALREADY_MARKED';
+          final bool isEligible = (p.status == 'AVAILABLE' || p.canMark) && !isAlreadyMarked;
+          if (isEligible) {
+            nextEligiblePeriod = p;
+            break;
+          }
+        }
+      }
+
+      if (nextEligiblePeriod == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('All eligible periods for this date have been recorded.'),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF0B7A55),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } else {
+        _scrollToPeriod(currentTabIndex, nextEligiblePeriod.periodNumber);
+      }
     }
+  }
+
+  void _scrollToPeriod(int tabIndex, int periodNumber) {
+    _pendingScrollTabIndex = tabIndex;
+    _pendingScrollPeriodNumber = periodNumber;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (_tabController.index != tabIndex) return;
+      if (_pendingScrollTabIndex != tabIndex) return;
+      if (_pendingScrollPeriodNumber != periodNumber) return;
+
+      // Brief delay to allow the reloaded widget tree to finish laying out
+      await Future.delayed(const Duration(milliseconds: 80));
+      if (!mounted) return;
+      if (_tabController.index != tabIndex) return;
+      if (_pendingScrollTabIndex != tabIndex) return;
+      if (_pendingScrollPeriodNumber != periodNumber) return;
+
+      final key = _getOrCreatePeriodKey(tabIndex, periodNumber);
+      final targetContext = key.currentContext;
+
+      if (targetContext != null && targetContext.mounted) {
+        await Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeInOutCubic,
+          alignment: 0.0,
+        );
+      }
+      _pendingScrollPeriodNumber = null;
+      _pendingScrollTabIndex = null;
+    });
   }
 
   @override
@@ -196,55 +327,58 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
         ),
       );
     } else {
-      content = DefaultTabController(
-        length: 3,
-        child: Column(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: colors.glassSurfaceStrong,
-                border: Border(
-                  bottom: BorderSide(color: colors.glassBorder, width: 1),
+      content = Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: colors.glassSurfaceStrong,
+              border: Border(
+                bottom: BorderSide(color: colors.glassBorder, width: 1),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: colors.primary,
+              indicatorWeight: 3,
+              labelColor: colors.primary,
+              unselectedLabelColor: colors.textMuted,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              tabs: const [
+                Tab(text: 'TODAY'),
+                Tab(text: 'YESTERDAY'),
+                Tab(text: 'PAST DATES'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // TODAY TAB
+                _buildPeriodList(
+                  tabIndex: 0,
+                  scrollController: _todayScrollController,
+                  periods: _data?.todayPeriods ?? [],
+                  dateStr: _data?.todayDate ?? '',
+                  dayStr: _data?.todayDay ?? '',
+                  isToday: true,
                 ),
-              ),
-              child: TabBar(
-                indicatorColor: colors.primary,
-                indicatorWeight: 3,
-                labelColor: colors.primary,
-                unselectedLabelColor: colors.textMuted,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                tabs: const [
-                  Tab(text: 'TODAY'),
-                  Tab(text: 'YESTERDAY'),
-                  Tab(text: 'PAST DATES'),
-                ],
-              ),
+                // YESTERDAY TAB
+                _buildPeriodList(
+                  tabIndex: 1,
+                  scrollController: _yesterdayScrollController,
+                  periods: _data?.yesterdayPeriods ?? [],
+                  dateStr: _data?.yesterdayDate ?? '',
+                  dayStr: _data?.yesterdayDay ?? '',
+                  isToday: false,
+                ),
+                // PAST DATES TAB
+                _buildPastDatesTab(),
+              ],
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  // TODAY TAB
-                  _buildPeriodList(
-                    periods: _data?.todayPeriods ?? [],
-                    dateStr: _data?.todayDate ?? '',
-                    dayStr: _data?.todayDay ?? '',
-                    isToday: true,
-                  ),
-                  // YESTERDAY TAB
-                  _buildPeriodList(
-                    periods: _data?.yesterdayPeriods ?? [],
-                    dateStr: _data?.yesterdayDate ?? '',
-                    dayStr: _data?.yesterdayDay ?? '',
-                    isToday: false,
-                  ),
-                  // PAST DATES TAB
-                  _buildPastDatesTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -268,6 +402,8 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
   }
 
   Widget _buildPeriodList({
+    required int tabIndex,
+    required ScrollController scrollController,
     required List<AvailablePeriodItem> periods,
     required String dateStr,
     required String dayStr,
@@ -280,7 +416,8 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
       color: colors.primary,
       onRefresh: _loadAvailablePeriods,
       child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 110),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           // Informational Notice Banner
@@ -378,14 +515,14 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
               ),
             )
           else
-            ...periods.map((p) => _buildPeriodCard(p, isToday)).toList(),
+            ...periods.map((p) => _buildPeriodCard(p, isToday, tabIndex)).toList(),
           const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
 
-  Widget _buildPeriodCard(AvailablePeriodItem period, bool isToday) {
+  Widget _buildPeriodCard(AvailablePeriodItem period, bool isToday, int tabIndex) {
     final colors = context.colors;
     final typography = context.typography;
     final isAvailable = period.status == 'AVAILABLE';
@@ -400,6 +537,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
     }
 
     return GlassCard(
+      key: _getOrCreatePeriodKey(tabIndex, period.periodNumber),
       variant: isAvailable ? GlassCardVariant.elevated : GlassCardVariant.standard,
       enableBlur: false, // Smooth scroll list rule
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -495,7 +633,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
                   Expanded(
                     child: Text(
                       period.lockReason ??
-                          'Attendance opens after the period ends.',
+                          'Attendance opens at ${TimezoneUtils.format24hTo12h(period.startTime)}',
                       style: TextStyle(
                         fontSize: 12,
                         color: colors.warning,
@@ -633,7 +771,8 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
       color: colors.primary,
       onRefresh: () => _loadPastPeriods(_selectedPastDate),
       child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        controller: _pastScrollController,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 110),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           // Past Date Picker Header Card
@@ -735,7 +874,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
               ),
             )
           else if (_pastData != null)
-            ..._pastData!.periods.map((p) => _buildPeriodCard(p, false)),
+            ..._pastData!.periods.map((p) => _buildPeriodCard(p, false, 2)),
         ],
       ),
     );

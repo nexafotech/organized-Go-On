@@ -96,6 +96,7 @@ class FacultyStudentAttendanceRowModel {
   final String fullName;
   final int total;
   final int present;
+  final int purePresent;
   final int absent;
   final int od;
   final double percentage;
@@ -106,20 +107,24 @@ class FacultyStudentAttendanceRowModel {
     required this.fullName,
     required this.total,
     required this.present,
+    this.purePresent = 0,
     required this.absent,
     required this.od,
     required this.percentage,
   });
 
   factory FacultyStudentAttendanceRowModel.fromJson(Map<String, dynamic> json) {
+    final pres = json['present'] as int? ?? 0;
+    final odVal = json['od'] as int? ?? 0;
     return FacultyStudentAttendanceRowModel(
       studentId: json['student_id'] as int? ?? 0,
       rollNumber: json['roll_number'] as String? ?? '',
       fullName: json['full_name'] as String? ?? '',
       total: json['total'] as int? ?? 0,
-      present: json['present'] as int? ?? 0,
+      present: pres,
+      purePresent: json['pure_present'] as int? ?? (pres >= odVal ? pres - odVal : pres),
       absent: json['absent'] as int? ?? 0,
-      od: json['od'] as int? ?? 0,
+      od: odVal,
       percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -133,10 +138,19 @@ class FacultyClassSummaryModel {
   final String? subjectName;
   final bool isClassAdvisorScope;
   final int totalPeriods;
+  final int totalStudents;
   final int present;
+  final int purePresent;
   final int absent;
   final int od;
+  final int totalMarks;
   final double percentage;
+  final String? startDate;
+  final String? endDate;
+  final String? dateRangeDisplay;
+  final bool isSunday;
+  final bool hasScheduledClasses;
+  final String? noClassMessage;
   final List<FacultyStudentAttendanceRowModel> students;
 
   FacultyClassSummaryModel({
@@ -147,17 +161,34 @@ class FacultyClassSummaryModel {
     this.subjectName,
     this.isClassAdvisorScope = false,
     required this.totalPeriods,
+    this.totalStudents = 0,
     required this.present,
+    this.purePresent = 0,
     required this.absent,
     required this.od,
+    this.totalMarks = 0,
     required this.percentage,
+    this.startDate,
+    this.endDate,
+    this.dateRangeDisplay,
+    this.isSunday = false,
+    this.hasScheduledClasses = true,
+    this.noClassMessage,
     required this.students,
   });
+
+  int get effectiveTotalStudents => totalStudents > 0 ? totalStudents : students.length;
+  int get effectiveTotalMarks => totalMarks > 0 ? totalMarks : (effectiveTotalStudents * totalPeriods);
 
   bool get hasAttendanceRecords =>
       totalPeriods > 0 && (present > 0 || absent > 0 || od > 0 || students.any((s) => s.total > 0));
 
   factory FacultyClassSummaryModel.fromJson(Map<String, dynamic> json) {
+    final stList = (json['students'] as List? ?? [])
+        .map((s) => FacultyStudentAttendanceRowModel.fromJson(Map<String, dynamic>.from(s as Map)))
+        .toList();
+    final pVal = json['present'] as int? ?? 0;
+    final odVal = json['od'] as int? ?? 0;
     return FacultyClassSummaryModel(
       classId: json['class_id'] as int? ?? 0,
       className: json['class_name'] as String? ?? '',
@@ -166,13 +197,20 @@ class FacultyClassSummaryModel {
       subjectName: json['subject_name'] as String?,
       isClassAdvisorScope: json['is_class_advisor_scope'] as bool? ?? false,
       totalPeriods: json['total_periods'] as int? ?? 0,
-      present: json['present'] as int? ?? 0,
+      totalStudents: json['total_students'] as int? ?? stList.length,
+      present: pVal,
+      purePresent: json['pure_present'] as int? ?? (pVal >= odVal ? pVal - odVal : pVal),
       absent: json['absent'] as int? ?? 0,
-      od: json['od'] as int? ?? 0,
+      od: odVal,
+      totalMarks: json['total_marks'] as int? ?? (stList.length * (json['total_periods'] as int? ?? 0)),
       percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
-      students: (json['students'] as List? ?? [])
-          .map((s) => FacultyStudentAttendanceRowModel.fromJson(Map<String, dynamic>.from(s as Map)))
-          .toList(),
+      startDate: json['start_date'] as String?,
+      endDate: json['end_date'] as String?,
+      dateRangeDisplay: json['date_range_display'] as String?,
+      isSunday: json['is_sunday'] as bool? ?? false,
+      hasScheduledClasses: json['has_scheduled_classes'] as bool? ?? true,
+      noClassMessage: json['no_class_message'] as String?,
+      students: stList,
     );
   }
 }

@@ -36,7 +36,9 @@ class FlutterWebHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "*")
-        self.send_header("Cache-Control", "no-cache, must-revalidate")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -44,11 +46,24 @@ class FlutterWebHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        # Force fresh response, bypass browser 304 Not Modified cache
+        if "If-Modified-Since" in self.headers:
+            del self.headers["If-Modified-Since"]
+        if "If-None-Match" in self.headers:
+            del self.headers["If-None-Match"]
+
         target_path = self.translate_path(self.path)
         # If requested path does not exist and has no extension, fallback to index.html (SPA routing)
         if not os.path.exists(target_path) and "." not in os.path.basename(self.path):
             self.path = "/index.html"
         return super().do_GET()
+
+    def do_HEAD(self):
+        if "If-Modified-Since" in self.headers:
+            del self.headers["If-Modified-Since"]
+        if "If-None-Match" in self.headers:
+            del self.headers["If-None-Match"]
+        return super().do_HEAD()
 
     def log_message(self, format, *args):
         # Concise logging

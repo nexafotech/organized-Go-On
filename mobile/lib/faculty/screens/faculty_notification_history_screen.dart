@@ -22,10 +22,13 @@ class _FacultyNotificationHistoryScreenState
   final ApiClient _apiClient = ApiClient();
   int _selectedFilterIndex = 0; // 0: All, 1: Unread Only
   Timer? _relativeTimeRefreshTimer;
+  bool _hasInitialLoaded = false;
 
   @override
   void initState() {
     super.initState();
+    final notifService = Provider.of<NotificationService>(context, listen: false);
+    _hasInitialLoaded = notifService.notifications.isNotEmpty;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadNotifications();
     });
@@ -45,11 +48,16 @@ class _FacultyNotificationHistoryScreenState
 
   Future<void> _loadNotifications() async {
     final notifService = Provider.of<NotificationService>(context, listen: false);
-    await notifService.fetchNotifications(
-      _apiClient,
-      unreadOnly: _selectedFilterIndex == 1,
-    );
-    await notifService.refreshUnreadCount(_apiClient);
+    try {
+      await notifService.fetchNotifications(_apiClient);
+      await notifService.refreshUnreadCount(_apiClient);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _hasInitialLoaded = true;
+        });
+      }
+    }
   }
 
   Future<void> _handleMarkRead(NotificationItem item) async {
@@ -62,11 +70,9 @@ class _FacultyNotificationHistoryScreenState
     final notifService = Provider.of<NotificationService>(context, listen: false);
     final count = await notifService.markAllAsRead(_apiClient);
     if (mounted && count > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Marked $count notification(s) as read'),
-          duration: const Duration(seconds: 2),
-        ),
+      NotificationToast.showSuccess(
+        context,
+        'Marked $count notification(s) as read',
       );
     }
   }
@@ -76,53 +82,38 @@ class _FacultyNotificationHistoryScreenState
     if (item.isPinned) {
       final success = await notifService.unpinNotification(_apiClient, item.id);
       if (mounted && success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notification unpinned'),
-            duration: Duration(seconds: 2),
-          ),
+        NotificationToast.showSuccess(
+          context,
+          'Notification unpinned',
         );
       }
     } else {
       final success = await notifService.pinNotification(_apiClient, item.id);
       if (mounted && success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notification pinned to top'),
-            duration: Duration(seconds: 2),
-          ),
+        NotificationToast.showSuccess(
+          context,
+          'Notification pinned to top',
         );
       }
     }
   }
 
   Future<void> _handleDelete(NotificationItem item) async {
-    final colors = context.colors;
     final notifService = Provider.of<NotificationService>(context, listen: false);
     if (notifService.isNotificationPinned(item.id)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Pinned notifications cannot be deleted. Unpin first.'),
-            backgroundColor: colors.surface,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        NotificationToast.showPinnedWarning(context);
       }
       return;
     }
 
     final success = await notifService.deleteNotification(_apiClient, item.id);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success ? 'Notification deleted' : 'Failed to delete notification',
-          ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      if (success) {
+        NotificationToast.showSuccess(context, 'Notification deleted');
+      } else {
+        NotificationToast.showError(context, 'Failed to delete notification');
+      }
     }
   }
 
@@ -137,16 +128,17 @@ class _FacultyNotificationHistoryScreenState
 
     if (unpinnedCount == 0) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              pinnedCount > 0
-                  ? 'All active notifications are pinned. Unpin notifications first to delete them.'
-                  : 'No notifications to delete.',
-            ),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        if (pinnedCount > 0) {
+          NotificationToast.showWarning(
+            context,
+            'All active notifications are pinned. Unpin notifications first to delete them.',
+          );
+        } else {
+          NotificationToast.showInfo(
+            context,
+            'No notifications to delete.',
+          );
+        }
       }
       return;
     }
@@ -262,25 +254,15 @@ class _FacultyNotificationHistoryScreenState
         if (result['success'] == true) {
           final deleted = result['deleted_count'] ?? unpinnedCount;
           final pinnedKept = result['pinned_preserved_count'] ?? pinnedCount;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Deleted $deleted unpinned notification${deleted != 1 ? 's' : ''} ($pinnedKept pinned preserved)',
-              ),
-              duration: const Duration(seconds: 3),
-              backgroundColor: colors.surface,
-              behavior: SnackBarBehavior.floating,
-            ),
+          NotificationToast.showSuccess(
+            context,
+            'Deleted $deleted unpinned notification${deleted != 1 ? 's' : ''} ($pinnedKept pinned preserved)',
+            duration: const Duration(seconds: 3),
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                result['message'] ?? 'Failed to delete unpinned notifications',
-              ),
-              backgroundColor: colors.error,
-              duration: const Duration(seconds: 4),
-            ),
+          NotificationToast.showError(
+            context,
+            result['message'] ?? 'Failed to delete unpinned notifications',
           );
         }
       }
@@ -739,9 +721,13 @@ class _FacultyNotificationHistoryScreenState
     final colors = context.colors;
     final notifService = Provider.of<NotificationService>(context);
 
+    final activeNotifications = notifService.notifications.where((n) => !n.isDeleted).toList();
+    final int allCount = activeNotifications.length;
+    final int unreadCount = activeNotifications.where((n) => !n.isRead).length;
+
     final displayedNotifications = _selectedFilterIndex == 1
-        ? notifService.notifications.where((n) => !n.isRead && !n.isDeleted).toList()
-        : notifService.notifications.where((n) => !n.isDeleted).toList();
+        ? activeNotifications.where((n) => !n.isRead).toList()
+        : activeNotifications;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -756,7 +742,7 @@ class _FacultyNotificationHistoryScreenState
               const Icon(Icons.notifications_active_rounded, size: 22),
               const SizedBox(width: 8),
               const Text('Notifications'),
-              if (notifService.unreadCount > 0) ...[
+              if (unreadCount > 0) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -765,7 +751,7 @@ class _FacultyNotificationHistoryScreenState
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    '${notifService.unreadCount}',
+                    '$unreadCount',
                     style: TextStyle(
                       color: colors.onPrimary,
                       fontSize: 11,
@@ -779,7 +765,7 @@ class _FacultyNotificationHistoryScreenState
         ),
         elevation: 0,
         actions: [
-          if (notifService.unreadCount > 0)
+          if (unreadCount > 0)
             IconButton(
               icon: const Icon(Icons.done_all_rounded, size: 20),
               tooltip: 'Mark all as read',
@@ -830,11 +816,11 @@ class _FacultyNotificationHistoryScreenState
                 _buildFilterChip(
                   0,
                   'All',
-                  notifService.notifications.where((n) => !n.isDeleted).length,
+                  allCount,
                   colors,
                 ),
                 const SizedBox(width: 8),
-                _buildFilterChip(1, 'Unread', notifService.unreadCount, colors),
+                _buildFilterChip(1, 'Unread', unreadCount, colors),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -873,7 +859,6 @@ class _FacultyNotificationHistoryScreenState
         setState(() {
           _selectedFilterIndex = index;
         });
-        _loadNotifications();
       },
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
@@ -928,7 +913,7 @@ class _FacultyNotificationHistoryScreenState
     NotificationService notifService,
     AppColors colors,
   ) {
-    if (notifService.isLoading && items.isEmpty) {
+    if ((notifService.isLoading || !_hasInitialLoaded) && notifService.notifications.isEmpty && notifService.errorMessage == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1114,14 +1099,7 @@ class _FacultyNotificationHistoryScreenState
           // Swipe Left: Delete
           if (notifService.isNotificationPinned(item.id)) {
             // Strictly protect pinned notifications from deletion
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Pinned notifications cannot be deleted. Unpin first.'),
-                backgroundColor: colors.surface,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
-              ),
-            );
+            NotificationToast.showPinnedWarning(context);
             return false;
           }
           // Immediately and synchronously unregister from local list before tree rebuild
@@ -1265,6 +1243,7 @@ class _FacultyNotificationHistoryScreenState
                         ),
                       ],
                       PopupMenuButton<String>(
+                        key: ValueKey('notif_menu_${item.id}'),
                         icon: Icon(
                           Icons.more_vert_rounded,
                           size: 18,
@@ -1286,14 +1265,7 @@ class _FacultyNotificationHistoryScreenState
                               break;
                             case 'delete':
                               if (item.isPinned) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text('Pinned notifications cannot be deleted. Unpin first.'),
-                                    backgroundColor: colors.surface,
-                                    behavior: SnackBarBehavior.floating,
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
+                                NotificationToast.showPinnedWarning(context);
                                 return;
                               }
                               _handleDelete(item);
@@ -1338,7 +1310,6 @@ class _FacultyNotificationHistoryScreenState
                             ),
                           PopupMenuItem(
                             value: 'delete',
-                            enabled: !item.isPinned,
                             child: Row(
                               children: [
                                 Icon(

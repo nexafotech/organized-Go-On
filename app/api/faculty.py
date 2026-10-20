@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.models.user import User, UserRole, Faculty
 from app.models.academic import ClassSection, Subject, Period, TimetableEntry, FacultyAssignment
 from app.models.student import Student
-from app.models.attendance import AttendanceRecord, ClassSession
+from app.models.attendance import AttendanceRecord, ClassSession, SessionStatus
 from app.api.deps import require_faculty
 from app.engines.timetable_engine import get_faculty_schedule, get_active_and_upcoming_class, get_ist_now
 from app.engines.policy_engine import get_active_policy, derive_daily_half_day_status, _status_counts, _safe_percentage
@@ -171,8 +171,8 @@ def submit_attendance(
     db: Session = Depends(get_db)
 ):
     """
-    Submits attendance records for a completed period (today or yesterday).
-    Re-validates authorization, date window, period end time, and student enrollment server-side.
+    Submits attendance records for a scheduled period (today or yesterday).
+    Re-validates authorization, date window, period start time, and student enrollment server-side.
     Creates or reuses ClassSession with exact class date.
     Deduplicates records and writes an AuditLog.
     """
@@ -209,6 +209,177 @@ def get_class_advisor_class(
             "academic_year": cs.academic_year,
             "grade_level": cs.grade_level,
         } if cs else None
+    }
+
+
+@router.get("/class-advisor/timetable")
+def get_class_advisor_timetable_endpoint(
+    class_id: Optional[int] = None,
+    current_user: User = Depends(require_faculty),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the complete weekly timetable for the Class Advisor's advised class.
+    Includes all subjects, periods, faculties, and room numbers.
+    Supports optional class_id for authorized queries and admin access.
+    """
+    faculty_id = _resolve_faculty_id(current_user, db)
+    cs = None
+    if class_id is not None:
+        if current_user.role == UserRole.ADMIN:
+            cs = db.query(ClassSection).filter(ClassSection.id == class_id).first()
+        else:
+            cs = db.query(ClassSection).filter(
+                ClassSection.id == class_id,
+                ClassSection.class_advisor_id == faculty_id
+            ).first()
+            if not cs:
+                has_assignment = db.query(FacultyAssignment).filter(
+                    FacultyAssignment.class_id == class_id,
+                    FacultyAssignment.faculty_id == faculty_id
+                ).first()
+                if has_assignment:
+                    cs = db.query(ClassSection).filter(ClassSection.id == class_id).first()
+
+    if not cs:
+        cs = db.query(ClassSection).filter(ClassSection.class_advisor_id == faculty_id).first()
+
+    if not cs and current_user.role == UserRole.ADMIN:
+        cs = db.query(ClassSection).first()
+
+    if not cs:
+        return {"class_id": None, "class_name": None, "timetable": []}
+
+    entries = (
+        db.query(TimetableEntry)
+        .join(FacultyAssignment, TimetableEntry.assignment_id == FacultyAssignment.id)
+        .join(Period, TimetableEntry.period_id == Period.id)
+        .filter(FacultyAssignment.class_id == cs.id)
+        .all()
+    )
+    timetable = []
+    seen_entry_ids = set()
+    for e in entries:
+        if not e or e.id in seen_entry_ids:
+            continue
+
+        period = e.period
+        if not period or (period.period_number is not None and period.period_number <= 0):
+            continue
+
+        assign = e.assignment
+        p_name = period.name.upper() if period.name else ""
+        sub_code = assign.subject.code if (assign and assign.subject) else None
+        sub_name = assign.subject.name if (assign and assign.subject) else None
+
+        # Exclude non-teaching breaks and lunch intervals
+        if any(term in p_name or (sub_code and term in sub_code.upper()) or (sub_name and term in sub_name.upper()) for term in ["BREAK", "LUNCH", "RECESS"]):
+            continue
+
+        seen_entry_ids.add(e.id)
+        fac_name = assign.faculty.full_name if (assign and assign.faculty) else "Faculty assignment pending"
+        is_lab = False
+        if sub_code and "LAB" in sub_code.upper():
+            is_lab = True
+        elif sub_name and "LAB" in sub_name.upper():
+            is_lab = True
+
+        timetable.append({
+            "id": e.id,
+            "day_of_week": e.day_of_week,
+            "period_id": period.id if period else 0,
+            "period_number": period.period_number if period else None,
+            "period_name": period.name if period else None,
+            "start_time": period.start_time if period else None,
+            "end_time": period.end_time if period else None,
+            "assignment_id": assign.id if assign else 0,
+            "subject_code": sub_code,
+            "subject_name": sub_name,
+            "class_name": cs.name,
+            "faculty_name": fac_name,
+            "room_no": e.room,
+            "type": "Lab" if is_lab else "Theory"
+        })
+    day_weights = {"Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7}
+    timetable.sort(key=lambda x: (day_weights.get(x["day_of_week"], 8), x["period_number"] or 0))
+
+    return {
+        "class_id": cs.id,
+        "class_name": cs.name,
+        "timetable": timetable,
+    }
+
+
+@router.get("/class/{class_id}/timetable")
+def get_class_timetable_by_id_endpoint(
+    class_id: int,
+    current_user: User = Depends(require_faculty),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the complete weekly timetable for a given class section.
+    """
+    cs = db.query(ClassSection).filter(ClassSection.id == class_id).first()
+    if not cs:
+        raise HTTPException(status_code=404, detail="Class section not found")
+
+    entries = (
+        db.query(TimetableEntry)
+        .join(FacultyAssignment, TimetableEntry.assignment_id == FacultyAssignment.id)
+        .join(Period, TimetableEntry.period_id == Period.id)
+        .filter(FacultyAssignment.class_id == cs.id)
+        .order_by(TimetableEntry.day_of_week, Period.period_number)
+        .all()
+    )
+    timetable = []
+    seen_entry_ids = set()
+    for e in entries:
+        if not e or e.id in seen_entry_ids:
+            continue
+
+        period = e.period
+        if not period or (period.period_number is not None and period.period_number <= 0):
+            continue
+
+        assign = e.assignment
+        p_name = period.name.upper() if period.name else ""
+        sub_code = assign.subject.code if (assign and assign.subject) else None
+        sub_name = assign.subject.name if (assign and assign.subject) else None
+
+        # Exclude non-teaching breaks and lunch intervals
+        if any(term in p_name or (sub_code and term in sub_code.upper()) or (sub_name and term in sub_name.upper()) for term in ["BREAK", "LUNCH", "RECESS"]):
+            continue
+
+        seen_entry_ids.add(e.id)
+        fac_name = assign.faculty.full_name if (assign and assign.faculty) else "Faculty assignment pending"
+        is_lab = False
+        if sub_code and "LAB" in sub_code.upper():
+            is_lab = True
+        elif sub_name and "LAB" in sub_name.upper():
+            is_lab = True
+
+        timetable.append({
+            "id": e.id,
+            "day_of_week": e.day_of_week,
+            "period_id": period.id if period else 0,
+            "period_number": period.period_number if period else None,
+            "period_name": period.name if period else None,
+            "start_time": period.start_time if period else None,
+            "end_time": period.end_time if period else None,
+            "assignment_id": assign.id if assign else 0,
+            "subject_code": sub_code,
+            "subject_name": sub_name,
+            "class_name": cs.name,
+            "faculty_name": fac_name,
+            "room_no": e.room,
+            "type": "Lab" if is_lab else "Theory"
+        })
+    day_weights = {"Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7}
+    timetable.sort(key=lambda x: (day_weights.get(str(x.get("day_of_week") or "").strip().capitalize(), 8), x.get("period_number") or 0))
+    return {
+        "class_id": cs.id,
+        "class_name": cs.name,
+        "timetable": timetable,
     }
 
 
@@ -522,13 +693,17 @@ def get_faculty_class_summary(
         .order_by(Student.roll_number.asc())
         .all()
     )
+    total_distinct_students = len(students)
 
-    # Filter class sessions
+    # Filter class sessions linked to legitimate timetable entries for this class
     session_query = (
         db.query(ClassSession)
         .join(TimetableEntry, ClassSession.timetable_entry_id == TimetableEntry.id)
         .join(FacultyAssignment, TimetableEntry.assignment_id == FacultyAssignment.id)
-        .filter(FacultyAssignment.class_id == class_id)
+        .filter(
+            FacultyAssignment.class_id == class_id,
+            ClassSession.status != SessionStatus.CANCELLED
+        )
     )
 
     if subject_id:
@@ -541,12 +716,82 @@ def get_faculty_class_summary(
     if end_date:
         session_query = session_query.filter(ClassSession.date <= end_date)
 
-    sessions = session_query.all()
+    raw_sessions = session_query.order_by(ClassSession.date.asc(), TimetableEntry.period_id.asc()).all()
+    # Deduplicate sessions by ID to guard against Cartesian product join inflation
+    seen_sessions = {}
+    for s in raw_sessions:
+        seen_sessions[s.id] = s
+    sessions = list(seen_sessions.values())
     session_ids = [s.id for s in sessions]
+
+    # Session dates & human-readable scope metadata
+    session_dates = sorted(list({s.date for s in sessions}))
+    earliest_date = session_dates[0] if session_dates else None
+    latest_date = session_dates[-1] if session_dates else None
+
+    is_sunday = False
+    has_scheduled_classes = True
+    no_class_message = None
+
+    target_date_for_timetable = None
+    if start_date and end_date and start_date == end_date:
+        target_date_for_timetable = start_date
+    elif start_date and not end_date:
+        target_date_for_timetable = start_date
+
+    if target_date_for_timetable:
+        try:
+            dt = datetime.strptime(target_date_for_timetable, "%Y-%m-%d")
+            day_name = dt.strftime("%A")
+            is_sunday = (day_name.lower() == "sunday")
+            tt_query = (
+                db.query(TimetableEntry)
+                .join(FacultyAssignment, TimetableEntry.assignment_id == FacultyAssignment.id)
+                .filter(
+                    FacultyAssignment.class_id == class_id,
+                    func.upper(TimetableEntry.day_of_week) == day_name.upper()
+                )
+            )
+            if subject_id:
+                tt_query = tt_query.filter(FacultyAssignment.subject_id == subject_id)
+            elif not is_advisor:
+                tt_query = tt_query.filter(FacultyAssignment.subject_id.in_(assigned_sub_ids))
+
+            tt_count = tt_query.count()
+            has_scheduled_classes = (tt_count > 0)
+
+            if is_sunday and not has_scheduled_classes:
+                ist_today = get_ist_now().date()
+                if dt.date() == ist_today:
+                    wording = "No Classes Today"
+                elif dt.date() == ist_today - timedelta(days=1):
+                    wording = "No Classes Yesterday"
+                else:
+                    wording = "No Classes on Sunday"
+                no_class_message = f"{wording}\nThere are no scheduled classes on Sunday. Enjoy your day off!"
+            elif not has_scheduled_classes:
+                no_class_message = f"No scheduled classes found for {day_name}."
+        except Exception:
+            pass
+
+    if start_date and end_date:
+        date_range_display = f"{start_date} to {end_date}" if start_date != end_date else start_date
+    elif start_date:
+        date_range_display = f"From {start_date}"
+    elif end_date:
+        date_range_display = f"Up to {end_date}"
+    elif session_dates:
+        if earliest_date == latest_date:
+            date_range_display = f"{earliest_date} (Single Session Date)"
+        else:
+            date_range_display = f"{earliest_date} to {latest_date} (All Recorded Dates)"
+    else:
+        date_range_display = "No Recorded Attendance"
 
     student_rows = []
     total_class_periods = len(sessions)
     agg_present = 0
+    agg_pure_present = 0
     agg_absent = 0
     agg_od = 0
     agg_total = 0
@@ -563,17 +808,23 @@ def get_faculty_class_summary(
             st_recs = rec_by_student.get(st.id, [])
             counts = _status_counts(st_recs, policy)
             pct = _safe_percentage(counts["present"], counts["total"])
+            pure_p = counts.get(
+                "pure_present",
+                max(0, counts["present"] - counts["od"]) if policy.od_calculation_mode == "COUNT_AS_PRESENT" else counts["present"]
+            )
             student_rows.append(FacultyStudentAttendanceRow(
                 student_id=st.id,
                 roll_number=st.roll_number,
                 full_name=st.full_name,
                 total=counts["total"],
                 present=counts["present"],
+                pure_present=pure_p,
                 absent=counts["absent"],
                 od=counts["od"],
                 percentage=pct
             ))
             agg_present += counts["present"]
+            agg_pure_present += pure_p
             agg_absent += counts["absent"]
             agg_od += counts["od"]
             agg_total += counts["total"]
@@ -585,6 +836,7 @@ def get_faculty_class_summary(
                 full_name=st.full_name,
                 total=0,
                 present=0,
+                pure_present=0,
                 absent=0,
                 od=0,
                 percentage=0.0
@@ -608,10 +860,19 @@ def get_faculty_class_summary(
         subject_name=subject_name,
         is_class_advisor_scope=is_advisor and (subject_id is None),
         total_periods=total_class_periods,
+        total_students=total_distinct_students,
         present=agg_present,
+        pure_present=agg_pure_present,
         absent=agg_absent,
         od=agg_od,
+        total_marks=agg_total,
         percentage=overall_pct,
+        start_date=start_date or earliest_date,
+        end_date=end_date or latest_date,
+        date_range_display=date_range_display,
+        is_sunday=is_sunday,
+        has_scheduled_classes=has_scheduled_classes,
+        no_class_message=no_class_message,
         students=student_rows
     )
 
@@ -1358,5 +1619,248 @@ def get_faculty_historical_matrix(
         dates=date_entries,
         students=student_summary_rows
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Faculty Profile & Self-Service Editing Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/profile")
+def get_faculty_profile(
+    current_user: User = Depends(require_faculty),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns current authenticated faculty member's profile.
+    Strictly derived from authenticated session.
+    """
+    from app.core.avatars import resolve_avatar
+
+    fac = current_user.faculty_profile
+    full_name = fac.full_name if fac else (current_user.username)
+    department = fac.department if fac else None
+    employee_id = fac.employee_id if fac else current_user.username
+    phone = fac.phone if fac else None
+    avatar_id = (fac.avatar_id if fac else None) or current_user.avatar_id
+
+    is_class_advisor = False
+    advised_class_id = None
+    advised_class_name = None
+    if fac:
+        cs = db.query(ClassSection).filter(ClassSection.class_advisor_id == fac.id).first()
+        if cs:
+            is_class_advisor = True
+            advised_class_id = cs.id
+            advised_class_name = cs.name
+
+    return {
+        "success": True,
+        "faculty_id": fac.id if fac else None,
+        "user_id": current_user.id,
+        "username": current_user.username,
+        "employee_id": employee_id,
+        "full_name": full_name,
+        "email": current_user.email or "",
+        "phone": phone or "",
+        "department": department or "",
+        "avatar_id": resolve_avatar(avatar_id, current_user.username),
+        "is_active": current_user.is_active,
+        "role": current_user.role.value,
+        "is_class_advisor": is_class_advisor,
+        "advised_class_id": advised_class_id,
+        "advised_class_name": advised_class_name,
+        "message": "Faculty profile retrieved successfully",
+    }
+
+
+@router.patch("/profile")
+@router.put("/profile")
+def update_faculty_profile(
+    body: Dict[str, Any],
+    current_user: User = Depends(require_faculty),
+    db: Session = Depends(get_db),
+):
+    """
+    Allows authenticated faculty member to update editable profile fields:
+    full_name, email, phone, avatar_id.
+    Strictly preserves institutional read-only records:
+    employee_id, department, role, is_active, password, id, user_id.
+    """
+    import json
+    import re
+    from app.core.avatars import is_valid_avatar, resolve_avatar
+    from app.models.audit import AuditLog
+
+    fac = current_user.faculty_profile
+
+    # 1. Full name validation & update
+    if "full_name" in body and body["full_name"] is not None:
+        name_str = str(body["full_name"]).strip()
+        if len(name_str) < 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Full name must be at least 2 characters.",
+            )
+        if len(name_str) > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Full name must not exceed 100 characters.",
+            )
+        if fac:
+            fac.full_name = name_str
+
+    # 2. Avatar validation & update
+    if "avatar_id" in body:
+        new_av = str(body["avatar_id"]).strip() if body["avatar_id"] else None
+        if new_av:
+            if not is_valid_avatar(new_av):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid avatar ID '{new_av}'. Must be one of approved avatar catalog IDs.",
+                )
+            if fac:
+                fac.avatar_id = new_av
+            current_user.avatar_id = new_av
+
+    # 3. Email validation & update
+    if "email" in body:
+        raw_email = str(body["email"]).strip() if body["email"] is not None else ""
+        if raw_email:
+            email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+            if not re.match(email_pattern, raw_email):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid email address '{raw_email}'.",
+                )
+            # Check uniqueness against other users
+            conflict = db.query(User).filter(User.email == raw_email, User.id != current_user.id).first()
+            if conflict:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Email address '{raw_email}' is already in use by another account.",
+                )
+            current_user.email = raw_email
+
+    # 4. Phone validation & update
+    if "phone" in body:
+        raw_phone = str(body["phone"]).strip() if body["phone"] is not None else ""
+        if raw_phone:
+            cleaned_digits = re.sub(r"[\s\-\(\)\+]", "", raw_phone)
+            if len(cleaned_digits) < 7 or len(cleaned_digits) > 15:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Please enter a valid contact phone number (7 to 15 digits).",
+                )
+        if fac:
+            fac.phone = raw_phone if raw_phone else None
+
+    db.commit()
+    if fac:
+        db.refresh(fac)
+    db.refresh(current_user)
+
+    # 5. Audit Logging
+    try:
+        audit = AuditLog(
+            action="UPDATE_FACULTY_PROFILE",
+            user_id=current_user.id,
+            target=f"faculty:{fac.id if fac else current_user.id}",
+            details=json.dumps({
+                "faculty_id": fac.id if fac else None,
+                "user_id": current_user.id,
+                "full_name": fac.full_name if fac else None,
+                "email": current_user.email,
+                "phone": fac.phone if fac else None,
+                "avatar_id": current_user.avatar_id,
+            }),
+        )
+        db.add(audit)
+        db.commit()
+    except Exception:
+        pass
+
+    # Resolve class advisor details
+    is_class_advisor = False
+    advised_class_id = None
+    advised_class_name = None
+    if fac:
+        cs = db.query(ClassSection).filter(ClassSection.class_advisor_id == fac.id).first()
+        if cs:
+            is_class_advisor = True
+            advised_class_id = cs.id
+            advised_class_name = cs.name
+
+    return {
+        "success": True,
+        "faculty_id": fac.id if fac else None,
+        "user_id": current_user.id,
+        "username": current_user.username,
+        "employee_id": fac.employee_id if fac else current_user.username,
+        "full_name": fac.full_name if fac else current_user.username,
+        "email": current_user.email or "",
+        "phone": (fac.phone if fac else "") or "",
+        "department": (fac.department if fac else "") or "",
+        "avatar_id": resolve_avatar(current_user.avatar_id or (fac.avatar_id if fac else None), current_user.username),
+        "is_active": current_user.is_active,
+        "role": current_user.role.value,
+        "is_class_advisor": is_class_advisor,
+        "advised_class_id": advised_class_id,
+        "advised_class_name": advised_class_name,
+        "message": "Faculty profile updated successfully",
+    }
+
+
+@router.patch("/avatar")
+def update_faculty_avatar(
+    body: Dict[str, Any],
+    current_user: User = Depends(require_faculty),
+    db: Session = Depends(get_db),
+):
+    """
+    Updates authenticated faculty member's avatar.
+    """
+    import json
+    from app.core.avatars import is_valid_avatar, resolve_avatar
+    from app.models.audit import AuditLog
+
+    avatar_id = body.get("avatar_id")
+    if not avatar_id or not is_valid_avatar(avatar_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid avatar ID '{avatar_id}'. Must be one of approved avatar catalog IDs.",
+        )
+
+    # Fast-path: return immediately if avatar is unchanged
+    if (current_user.avatar_id == avatar_id and 
+        (not current_user.faculty_profile or current_user.faculty_profile.avatar_id == avatar_id)):
+        return {
+            "success": True,
+            "avatar_id": avatar_id,
+            "message": "Avatar unchanged",
+        }
+
+    if current_user.faculty_profile:
+        current_user.faculty_profile.avatar_id = avatar_id
+    current_user.avatar_id = avatar_id
+
+    try:
+        audit = AuditLog(
+            action="UPDATE_FACULTY_AVATAR",
+            user_id=current_user.id,
+            target=f"user:{current_user.id}",
+            details=json.dumps({"user_id": current_user.id, "avatar_id": avatar_id}),
+        )
+        db.add(audit)
+    except Exception:
+        pass
+
+    db.commit()
+
+    return {
+        "success": True,
+        "avatar_id": avatar_id,
+        "message": "Avatar updated successfully",
+    }
+
 
 

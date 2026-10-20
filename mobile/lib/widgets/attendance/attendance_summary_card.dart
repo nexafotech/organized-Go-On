@@ -6,6 +6,7 @@ class AttendanceSummaryCard extends StatelessWidget {
   final double percentage;
   final int total;
   final int present;
+  final int? purePresent;
   final int absent;
   final int od;
   final int halfDayPresent;
@@ -19,12 +20,22 @@ class AttendanceSummaryCard extends StatelessWidget {
   final IconData? icon;
   final Widget? trailingHeader;
   final Widget? headerAction;
+  final bool showStatusBadge;
+
+  int get displayPresent {
+    if (purePresent != null) return purePresent!;
+    if (present + absent == total && od > 0) {
+      return (present - od).clamp(0, total);
+    }
+    return present;
+  }
 
   const AttendanceSummaryCard({
     Key? key,
     required this.percentage,
     required this.total,
     required this.present,
+    this.purePresent,
     required this.absent,
     required this.od,
     this.halfDayPresent = 0,
@@ -38,6 +49,7 @@ class AttendanceSummaryCard extends StatelessWidget {
     this.icon,
     this.trailingHeader,
     this.headerAction,
+    this.showStatusBadge = true,
   }) : super(key: key);
 
   Color _getStatusColor(AppColors colors) {
@@ -173,7 +185,7 @@ class AttendanceSummaryCard extends StatelessWidget {
               ),
               if (trailingHeader != null)
                 trailingHeader!
-              else
+              else if (showStatusBadge && !(status.toUpperCase() == 'OK' && title.toUpperCase().contains('OVERALL')))
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
                   decoration: BoxDecoration(
@@ -298,7 +310,7 @@ class AttendanceSummaryCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${present + od} / $total attended',
+                            '${displayPresent + od} / $total attended',
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
@@ -329,7 +341,7 @@ class AttendanceSummaryCard extends StatelessWidget {
             children: [
               _buildStatBox('Total', '$total', colors.textPrimary, colors),
               const SizedBox(width: 8),
-              _buildStatBox('Present', '$present', colors.present, colors),
+              _buildStatBox('Present', '$displayPresent', colors.present, colors),
               const SizedBox(width: 8),
               _buildStatBox('Absent', '$absent', colors.absent, colors),
               const SizedBox(width: 8),

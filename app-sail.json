@@ -1,0 +1,5 @@
+{
+  "stack": "python_3_11",
+  "command": "python scripts/run_catalyst.py",
+  "build_path": "."
+}

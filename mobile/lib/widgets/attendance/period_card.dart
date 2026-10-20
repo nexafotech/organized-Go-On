@@ -36,80 +36,8 @@ class PeriodCard extends StatelessWidget {
     final colors = context.colors;
     final typography = context.typography;
 
-    if (state == PeriodCardState.breakTime) {
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: colors.breakBg.withValues(alpha: 0.75),
-          borderRadius: AppRadius.largeBorder,
-          border: Border.all(color: colors.breakColor.withValues(alpha: 0.25)),
-          boxShadow: AppGlass.shadow,
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.coffee_rounded, size: AppIconSize.row, color: colors.breakColor),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SHORT BREAK',
-                    style: typography.labelMedium.copyWith(
-                      color: colors.breakColor,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  Text(
-                    time,
-                    style: typography.bodySmall.copyWith(color: colors.breakColor),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (state == PeriodCardState.lunch) {
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: colors.lunchBg.withValues(alpha: 0.75),
-          borderRadius: AppRadius.largeBorder,
-          border: Border.all(color: colors.lunch.withValues(alpha: 0.25)),
-          boxShadow: AppGlass.shadow,
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.restaurant_rounded, size: AppIconSize.row, color: colors.lunch),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'LUNCH BREAK (Strictly Excluded)',
-                    style: typography.labelMedium.copyWith(
-                      color: colors.lunch,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  Text(
-                    time,
-                    style: typography.bodySmall.copyWith(color: colors.lunch),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
+    if (state == PeriodCardState.breakTime || state == PeriodCardState.lunch) {
+      return const SizedBox.shrink();
     }
 
     final isCurrent = state == PeriodCardState.current;

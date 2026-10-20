@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import '../core/config/api_config.dart';
 import '../core/network/api_client.dart';
 import '../models/student_model.dart';
-import '../design_mode/design_mock_data.dart';
 
 class StudentService extends ChangeNotifier {
   final ApiClient _apiClient;
@@ -71,21 +70,31 @@ class StudentService extends ChangeNotifier {
   }
 
   Future<void> fetchTimetable() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
     try {
       final response = await _apiClient.get(ApiConfig.studentTimetable);
       if (response is Map && response.containsKey('timetable') && response['timetable'] is List) {
         final List rawList = response['timetable'];
         final fetched = rawList.map((item) => TimetableItemModel.fromJson(item)).toList();
-        if (fetched.isNotEmpty) {
-          _timetable = fetched;
-          notifyListeners();
-          return;
-        }
+        _timetable = fetched;
+        _isLoading = false;
+        _errorMessage = null;
+        notifyListeners();
+        return;
       }
-    } catch (_) {}
-
-    if (_timetable.isEmpty) {
-      _timetable = DesignMockData.mockTimetable;
+      _isLoading = false;
+      _errorMessage = 'Invalid timetable data format from server';
+      notifyListeners();
+    } on ApiException catch (e) {
+      _isLoading = false;
+      _errorMessage = e.message;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = 'Unable to reach the server. Check your connection or server address.';
       notifyListeners();
     }
   }
@@ -159,21 +168,38 @@ class StudentService extends ChangeNotifier {
   }
 
   Future<bool> updateAvatar(String avatarId) async {
+    final String? previousAvatarId = _summary?.avatarId;
+    if (previousAvatarId == avatarId) {
+      return true;
+    }
+
+    // Optimistic UI update: reflect avatar immediately in UI
+    if (_summary != null) {
+      _summary = _summary!.copyWith(avatarId: avatarId);
+      notifyListeners();
+    }
+
     try {
       final response = await _apiClient.patch(
         ApiConfig.studentAvatar,
         body: {'avatar_id': avatarId},
       );
       if (response is Map && response['success'] == true) {
-        if (_summary != null) {
-          _summary = _summary!.copyWith(avatarId: avatarId);
-          notifyListeners();
-        }
         return true;
+      }
+      // Revert optimistic update if server returned unsuccessful response
+      if (_summary != null) {
+        _summary = _summary!.copyWith(avatarId: previousAvatarId);
+        notifyListeners();
       }
       return false;
     } catch (e) {
       debugPrint('[StudentService] updateAvatar error: $e');
+      // Rollback optimistic update on network/server error
+      if (_summary != null) {
+        _summary = _summary!.copyWith(avatarId: previousAvatarId);
+        notifyListeners();
+      }
       rethrow;
     }
   }

@@ -304,7 +304,7 @@ class MockAuthServiceForTimetable extends ChangeNotifier implements AuthService 
 
 void main() {
   group('Student Timetable UX Tests', () {
-    testWidgets('Renders all weekday buttons Mon through Sat', (tester) async {
+    testWidgets('Renders all 7 weekday buttons Mon through Sun', (tester) async {
       final mockStudent = MockStudentServiceForTimetable();
 
       await tester.pumpWidget(
@@ -322,6 +322,7 @@ void main() {
       expect(find.text('Thu'), findsOneWidget);
       expect(find.text('Fri'), findsOneWidget);
       expect(find.text('Sat'), findsOneWidget);
+      expect(find.text('Sun'), findsOneWidget);
     });
 
     testWidgets('Renders period cards with subject, code, time, and faculty', (tester) async {

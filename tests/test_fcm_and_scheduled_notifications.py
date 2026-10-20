@@ -127,8 +127,8 @@ def test_fcm_token_registration_refresh_and_logout_deactivation(db: Session):
 
 def test_device_token_security_cannot_deactivate_others_token(db: Session):
     """Verify that a user cannot unregister or deactivate another user's device token."""
-    student1 = db.query(User).filter(User.role == UserRole.STUDENT, User.is_active == True).first()
-    student2 = db.query(User).filter(User.role == UserRole.STUDENT, User.id != student1.id, User.is_active == True).first()
+    student1 = db.query(User).filter(User.role == UserRole.STUDENT, User.is_active == True, User.session_token != "REVOKED").first()
+    student2 = db.query(User).filter(User.role == UserRole.STUDENT, User.id != student1.id, User.is_active == True, User.session_token != "REVOKED").first()
     if not student2:
         pytest.skip("Need at least two student users for cross-user security test")
 
@@ -569,8 +569,8 @@ def test_user_notification_read_actions_and_isolation(db: Session):
     - User can mark all notifications read
     - User cannot access or mark another user's notification as read
     """
-    student1 = db.query(User).filter(User.role == UserRole.STUDENT, User.is_active == True).first()
-    student2 = db.query(User).filter(User.role == UserRole.STUDENT, User.id != student1.id, User.is_active == True).first()
+    student1 = db.query(User).filter(User.role == UserRole.STUDENT, User.is_active == True, User.session_token != "REVOKED").first()
+    student2 = db.query(User).filter(User.role == UserRole.STUDENT, User.id != student1.id, User.is_active == True, User.session_token != "REVOKED").first()
     assert student1 is not None and student2 is not None
 
     s1_token = create_access_token(str(student1.id), student1.role.value)

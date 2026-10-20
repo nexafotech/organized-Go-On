@@ -875,7 +875,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      period.lockReason ?? 'Opens after period ends at ${period.endTime}',
+                      period.lockReason ?? 'Attendance opens at ${period.startTime}',
                       style: TextStyle(fontSize: 11, color: colors.warning, fontWeight: FontWeight.w500),
                       softWrap: true,
                     ),

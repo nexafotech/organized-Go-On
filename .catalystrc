@@ -1,0 +1,29 @@
+{
+  "defaults": {
+    "project": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "80167000000013053",
+      "name": "GO-ON",
+      "domain": {
+        "id": "50046794941",
+        "name": "go-on-60091639007.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60091639007",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    }
+  ]
+}

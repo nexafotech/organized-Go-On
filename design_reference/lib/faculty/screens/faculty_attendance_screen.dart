@@ -494,7 +494,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
                   Expanded(
                     child: Text(
                       period.lockReason ??
-                          'Attendance opens after the period ends.',
+                          'Attendance opens at ${period.startTime}',
                       style: TextStyle(
                         fontSize: 12,
                         color: colors.warning,

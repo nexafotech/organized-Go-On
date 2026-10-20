@@ -6,7 +6,6 @@ import '../../core/theme/app_tokens.dart';
 import '../../models/student_model.dart';
 import '../../services/student_service.dart';
 import '../../widgets/widgets.dart';
-import 'student_attendance_report_screen.dart';
 
 enum TimetableViewMode {
   weeklyGrid, // Editorial Matrix Table Grid View
@@ -196,14 +195,11 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     'Sun',
   ];
 
-  // Standard College Period Schedule Slots
   static const List<ScheduleSlotConfig> _slots = [
     ScheduleSlotConfig(periodNumber: 1, label: 'P1', startTime: '08:45 AM', endTime: '09:40 AM', height: 58.0),
     ScheduleSlotConfig(periodNumber: 2, label: 'P2', startTime: '09:40 AM', endTime: '10:35 AM', height: 58.0),
-    ScheduleSlotConfig(periodNumber: -1, label: 'TEA BREAK', startTime: '10:35 AM', endTime: '10:55 AM', isBreak: true, height: 28.0),
     ScheduleSlotConfig(periodNumber: 3, label: 'P3', startTime: '10:55 AM', endTime: '11:50 AM', height: 58.0),
     ScheduleSlotConfig(periodNumber: 4, label: 'P4', startTime: '11:50 AM', endTime: '12:45 PM', height: 58.0),
-    ScheduleSlotConfig(periodNumber: -2, label: 'LUNCH BREAK', startTime: '12:45 PM', endTime: '01:45 PM', isBreak: true, height: 28.0),
     ScheduleSlotConfig(periodNumber: 5, label: 'P5', startTime: '01:45 PM', endTime: '02:40 PM', height: 58.0),
     ScheduleSlotConfig(periodNumber: 6, label: 'P6', startTime: '02:40 PM', endTime: '03:30 PM', height: 58.0),
     ScheduleSlotConfig(periodNumber: 7, label: 'P7', startTime: '03:30 PM', endTime: '04:20 PM', height: 58.0),
@@ -251,7 +247,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
         _currentTime = newNow;
         // If viewing today when midnight rolls over, update to the new today
         if (_selectedDay == prevWeekday) {
-          _selectedDay = newNow.weekday == DateTime.sunday ? 'MONDAY' : newWeekday;
+          _selectedDay = newWeekday;
         }
       });
     });
@@ -280,11 +276,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
   }
 
   String _getInitialWeekday() {
-    final now = _now;
-    if (now.weekday == DateTime.sunday) {
-      return 'MONDAY'; // Colleges are closed on Sunday, default to first day of academic week
-    }
-    return _getCurrentWeekdayName(now);
+    return _getCurrentWeekdayName(_now);
   }
 
   bool _isToday(String day) {
@@ -374,308 +366,9 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
   }
 
   void _showClassDetailsModal(TimetableItemModel item) {
-    final colors = context.colors;
-    final palette = HighlightPalette.of(_highlightTone, colors.isDark);
-    final colorPair = _getPastelColorPair(item, colors.isDark);
-    final cardColor = colorPair.bg;
-    final fgColor = colors.isDark ? Colors.white : colorPair.fg;
-    final isCurrent = _isItemActiveNow(item);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceElevated,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(color: colors.glassBorderStrong, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 28,
-                offset: const Offset(0, -6),
-              ),
-            ],
-          ),
-          padding: EdgeInsets.only(
-            left: AppSpacing.lg,
-            right: AppSpacing.lg,
-            top: AppSpacing.md,
-            bottom: MediaQuery.of(ctx).padding.bottom + AppSpacing.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Drag Handle
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.textMuted.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Color Banner Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: fgColor.withValues(alpha: 0.2)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: cardColor.withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: fgColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            item.subjectCode ?? 'COURSE',
-                            style: TextStyle(
-                              color: fgColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                        if (isCurrent)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: palette.badgeBg,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 12),
-                                SizedBox(width: 4),
-                                Text(
-                                  'LIVE CLASS NOW',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else if (item.span > 1)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: fgColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${item.span} Periods Span',
-                              style: TextStyle(
-                                color: fgColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      item.subjectName ?? 'Class Session',
-                      style: TextStyle(
-                        color: fgColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${item.dayOfWeek} • ${item.startTime ?? ""} - ${item.endTime ?? ""}',
-                      style: TextStyle(
-                        color: fgColor.withValues(alpha: 0.85),
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // Detail Grid
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDetailPuck(
-                      icon: Icons.person_outline_rounded,
-                      label: 'FACULTY',
-                      value: item.facultyName ?? 'Faculty Assignment Pending',
-                      colors: colors,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _buildDetailPuck(
-                      icon: Icons.meeting_room_outlined,
-                      label: 'VENUE',
-                      value: item.roomNo ?? 'Lecture Hall',
-                      colors: colors,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDetailPuck(
-                      icon: Icons.access_time_rounded,
-                      label: 'TIME SLOT',
-                      value: '${item.startTime ?? "--"} to ${item.endTime ?? "--"}',
-                      colors: colors,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _buildDetailPuck(
-                      icon: Icons.school_outlined,
-                      label: 'TYPE',
-                      value: (item.type ?? (item.subjectName?.toLowerCase().contains('lab') == true ? 'Laboratory' : 'Core Theory')).toUpperCase(),
-                      colors: colors,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // Quick Actions
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        side: BorderSide(color: colors.border),
-                      ),
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text(
-                        'Close',
-                        style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.primary,
-                        foregroundColor: colors.onPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const StudentAttendanceReportScreen(),
-                          ),
-                        );
-                      },
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.analytics_outlined, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Attendance Report',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    TimetableSessionPopUp.showFromItem(context, item);
   }
 
-  Widget _buildDetailPuck({
-    required IconData icon,
-    required String label,
-    required String value,
-    required AppColors colors,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.glassSurfaceSubtle,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.glassBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 15, color: colors.primary),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                  color: colors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: colors.textPrimary,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -683,14 +376,17 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     final studentService = Provider.of<StudentService>(context);
     final timetable = studentService.timetable;
 
-    if (studentService.isLoading && timetable.isEmpty) {
+    final bool isAnyLoading = studentService.isLoading;
+    final String? anyError = studentService.errorMessage;
+
+    if (isAnyLoading && timetable.isEmpty) {
       return Scaffold(
         backgroundColor: colors.background,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (studentService.errorMessage != null && timetable.isEmpty) {
+    if (anyError != null && timetable.isEmpty) {
       return Scaffold(
         backgroundColor: colors.background,
         body: Center(
@@ -714,7 +410,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  studentService.errorMessage ?? 'Unable to retrieve timetable from server.',
+                  anyError,
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: colors.textSecondary),
                 ),
@@ -733,9 +429,14 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
 
     final allItems = timetable;
 
-    // Dynamically adjust for Saturday if backend has Saturday classes configured
+    // Dynamically adjust for Saturday & Sunday if backend has classes configured
     final bool hasSaturdayClasses = allItems.any((i) =>
         i.dayOfWeek.toUpperCase() == 'SATURDAY' &&
+        i.subjectCode != null &&
+        i.subjectCode!.isNotEmpty);
+
+    final bool hasSundayClasses = allItems.any((i) =>
+        i.dayOfWeek.toUpperCase() == 'SUNDAY' &&
         i.subjectCode != null &&
         i.subjectCode!.isNotEmpty);
 
@@ -758,8 +459,8 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
                     child: _viewMode == TimetableViewMode.weeklyGrid
-                        ? _buildWeeklyMatrixView(allItems, colors, hasSaturdayClasses, palette)
-                        : _buildDayAgendaView(allItems, colors, hasSaturdayClasses, palette),
+                        ? _buildWeeklyMatrixView(allItems, colors, hasSaturdayClasses, hasSundayClasses, palette)
+                        : _buildDayAgendaView(allItems, colors, hasSaturdayClasses, hasSundayClasses, palette),
                   ),
                 ),
               ],
@@ -844,7 +545,6 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
   // WEEKLY MATRIX VIEW (REBUILT TO EXACTLY MATCH REFERENCE IMAGE 1)
   // ─────────────────────────────────────────────────────────────────────────
 
-  static const double _kBreakHeight = 28.0;
   static const double _kTimeColWidth = 46.0;
   static const double _kMinDayColWidth = 52.0;
 
@@ -852,9 +552,10 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     List<TimetableItemModel> allItems,
     AppColors colors,
     bool hasSaturdayClasses,
+    bool hasSundayClasses,
     HighlightPalette palette,
   ) {
-    // 6 academic days: Mon through Sat matching Image 1
+    // Academic days: All 7 days (Mon through Sun)
     final List<Map<String, dynamic>> matrixDays = [
       {'code': 'MONDAY', 'label': 'Mon', 'offset': 0},
       {'code': 'TUESDAY', 'label': 'Tue', 'offset': 1},
@@ -862,6 +563,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
       {'code': 'THURSDAY', 'label': 'Thu', 'offset': 3},
       {'code': 'FRIDAY', 'label': 'Fri', 'offset': 4},
       {'code': 'SATURDAY', 'label': 'Sat', 'offset': 5},
+      {'code': 'SUNDAY', 'label': 'Sun', 'offset': 6},
     ];
 
     final double totalHeight = _getTotalSlotsHeight();
@@ -1003,13 +705,6 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     double totalHeight,
     AppColors colors,
   ) {
-    final double daysGridWidth = matrixDays.length * dayColWidth;
-    final int teaBreakIdx = _slots.indexWhere((s) => s.periodNumber == -1);
-    final int lunchBreakIdx = _slots.indexWhere((s) => s.periodNumber == -2);
-
-    final double teaBreakTop = teaBreakIdx != -1 ? _getSlotTop(teaBreakIdx) : 0;
-    final double lunchBreakTop = lunchBreakIdx != -1 ? _getSlotTop(lunchBreakIdx) : 0;
-
     return SizedBox(
       height: totalHeight,
       child: Stack(
@@ -1112,48 +807,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
             );
           }),
 
-          // 3. Break Dividers Spanning Across All 6 Days
-          if (teaBreakIdx != -1)
-            Positioned(
-              left: _kTimeColWidth + 2.0,
-              top: teaBreakTop + 2.0,
-              width: daysGridWidth - 4.0,
-              height: _kBreakHeight - 4.0,
-              child: _buildMatrixBreakBar('Tea break', colors),
-            ),
-
-          if (lunchBreakIdx != -1)
-            Positioned(
-              left: _kTimeColWidth + 2.0,
-              top: lunchBreakTop + 2.0,
-              width: daysGridWidth - 4.0,
-              height: _kBreakHeight - 4.0,
-              child: _buildMatrixBreakBar('Lunch', colors),
-            ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMatrixBreakBar(String title, AppColors colors) {
-    return Container(
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: colors.isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF9FAFB).withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colors.isDark ? colors.border.withValues(alpha: 0.5) : const Color(0xFFD1D5DB).withValues(alpha: 0.7),
-          width: 0.9,
-        ),
-      ),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: colors.isDark ? colors.textMuted : const Color(0xFF6B7280),
-          letterSpacing: 0.2,
-        ),
       ),
     );
   }
@@ -1480,6 +1134,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     List<TimetableItemModel> allItems,
     AppColors colors,
     bool hasSaturdayClasses,
+    bool hasSundayClasses,
     HighlightPalette palette,
   ) {
     // Filter items for the selected day
@@ -1501,8 +1156,8 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
       children: [
-        // 1. Week Strip (Mon 12, Tue 13, Wed 14, Thu 15, Fri 16, Sat 17)
-        _buildWeekDayStrip(colors, hasSaturdayClasses),
+        // 1. Week Strip (Mon..Sat, plus Sun if Sunday classes exist)
+        _buildWeekDayStrip(colors, hasSaturdayClasses, hasSundayClasses),
         const SizedBox(height: 14),
 
         // Live status indicator when viewing today
@@ -1519,17 +1174,9 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
             final item = entry.value;
             final status = _determinePeriodStatus(item, dayItems);
 
-            // Interleaved Break Dividers before Period 3 (Tea break) and Period 5 (Lunch)
-            final bool showTeaBreakBefore = item.periodNumber == 3;
-            final bool showLunchBreakBefore = item.periodNumber == 5;
-
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (showTeaBreakBefore)
-                  _buildTimelineBreakDivider('Tea break · 10:35', colors, isTeaBreak: true),
-                if (showLunchBreakBefore)
-                  _buildTimelineBreakDivider('Lunch · 12:45', colors, isLunchBreak: true),
                 _buildTimelinePeriodRow(item, status, colors, palette),
                 const SizedBox(height: 12),
               ],
@@ -1593,27 +1240,6 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
       );
     }
 
-    final bool isTeaBreak = nowMin >= 635 && nowMin < 655;
-    final bool isLunchBreak = nowMin >= 765 && nowMin < 825;
-
-    if (isTeaBreak) {
-      return _buildStatusChip(
-        icon: Icons.coffee_rounded,
-        title: 'Tea Break · In Progress',
-        subtitle: 'Classes resume at 10:55 AM (Period 3)',
-        colors: colors,
-      );
-    }
-
-    if (isLunchBreak) {
-      return _buildStatusChip(
-        icon: Icons.restaurant_rounded,
-        title: 'Lunch Break · In Progress',
-        subtitle: 'Classes resume at 01:45 PM (Period 5)',
-        colors: colors,
-      );
-    }
-
     if (firstStart != -1 && nowMin < firstStart) {
       final startStr = _formatStartTime(dayItems.first.startTime);
       final firstSubject = dayItems.first.subjectName ?? dayItems.first.subjectCode ?? 'Period 1';
@@ -1636,9 +1262,9 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     }
 
     return _buildStatusChip(
-      icon: Icons.hourglass_top_rounded,
-      title: 'Class Break',
-      subtitle: 'Next class starting shortly',
+      icon: Icons.schedule_rounded,
+      title: 'Next Class',
+      subtitle: 'Resuming shortly',
       colors: colors,
     );
   }
@@ -1704,10 +1330,11 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     );
   }
 
-  Widget _buildWeekDayStrip(AppColors colors, bool hasSaturdayClasses) {
-    // 6 Days (Mon - Sat) matching Reference Image 2
+  Widget _buildWeekDayStrip(AppColors colors, bool hasSaturdayClasses, bool hasSundayClasses) {
+    // All 7 Days (Monday through Sunday)
+    const int daysCount = 7;
     return Row(
-      children: List.generate(6, (offset) {
+      children: List.generate(daysCount, (offset) {
         final dayCode = _weekdays[offset];
         final label = _dayLabels[offset];
         final isSelected = dayCode.toUpperCase() == _selectedDay.toUpperCase();
@@ -1716,7 +1343,7 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
 
         return Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 2.0),
             child: InkWell(
               onTap: () => setState(() => _selectedDay = dayCode),
               borderRadius: BorderRadius.circular(16),
@@ -1725,12 +1352,12 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
                 height: 64,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? (colors.isDark ? colors.surfaceElevated : const Color(0xFF161922))
+                      ? (colors.isDark ? colors.surfaceElevated : colors.primary)
                       : (colors.isDark ? const Color(0xFF1E222C) : const Color(0xFFEBE7DF)),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected
-                        ? (colors.isDark ? colors.borderStrong : const Color(0xFF161922))
+                        ? (colors.isDark ? colors.borderStrong : colors.primary)
                         : (isToday
                             ? (colors.isDark ? colors.accent : const Color(0xFFB87B4B))
                             : Colors.transparent),
@@ -1749,44 +1376,50 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected
-                                ? Colors.white
-                                : (colors.isDark ? colors.textSecondary : const Color(0xFF4A4E57)),
-                          ),
-                        ),
-                        if (isToday) ...[
-                          const SizedBox(width: 3.5),
-                          Container(
-                            width: 5,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
                               color: isSelected
-                                  ? (colors.isDark ? colors.accent : const Color(0xFF34D399))
-                                  : (colors.isDark ? colors.accent : const Color(0xFFB87B4B)),
+                                  ? Colors.white
+                                  : (colors.isDark ? colors.textSecondary : const Color(0xFF4A4E57)),
                             ),
                           ),
+                          if (isToday) ...[
+                            const SizedBox(width: 2.5),
+                            Container(
+                              width: 4.5,
+                              height: 4.5,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected
+                                    ? (colors.isDark ? colors.accent : const Color(0xFF34D399))
+                                    : (colors.isDark ? colors.accent : const Color(0xFFB87B4B)),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      '${date.day}',
-                      style: TextStyle(
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w800,
-                        color: isSelected
-                            ? Colors.white
-                            : (colors.isDark ? colors.textPrimary : const Color(0xFF1C1F26)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '${date.day}',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: isSelected
+                              ? Colors.white
+                              : (colors.isDark ? colors.textPrimary : const Color(0xFF1C1F26)),
+                        ),
                       ),
                     ),
                   ],
@@ -1913,8 +1546,11 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Top Row: [NOW • PERIOD X] and [until 10:35 (20m left)]
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
@@ -2173,90 +1809,8 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
     );
   }
 
-  Widget _buildTimelineBreakDivider(
-    String label,
-    AppColors colors, {
-    bool isTeaBreak = false,
-    bool isLunchBreak = false,
-  }) {
-    final now = _now;
-    final nowMin = now.hour * 60 + now.minute;
-    final bool isBreakActive = _isToday(_selectedDay) && (
-      (isTeaBreak && nowMin >= 635 && nowMin < 655) ||
-      (isLunchBreak && nowMin >= 765 && nowMin < 825)
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Divider(
-              color: isBreakActive
-                  ? (colors.isDark ? colors.accent : const Color(0xFFB87B4B)).withValues(alpha: 0.5)
-                  : (colors.isDark ? colors.border : const Color(0xFFE2E2E8)),
-              thickness: isBreakActive ? 1.5 : 1,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: isBreakActive
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: (colors.isDark ? colors.accent : const Color(0xFFB87B4B)).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: colors.isDark ? colors.accent : const Color(0xFFB87B4B),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: colors.isDark ? colors.accent : const Color(0xFFB87B4B),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$label · NOW',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: colors.isDark ? colors.accent : const Color(0xFF2B1A13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: colors.isDark ? colors.textMuted : const Color(0xFF6E737B),
-                    ),
-                  ),
-          ),
-          Expanded(
-            child: Divider(
-              color: isBreakActive
-                  ? (colors.isDark ? colors.accent : const Color(0xFFB87B4B)).withValues(alpha: 0.5)
-                  : (colors.isDark ? colors.border : const Color(0xFFE2E2E8)),
-              thickness: isBreakActive ? 1.5 : 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmptyDayState(AppColors colors) {
+    final bool isSunday = _selectedDay.toUpperCase() == 'SUNDAY';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
       child: Column(
@@ -2269,17 +1823,15 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              _selectedDay.toUpperCase() == 'SUNDAY'
-                  ? Icons.weekend_rounded
-                  : Icons.event_busy_outlined,
+              isSunday ? Icons.weekend_rounded : Icons.event_busy_outlined,
               size: 40,
               color: colors.textMuted,
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            _selectedDay.toUpperCase() == 'SUNDAY'
-                ? 'No Classes Scheduled'
+            isSunday
+                ? 'No classes scheduled for Sunday'
                 : 'No Classes on $_selectedDay',
             style: TextStyle(
               fontSize: 16,
@@ -2289,8 +1841,8 @@ class _StudentTimetableScreenState extends State<StudentTimetableScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            _selectedDay.toUpperCase() == 'SUNDAY'
-                ? 'Weekend — Sunday has no scheduled classes.'
+            isSunday
+                ? 'Weekend break · No academic periods configured for Sunday.'
                 : 'No timetable schedule entries configured for this day.',
             textAlign: TextAlign.center,
             style: TextStyle(

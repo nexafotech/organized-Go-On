@@ -230,7 +230,7 @@ class SecondaryButton extends StatelessWidget {
             disabledForegroundColor: textCol.withValues(alpha: 0.4),
             minimumSize: Size(width ?? (isFullWidth ? double.infinity : AppSize.minTouchTarget), height),
             side: BorderSide(color: isEnabled ? border : border.withValues(alpha: 0.3), width: 1.1),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -253,11 +253,14 @@ class SecondaryButton extends StatelessWidget {
                   Icon(icon, size: AppIconSize.chip, color: textCol),
                   const SizedBox(width: AppSpacing.sm),
                 ],
-                Text(
-                  text,
-                  style: typography.labelLarge.copyWith(
-                    color: textCol,
-                    fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Text(
+                    text,
+                    overflow: TextOverflow.ellipsis,
+                    style: typography.labelLarge.copyWith(
+                      color: textCol,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],

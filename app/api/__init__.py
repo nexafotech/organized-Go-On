@@ -33,3 +33,15 @@ api_router.include_router(admin_notifications_router)
 @api_router.get("/health")
 def api_health_check():
     return {"status": "ok", "api": "v1"}
+
+@api_router.get("/health/ready")
+def api_readiness_check():
+    from app.core.database import SessionLocal
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ready", "database": "connected"}
+    finally:
+        db.close()
+

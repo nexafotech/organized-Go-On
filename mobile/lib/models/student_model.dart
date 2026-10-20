@@ -12,6 +12,7 @@ class StudentSummaryModel {
   final bool isActive;
   final int total;
   final int present;
+  final int? purePresent;
   final int absent;
   final int od;
   final int halfDayPresent;
@@ -27,6 +28,15 @@ class StudentSummaryModel {
   final int? missableFutureClasses;
   final String? avatarId;
 
+  /// Returns mutually exclusive pure physical present count (excluding OD when OD is counted as present)
+  int get purePresentCount {
+    if (purePresent != null) return purePresent!;
+    if (present + absent == total && od > 0) {
+      return (present - od).clamp(0, total);
+    }
+    return present;
+  }
+
   StudentSummaryModel({
     required this.studentId,
     this.userId,
@@ -41,6 +51,7 @@ class StudentSummaryModel {
     required this.isActive,
     required this.total,
     required this.present,
+    this.purePresent,
     required this.absent,
     required this.od,
     this.halfDayPresent = 0,
@@ -71,6 +82,7 @@ class StudentSummaryModel {
     bool? isActive,
     int? total,
     int? present,
+    int? purePresent,
     int? absent,
     int? od,
     int? halfDayPresent,
@@ -100,6 +112,7 @@ class StudentSummaryModel {
       isActive: isActive ?? this.isActive,
       total: total ?? this.total,
       present: present ?? this.present,
+      purePresent: purePresent ?? this.purePresent,
       absent: absent ?? this.absent,
       od: od ?? this.od,
       halfDayPresent: halfDayPresent ?? this.halfDayPresent,
@@ -132,6 +145,7 @@ class StudentSummaryModel {
       isActive: json['is_active'] as bool? ?? true,
       total: json['total'] as int? ?? 0,
       present: json['present'] as int? ?? 0,
+      purePresent: json['pure_present'] as int?,
       absent: json['absent'] as int? ?? 0,
       od: json['od'] as int? ?? 0,
       halfDayPresent: json['half_day_present'] as int? ?? 0,
@@ -326,9 +340,18 @@ class SubjectAttendanceModel {
   final String subjectName;
   final int total;
   final int present;
+  final int? purePresent;
   final int absent;
   final int od;
   final double percentage;
+
+  int get purePresentCount {
+    if (purePresent != null) return purePresent!;
+    if (present + absent == total && od > 0) {
+      return (present - od).clamp(0, total);
+    }
+    return present;
+  }
 
   SubjectAttendanceModel({
     required this.subjectId,
@@ -336,6 +359,7 @@ class SubjectAttendanceModel {
     required this.subjectName,
     required this.total,
     required this.present,
+    this.purePresent,
     required this.absent,
     required this.od,
     required this.percentage,
@@ -348,6 +372,7 @@ class SubjectAttendanceModel {
       subjectName: json['subject_name'] as String? ?? '',
       total: json['total'] as int? ?? 0,
       present: json['present'] as int? ?? 0,
+      purePresent: json['pure_present'] as int?,
       absent: json['absent'] as int? ?? 0,
       od: json['od'] as int? ?? 0,
       percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,

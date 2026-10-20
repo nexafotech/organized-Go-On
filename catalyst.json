@@ -1,0 +1,10 @@
+{
+  "appsail": [
+    {
+      "name": "go-on-backend",
+      "source": ".",
+      "build_path": ".",
+      "stack": "python_3_11"
+    }
+  ]
+}

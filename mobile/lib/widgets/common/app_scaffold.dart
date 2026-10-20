@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,6 +388,7 @@ class AppScaffold extends StatelessWidget {
               child: isDesktopOrLaptop
                   ? Align(
                       alignment: Alignment.bottomCenter,
+                      heightFactor: 1.0,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 580.0),
                         child: floatingBottomBar!,
@@ -408,13 +410,25 @@ class AppScaffold extends StatelessWidget {
           )
         : content;
 
-    return Scaffold(
-      backgroundColor: backgroundColor ?? colors.background,
-      appBar: header,
-      bottomNavigationBar: bottomNavigationBar,
-      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-      floatingActionButtonLocation: floatingActionButtonLocation,
-      body: finalBody,
+    final systemOverlay = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: colors.isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: colors.isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: colors.background,
+      systemNavigationBarIconBrightness: colors.isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarDividerColor: Colors.transparent,
+    );
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemOverlay,
+      child: Scaffold(
+        backgroundColor: backgroundColor ?? colors.background,
+        appBar: header,
+        bottomNavigationBar: bottomNavigationBar,
+        resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+        floatingActionButtonLocation: floatingActionButtonLocation,
+        body: finalBody,
+      ),
     );
   }
 }

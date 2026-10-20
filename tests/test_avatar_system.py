@@ -98,6 +98,12 @@ def test_student_avatar_api_endpoints():
         assert res_patch.status_code == 200
         assert res_patch.json()["avatar_id"] == "avatar_m1"
 
+        # 8. Unchanged avatar fast-path test
+        res_unchanged = client.put("/api/v1/student/avatar", json={"avatar_id": "avatar_m1"}, headers=headers)
+        assert res_unchanged.status_code == 200
+        assert res_unchanged.json()["success"] is True
+        assert res_unchanged.json()["message"] == "Avatar unchanged"
+
         # Restore original or deterministic state
         client.put("/api/v1/student/avatar", json={"avatar_id": "avatar_m1"}, headers=headers)
 

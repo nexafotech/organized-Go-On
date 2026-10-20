@@ -109,26 +109,7 @@ class MatrixLunchBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Container(
-      width: width,
-      height: height,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: colors.lunchBg.withValues(alpha: 0.6),
-        border: Border(
-          right: BorderSide(color: colors.border, width: 1),
-          left: BorderSide(color: colors.border, width: 1),
-          bottom: BorderSide(color: colors.divider, width: 1),
-        ),
-      ),
-      child: Icon(
-        Icons.restaurant_rounded,
-        size: AppIconSize.statusChip,
-        color: colors.lunch.withValues(alpha: 0.7),
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 

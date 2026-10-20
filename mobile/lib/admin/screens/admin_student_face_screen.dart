@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/theme/theme_service.dart';
 import '../../models/admin_biometric_model.dart';
 import '../../services/admin_service.dart';
 import '../../services/auth_service.dart';
@@ -618,19 +617,6 @@ class _AdminStudentFaceScreenState extends State<AdminStudentFaceScreen> {
             color: colors.onHero,
             tooltip: 'Refresh',
             onPressed: _loadData,
-          ),
-          SafeThemeConsumer(
-            builder: (context, themeService, _) {
-              final isDark = themeService.isDarkMode;
-              return IconButton(
-                icon: Icon(
-                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                  color: isDark ? const Color(0xFFF59E0B) : colors.onHero,
-                ),
-                tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
-                onPressed: () => themeService.toggleTheme(),
-              );
-            },
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),

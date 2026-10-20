@@ -73,5 +73,81 @@ void main() {
       expect(find.text('ATTENDANCE'), findsOneWidget);
       expect(find.text('Present (7 / 8)'), findsOneWidget);
     });
+
+    testWidgets('Overall attendance graph never exceeds 100% when OD is counted as present', (tester) async {
+      // Exactly reproducing the scenario from user screenshot:
+      // Total: 13, Present: 10 (which includes 1 OD), purePresent: 9, Absent: 3, OD: 1, Percentage: 76.9%
+      final summary = StudentSummaryModel(
+        studentId: 101,
+        fullName: 'Test Student',
+        registerNumber: '23CS101',
+        isActive: true,
+        total: 13,
+        present: 10,
+        purePresent: 9,
+        absent: 3,
+        od: 1,
+        percentage: 76.9,
+        calculationMode: 'RECORD_BASED',
+        attendanceStatus: 'OK',
+        minimumRequired: 75.0,
+        belowMinimum: false,
+      );
+
+      await tester.pumpWidget(wrapWidget(
+        InteractiveAttendanceOverviewCard(summary: summary),
+      ));
+      await tester.pumpAndSettle();
+
+      // Center puck displays overall attendance percentage (76.9% ATTENDANCE)
+      expect(find.text('76.9%'), findsOneWidget);
+      expect(find.text('ATTENDANCE'), findsOneWidget);
+
+      // Mutually exclusive legend pills:
+      // Pure Present: 9 / 13 = 69.2%
+      // Absent: 3 / 13 = 23.1%
+      // On-Duty: 1 / 13 = 7.7%
+      expect(find.text('Present (9 / 13)'), findsOneWidget);
+      expect(find.text('69.2%'), findsOneWidget);
+
+      expect(find.text('Absent (3 / 13)'), findsOneWidget);
+      expect(find.text('23.1%'), findsOneWidget);
+
+      expect(find.text('On-Duty (1 / 13)'), findsOneWidget);
+      expect(find.text('7.7%'), findsOneWidget);
+
+      // Verify mathematical integrity:
+      // Breakdown: 69.2% + 23.1% + 7.7% = 100.0% (NEVER 107.7%)
+      // Counts: 9 + 3 + 1 = 13 == Total
+      expect(find.text('Present (10 / 13)'), findsNothing);
+    });
+
+    testWidgets('Automatic fallback purePresentCount prevents double count even when purePresent is null', (tester) async {
+      final summary = StudentSummaryModel.fromJson({
+        'student_id': 102,
+        'full_name': 'Fallback Student',
+        'register_number': '23CS102',
+        'is_active': true,
+        'total': 13,
+        'present': 10, // includes 1 OD
+        'absent': 3,
+        'od': 1,
+        'percentage': 76.9,
+        'calculation_mode': 'RECORD_BASED',
+        'attendance_status': 'OK',
+        'minimum_required': 75.0,
+      });
+
+      expect(summary.purePresentCount, equals(9));
+
+      await tester.pumpWidget(wrapWidget(
+        InteractiveAttendanceOverviewCard(summary: summary),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Present (9 / 13)'), findsOneWidget);
+      expect(find.text('69.2%'), findsOneWidget);
+      expect(find.text('Present (10 / 13)'), findsNothing);
+    });
   });
 }

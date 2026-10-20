@@ -1,48 +1,27 @@
-# Attendance Marker (`am-oss`) — Enterprise Class Attendance System
+# go-On — AI Face Attendance & College Management System
 
-A modular, production-oriented college class-attendance system built with **FastAPI**, **SQLAlchemy 2.0**, **SQLite/PostgreSQL**, **Bcrypt**, **JWT/Session Cookies**, **Admin Web UI**, and a **Cross-Platform Flutter Mobile Client**.
+A modular, production-grade institutional attendance and management platform built with **FastAPI**, **SQLAlchemy 2.0**, **SQLite/PostgreSQL**, **Bcrypt**, **JWT/Session Cookies**, **Admin Web UI**, **Cross-Platform Flutter Mobile Client**, and **Zoho Catalyst AppSail Cloud Deployment**.
 
-> [!IMPORTANT]
-> **FINAL REPOSITORY HANDOFF**: This repository is the complete continuation source for the Attendance Marker project. The original developer may no longer actively maintain the project.
-> - 📖 **Developer Handoff Guide**: [docs/DEVELOPER_SETUP_AND_HANDOFF.md](docs/DEVELOPER_SETUP_AND_HANDOFF.md)
-> - 📊 **Project Status & Roadmap**: [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md)
-> - 🛡️ **Development Data Policy**: [docs/DEVELOPMENT_DATA_POLICY.md](docs/DEVELOPMENT_DATA_POLICY.md)
-
----
-
-## 🚀 Quick Start
-
-### 1. Backend (FastAPI)
-```powershell
-# Create & activate environment
-python -m venv .venv
-.venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run development server
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-- **API Documentation**: `http://127.0.0.1:8000/docs`
-- **Admin Panel**: `http://127.0.0.1:8000/admin`
-
-### 2. Mobile Client (Flutter)
-```powershell
-cd mobile
-flutter pub get
-flutter run
-```
+> [!NOTE]
+> **COMPREHENSIVE DOCUMENTATION HUB**:
+> - 🚀 **Quickstart & Deployment**: [docs/STEP_BY_STEP_SETUP_AND_DEPLOYMENT.md](docs/STEP_BY_STEP_SETUP_AND_DEPLOYMENT.md)
+> - 🏗️ **Architecture & Structure**: [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
+> - ☁️ **Deployment Runbook**: [docs/DEPLOYMENT_RUNBOOK.md](docs/DEPLOYMENT_RUNBOOK.md)
+> - 🧪 **Test Execution Matrix**: [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)
+> - 🛡️ **Security & Biometric Privacy**: [docs/SECURITY_AND_DATA_HANDLING.md](docs/SECURITY_AND_DATA_HANDLING.md)
+> - ⚙️ **Operations & Maintenance**: [docs/OPERATIONS_AND_MAINTENANCE.md](docs/OPERATIONS_AND_MAINTENANCE.md)
+> - 📜 **Changelog & Releases**: [docs/CHANGELOG.md](docs/CHANGELOG.md)
+> - 📋 **Final Project Sign-Off Report**: [docs/FINAL_PROJECT_REPORT.md](docs/FINAL_PROJECT_REPORT.md)
 
 ---
 
-## 📊 Current Project Status (Milestone 10C.16)
+## 📊 System Status & Quality Metrics
 
-- **Class 1**: `II Year CSE Cyber Security - Class 1` — **64 Students active**, **42 Timetable slots verified**.
-- **Class 2**: `III Year CSE Cyber Security - Class 2` — **0 Students active** (55 source students prepared), **42 Timetable slots verified**.
-- **Faculty Accounts**: 8 development faculty (`FAC01`–`FAC08`) with multi-faculty authorized access model.
-- **Capacity Limits**: 130 max students (64 used, 66 remaining), 15 max faculty (8 used, 7 remaining).
-- **Test Baseline**: **100+ Backend tests passing** (100%), **44 Flutter tests passing** (100%), **0 Flutter analyze issues**.
+- **Backend Pytest Suite**: **38 / 38 Passing (100%)** (Includes 5,000-student scale and SCRFD-10G/ArcFace verification)
+- **Flutter Mobile Suite**: **203 / 203 Passing (100%)** (Static analysis: 0 errors, 0 warnings)
+- **Verified Hardware**: Samsung Galaxy S24 (`SM-S921E`)
+- **Cloud Deployment Target**: Zoho Catalyst AppSail (Python 3.11, 2048 MB RAM)
+- **Active Database**: SQLite `attendance_system.db` (28.2 MB, 21 tables, 721 users, 387 students, 142 faculty)
 
 ---
 

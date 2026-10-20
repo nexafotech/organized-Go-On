@@ -7,6 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        var theme = localStorage.getItem('am_theme');
+        if (theme) document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
   <style>
     :root {
       /* Soft Off-White / Light Canvas (Reference Image Palette) */
@@ -547,9 +555,6 @@
       <div class="topbar">
         <div class="avatar" id="s-avatar">S</div>
         <div class="top-title" id="s-name">Student Dashboard</div>
-        <div class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        </div>
       </div>
 
       <!-- Student Profile Card -->
@@ -613,18 +618,6 @@
             <strong class="tnum" style="color:var(--danger)" id="s-hd-a">0</strong>
           </div>
         </div>
-      </div>
-
-      <!-- Institutional Lunch Break Banner (Matches reference 'Upgrade to Premium' card style) -->
-      <div class="break-banner">
-        <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.85); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.03); flex-shrink:0;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
-        </div>
-        <div style="flex:1;">
-          <strong style="color:var(--ink); font-size:13.5px; font-weight:700;">College Lunch Break: 12:50 PM – 01:40 PM</strong>
-          <p style="color:var(--ink-secondary); font-size:12px; margin-top:2px;">Institutional interval — strictly excluded from attendance and denominators.</p>
-        </div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       </div>
 
       <!-- Daily Attendance History List -->
@@ -692,9 +685,6 @@
       <div class="topbar">
         <div class="avatar" id="f-avatar">F</div>
         <div class="top-title" id="f-name">Faculty Portal</div>
-        <div class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        </div>
       </div>
 
       <!-- Class Advisor Dedicated Card (If Advisor) -->
@@ -729,18 +719,6 @@
         <button class="btn-main" id="f-take-btn" onclick="openFacultyAvailablePeriods()">
           Take Attendance
         </button>
-      </div>
-
-      <!-- Institutional Lunch Break Card (Matches reference card style) -->
-      <div class="break-banner">
-        <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.85); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.03); flex-shrink:0;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
-        </div>
-        <div style="flex:1;">
-          <strong style="color:var(--ink); font-size:13.5px; font-weight:700;">College Lunch Break: 12:50 PM – 01:40 PM</strong>
-          <p style="color:var(--ink-secondary); font-size:12px; margin-top:2px;">Institutional interval — strictly excluded from attendance and denominators.</p>
-        </div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       </div>
 
       <div class="sec-title">Today's Schedule</div>
@@ -832,7 +810,12 @@
       <div class="topbar">
         <div class="avatar" id="prof-top-avatar">U</div>
         <div class="top-title">Account Profile</div>
-        <div class="icon-btn" onclick="openSh('server')" title="API Config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <div style="display:flex; gap:8px;">
+          <div class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          </div>
+          <div class="icon-btn" onclick="openSh('server')" title="API Config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        </div>
       </div>
 
       <div class="gc" style="text-align: center; padding: 32px 20px;">
@@ -930,12 +913,6 @@
       <div class="sheet-handle"></div>
       <h3 style="font-size:18px; font-weight:700; margin-bottom:6px; text-align:center;">Class Advisor Daily Summary</h3>
       <p style="text-align:center; font-size:12px; color:var(--ink-secondary); margin-bottom:16px;" id="sum-date-lbl">Date: 2026-09-30</p>
-      
-      <div class="break-banner" style="margin-bottom:16px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
-        <span style="font-size:12px; color:#F59E0B;">Lunch Break: 12:50 PM - 01:40 PM (Excluded from totals)</span>
-      </div>
-
       <div style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
           <thead>
@@ -1223,9 +1200,6 @@
               <span>Morning: <strong>${item.morning_status || 'N/A'}</strong></span>
               <span>Afternoon: <strong>${item.afternoon_status || 'N/A'}</strong></span>
             </div>
-            <div style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); border-radius:10px; padding:6px 12px; font-size:11px; color:#F59E0B; margin-bottom:8px;">
-              Institutional Lunch Break: 12:50 PM - 01:40 PM (Not Counted)
-            </div>
             ${periodHtml}
           `;
           container.appendChild(card);
@@ -1417,25 +1391,8 @@
       // Sort periods by period_number
       periods.sort((a,b) => a.period_number - b.period_number);
 
-      // Render periods, inserting lunch break between P4 and P5
+      // Render periods
       periods.forEach(p => {
-        // If Period 5, insert Institutional Lunch Break banner before it
-        if (p.period_number === 5) {
-          const lb = document.createElement('div');
-          lb.className = 'break-banner';
-          lb.innerHTML = `
-            <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.85); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.03); flex-shrink:0;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
-            </div>
-            <div style="flex:1;">
-              <strong style="color:var(--ink); font-size:13.5px; font-weight:700;">College Lunch Break: 12:50 PM – 01:40 PM</strong>
-              <p style="color:var(--ink-secondary); font-size:12px; margin-top:2px;">Institutional interval — strictly excluded from attendance and denominators.</p>
-            </div>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-          `;
-          container.appendChild(lb);
-        }
-
         const isAvailable = p.status === 'AVAILABLE' || p.can_mark === true;
         const isMarked = p.status === 'ALREADY_MARKED';
         let statusBadge = isMarked 

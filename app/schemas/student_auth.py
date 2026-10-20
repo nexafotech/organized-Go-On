@@ -31,6 +31,7 @@ class PeriodAttendanceRow(BaseModel):
     period_name: str
     total: int
     present: int
+    pure_present: Optional[int] = None
     absent: int
     od: int
     percentage: float
@@ -51,6 +52,7 @@ class StudentMeOut(BaseModel):
     # Overall attendance summary
     total: int = 0
     present: int = 0
+    pure_present: Optional[int] = None
     absent: int = 0
     od: int = 0
     half_day_present: int = 0
@@ -94,6 +96,7 @@ class SubjectAttendanceRow(BaseModel):
     subject_name: str
     total: int
     present: int
+    pure_present: Optional[int] = None
     absent: int
     od: int
     percentage: float
@@ -150,6 +153,7 @@ class StudentAttendanceReport(BaseModel):
     # Semester summary
     total: int
     present: int
+    pure_present: Optional[int] = None
     absent: int
     od: int
     half_day_present: int = 0

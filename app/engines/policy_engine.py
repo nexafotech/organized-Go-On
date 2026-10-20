@@ -133,9 +133,12 @@ def _status_counts(records: List[AttendanceRecord], policy: AttendancePolicy) ->
             total += 1
             uncertain += 1
 
+    pure_present = max(0, present - od) if policy.od_calculation_mode == "COUNT_AS_PRESENT" else present
+
     return {
         "total": total,
         "present": present,
+        "pure_present": pure_present,
         "absent": absent,
         "od": od,
         "uncertain": uncertain,
@@ -700,6 +703,7 @@ class AttendancePolicyEngine:
                 "period_name": p_data["period_name"],
                 "total": counts["total"],
                 "present": counts["present"],
+                "pure_present": counts.get("pure_present", counts["present"]),
                 "absent": counts["absent"],
                 "od": counts["od"],
                 "percentage": pct,

@@ -33,7 +33,12 @@ class Settings:
             )
 
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./attendance_system.db")
+    _DEFAULT_SQLITE: str = (
+        "sqlite:////tmp/attendance_system.db"
+        if (os.environ.get("X_ZOHO_CATALYST_LISTEN_PORT") or (os.name != "nt" and not os.access(".", os.W_OK)))
+        else "sqlite:///./attendance_system.db"
+    )
+    DATABASE_URL: str = os.getenv("DATABASE_URL", _DEFAULT_SQLITE)
 
     # System Capacity Limits (5,000 students, 250 faculty)
     MAX_STUDENTS: int = int(os.getenv("MAX_STUDENTS", "5000"))

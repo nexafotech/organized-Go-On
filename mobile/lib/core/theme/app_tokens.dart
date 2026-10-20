@@ -1098,12 +1098,14 @@ abstract class AppSize {
 // ─────────────────────────────────────────────────────────────────────────────
 
 abstract class AppBreakpoints {
-  static const double compactMobile = 390.0;
+  static const double narrowMobile = 360.0;
+  static const double compactMobile = 400.0;
   static const double mobile = 600.0;
-  static const double tablet = 900.0;
+  static const double tablet = 1024.0;
   static const double desktop = 1200.0;
   static const double maxContentWidth = 1200.0;
 
+  static bool isNarrow(BuildContext context) => MediaQuery.sizeOf(context).width < narrowMobile;
   static bool isCompact(BuildContext context) => MediaQuery.sizeOf(context).width < compactMobile;
   static bool isMobile(BuildContext context) => MediaQuery.sizeOf(context).width < mobile;
   static bool isTablet(BuildContext context) {
@@ -1111,6 +1113,18 @@ abstract class AppBreakpoints {
     return width >= mobile && width < desktop;
   }
   static bool isDesktop(BuildContext context) => MediaQuery.sizeOf(context).width >= desktop;
+
+  static T value<T>(
+    BuildContext context, {
+    required T mobile,
+    T? tablet,
+    T? desktop,
+  }) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= AppBreakpoints.desktop && desktop != null) return desktop;
+    if (width >= AppBreakpoints.mobile && tablet != null) return tablet;
+    return mobile;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1120,8 +1134,21 @@ abstract class AppBreakpoints {
 extension AppTokensContextExtension on BuildContext {
   AppColors get colors => AppColors.of(this);
   AppTypography get typography => AppTypography.of(this);
+  bool get isNarrow => AppBreakpoints.isNarrow(this);
   bool get isCompact => AppBreakpoints.isCompact(this);
   bool get isMobile => AppBreakpoints.isMobile(this);
   bool get isTablet => AppBreakpoints.isTablet(this);
   bool get isDesktop => AppBreakpoints.isDesktop(this);
+
+  T responsive<T>({
+    required T mobile,
+    T? tablet,
+    T? desktop,
+  }) =>
+      AppBreakpoints.value<T>(
+        this,
+        mobile: mobile,
+        tablet: tablet,
+        desktop: desktop,
+      );
 }

@@ -189,9 +189,9 @@ void main() {
       expect(find.text('Object Oriented Programming Systems'), findsOneWidget);
       expect(find.byIcon(Icons.check_rounded), findsWidgets);
 
-      // 6. Verify Break Dividers
-      expect(find.text('Tea break · 10:35'), findsOneWidget);
-      expect(find.text('Lunch · 12:45'), findsOneWidget);
+      // 6. Verify Break Dividers are NOT displayed
+      expect(find.text('Tea break · 10:35'), findsNothing);
+      expect(find.text('Lunch · 12:45'), findsNothing);
 
       // 7. Verify Upcoming Cards
       expect(find.text('Digital Principles & Computer Organization'), findsOneWidget);
@@ -308,9 +308,9 @@ void main() {
       expect(find.text('02:40'), findsOneWidget);
       expect(find.text('03:30'), findsOneWidget);
 
-      // 4. Verify Break Dividers (Image 1)
-      expect(find.text('Tea break'), findsOneWidget);
-      expect(find.text('Lunch'), findsOneWidget);
+      // 4. Verify Break Dividers are NOT displayed
+      expect(find.text('Tea break'), findsNothing);
+      expect(find.text('Lunch'), findsNothing);
 
       // 5. Verify Pastel Cards Codes (Image 1)
       expect(find.text('OOPS'), findsOneWidget);
@@ -319,10 +319,13 @@ void main() {
       expect(find.text('DS'), findsOneWidget);
       expect(find.text('ACE'), findsOneWidget);
 
-      // 6. Tap Card -> Opens Details Modal
+      // 6. Tap Card -> Opens Simplified Details Modal (Faculty & Time only)
       await tester.tap(find.text('DMC'));
       await tester.pumpAndSettle();
-      expect(find.text('Discrete Mathematics for Computing'), findsOneWidget);
+      expect(find.text('Princy'), findsOneWidget);
+      expect(find.text('09:40 AM – 10:35 AM'), findsOneWidget);
+      expect(find.text('Discrete Mathematics for Computing'), findsNothing);
+      expect(find.text('Attendance Report'), findsNothing);
     });
   });
 }

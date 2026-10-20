@@ -13,7 +13,6 @@ import 'package:attendance_marker_mobile/services/admin_service.dart';
 import 'package:attendance_marker_mobile/services/biometric_enrollment_service.dart';
 import 'package:attendance_marker_mobile/services/notification_service.dart';
 import 'package:attendance_marker_mobile/models/user_model.dart';
-import 'package:attendance_marker_mobile/widgets/common/go_on_brand.dart';
 
 class MockFailingPreferencesService extends AppPreferencesService {
   @override

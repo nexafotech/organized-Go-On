@@ -1,3 +1,5 @@
+import 'student_model.dart';
+
 class FacultyScheduleItem {
   final int id;
   final String dayOfWeek;
@@ -11,6 +13,8 @@ class FacultyScheduleItem {
   final String subjectName;
   final String className;
   final String? facultyName;
+  final String? roomNo;
+  final String? type;
 
   FacultyScheduleItem({
     required this.id,
@@ -25,7 +29,24 @@ class FacultyScheduleItem {
     required this.subjectName,
     required this.className,
     this.facultyName,
+    this.roomNo,
+    this.type,
   });
+
+  TimetableItemModel toTimetableItemModel() {
+    return TimetableItemModel(
+      dayOfWeek: dayOfWeek,
+      periodNumber: periodNumber,
+      periodName: periodName,
+      startTime: startTime,
+      endTime: endTime,
+      subjectCode: subjectCode,
+      subjectName: subjectName,
+      facultyName: facultyName,
+      roomNo: roomNo,
+      type: type,
+    );
+  }
 
   factory FacultyScheduleItem.fromJson(Map<String, dynamic> json) {
     return FacultyScheduleItem(
@@ -41,6 +62,8 @@ class FacultyScheduleItem {
       subjectName: json['subject_name'] as String? ?? '',
       className: json['class_name'] as String? ?? '',
       facultyName: json['faculty_name'] as String?,
+      roomNo: json['room_no'] as String? ?? json['room'] as String?,
+      type: json['type'] as String?,
     );
   }
 }

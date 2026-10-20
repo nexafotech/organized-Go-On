@@ -145,6 +145,7 @@ class DailyScheduleCard extends StatefulWidget {
   final List<SubjectAttendanceModel>? subjects;
   final String? dateLabel;
   final DateTime? selectedDate;
+  final bool showOverallToday;
 
   const DailyScheduleCard({
     Key? key,
@@ -153,6 +154,7 @@ class DailyScheduleCard extends StatefulWidget {
     this.subjects,
     this.dateLabel,
     this.selectedDate,
+    this.showOverallToday = false,
   }) : super(key: key);
 
   @override
@@ -999,118 +1001,120 @@ class _DailyScheduleCardState extends State<DailyScheduleCard> {
               );
             },
           ),
-          const SizedBox(height: 18),
+          if (widget.showOverallToday) ...[
+            const SizedBox(height: 18),
 
-          // 10. Bottom "Overall today" Target Bar
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Overall today',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  RichText(
-                    text: TextSpan(
+            // 10. Bottom "Overall today" Target Bar
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Overall today',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textMuted,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textSecondary,
                       ),
-                      children: [
-                        if (recordedTotal > 0) ...[
-                          TextSpan(
-                            text: '${overallTodayPct.toStringAsFixed(0)}% ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: overallTodayPct >= 75.0
-                                  ? const Color(0xFF0B7A55)
-                                  : (overallTodayPct >= 70.0
-                                      ? const Color(0xFFB87B4B)
-                                      : const Color(0xFFB42318)),
-                            ),
-                          ),
-                          const TextSpan(text: 'target 75%'),
-                        ] else ...[
-                          const TextSpan(
-                            text: 'Pending ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const TextSpan(text: 'target 75%'),
-                        ],
-                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-
-              // Progress Track with Vertical Tick Mark at 75%
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final totalWidth = constraints.maxWidth;
-                  final fillFraction = recordedTotal > 0
-                      ? (overallTodayPct / 100.0).clamp(0.0, 1.0)
-                      : 0.0;
-                  final fillWidth = totalWidth * fillFraction;
-                  final tickPosition = totalWidth * 0.75;
-                  final barColor = overallTodayPct >= 75.0
-                      ? const Color(0xFF0B7A55)
-                      : (overallTodayPct >= 70.0
-                          ? const Color(0xFFB87B4B)
-                          : const Color(0xFFB42318));
-
-                  return SizedBox(
-                    height: 14,
-                    child: Stack(
-                      alignment: Alignment.centerLeft,
-                      children: [
-                        // Background line track
-                        Container(
-                          height: 3.5,
-                          width: totalWidth,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
+                    RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textMuted,
                         ),
-                        // Filled active progress line
-                        if (fillWidth > 0)
+                        children: [
+                          if (recordedTotal > 0) ...[
+                            TextSpan(
+                              text: '${overallTodayPct.toStringAsFixed(0)}% ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: overallTodayPct >= 75.0
+                                    ? const Color(0xFF0B7A55)
+                                    : (overallTodayPct >= 70.0
+                                        ? const Color(0xFFB87B4B)
+                                        : const Color(0xFFB42318)),
+                              ),
+                            ),
+                            const TextSpan(text: 'target 75%'),
+                          ] else ...[
+                            const TextSpan(
+                              text: 'Pending ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const TextSpan(text: 'target 75%'),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+
+                // Progress Track with Vertical Tick Mark at 75%
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final totalWidth = constraints.maxWidth;
+                    final fillFraction = recordedTotal > 0
+                        ? (overallTodayPct / 100.0).clamp(0.0, 1.0)
+                        : 0.0;
+                    final fillWidth = totalWidth * fillFraction;
+                    final tickPosition = totalWidth * 0.75;
+                    final barColor = overallTodayPct >= 75.0
+                        ? const Color(0xFF0B7A55)
+                        : (overallTodayPct >= 70.0
+                            ? const Color(0xFFB87B4B)
+                            : const Color(0xFFB42318));
+
+                    return SizedBox(
+                      height: 14,
+                      child: Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          // Background line track
                           Container(
                             height: 3.5,
-                            width: fillWidth,
+                            width: totalWidth,
                             decoration: BoxDecoration(
-                              color: barColor,
+                              color: const Color(0xFFE2E8F0),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                        // 75% Target Marker Tick
-                        Positioned(
-                          left: tickPosition - 1,
-                          child: Container(
-                            width: 2,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF475569),
-                              borderRadius: BorderRadius.circular(1),
+                          // Filled active progress line
+                          if (fillWidth > 0)
+                            Container(
+                              height: 3.5,
+                              width: fillWidth,
+                              decoration: BoxDecoration(
+                                color: barColor,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          // 75% Target Marker Tick
+                          Positioned(
+                            left: tickPosition - 1,
+                            child: Container(
+                              width: 2,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF475569),
+                                borderRadius: BorderRadius.circular(1),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

@@ -7,6 +7,7 @@ import '../../models/faculty_attendance_model.dart';
 import '../../services/faculty_service.dart';
 import '../../utils/timezone_utils.dart';
 import 'faculty_class_advisor_entry_screen.dart';
+import '../widgets/faculty_calendar_theme.dart';
 
 class FacultyClassAdvisorScreen extends StatefulWidget {
   final bool isStandalone;
@@ -16,7 +17,7 @@ class FacultyClassAdvisorScreen extends StatefulWidget {
   State<FacultyClassAdvisorScreen> createState() => _FacultyClassAdvisorScreenState();
 }
 
-class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
+class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   String? _errorMessage;
   ClassAdvisorAvailablePeriodsResponse? _data;
@@ -26,13 +27,55 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
   String? _pastErrorMessage;
   ClassAdvisorPeriodsForDateResponse? _pastData;
 
+  late TabController _tabController;
+  final ScrollController _todayScrollController = ScrollController();
+  final ScrollController _yesterdayScrollController = ScrollController();
+  final ScrollController _pastScrollController = ScrollController();
+
+  final Map<int, GlobalKey> _todayPeriodKeys = {};
+  final Map<int, GlobalKey> _yesterdayPeriodKeys = {};
+  final Map<int, GlobalKey> _pastPeriodKeys = {};
+
+  int? _pendingScrollPeriodNumber;
+  int? _pendingScrollTabIndex;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
       _loadPastPeriods(_selectedPastDate);
+      final facultyService = Provider.of<FacultyService>(context, listen: false);
+      if (facultyService.classAdvisorSchedule.isEmpty) {
+        facultyService.fetchClassAdvisorTimetable();
+      }
     });
+  }
+
+  void _onTabChanged() {
+    _pendingScrollPeriodNumber = null;
+    _pendingScrollTabIndex = null;
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+    _todayScrollController.dispose();
+    _yesterdayScrollController.dispose();
+    _pastScrollController.dispose();
+    super.dispose();
+  }
+
+  GlobalKey _getOrCreatePeriodKey(int tabIndex, int periodNumber) {
+    final map = tabIndex == 0
+        ? _todayPeriodKeys
+        : tabIndex == 1
+            ? _yesterdayPeriodKeys
+            : _pastPeriodKeys;
+    return map.putIfAbsent(periodNumber, () => GlobalKey());
   }
 
   Future<void> _loadPastPeriods(DateTime date) async {
@@ -78,6 +121,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
       initialDate: _selectedPastDate.isAfter(now) ? now : _selectedPastDate,
       firstDate: DateTime(2025, 1, 1),
       lastDate: now,
+      builder: (context, child) => buildFacultyDatePickerTheme(context, child!),
     );
     if (picked != null) {
       _loadPastPeriods(picked);
@@ -119,6 +163,9 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
   }
 
   void _openEntryScreen(ClassAdvisorPeriodItem period) async {
+    final currentTabIndex = _tabController.index;
+    final savedPeriodNumber = period.periodNumber;
+
     final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => FacultyClassAdvisorEntryScreen(
@@ -136,10 +183,102 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
       ),
     );
 
-    if (result == true) {
-      _loadData();
-      _loadPastPeriods(_selectedPastDate);
+    if (result == true && mounted) {
+      // 1. Authoritative reload from backend
+      if (currentTabIndex == 2) {
+        await _loadPastPeriods(_selectedPastDate);
+      } else {
+        await _loadData();
+      }
+
+      if (!mounted) return;
+      if (_tabController.index != currentTabIndex) return;
+
+      // 2. Identify active periods list
+      final List<ClassAdvisorPeriodItem> activePeriods;
+      if (currentTabIndex == 0) {
+        activePeriods = _data?.todayPeriods ?? [];
+      } else if (currentTabIndex == 1) {
+        activePeriods = _data?.yesterdayPeriods ?? [];
+      } else {
+        activePeriods = _pastData?.periods ?? [];
+      }
+
+      // Sort in timetable order
+      final sortedPeriods = List<ClassAdvisorPeriodItem>.from(activePeriods)
+        ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber));
+
+      // 3. Find next eligible period (periodNumber > savedPeriodNumber and not already marked)
+      ClassAdvisorPeriodItem? nextEligiblePeriod;
+      for (final p in sortedPeriods) {
+        if (p.periodNumber > savedPeriodNumber) {
+          final bool isAlreadyMarked = p.status == 'ALREADY_MARKED';
+          final bool isEligible = (p.status == 'AVAILABLE' || p.canMark) && !isAlreadyMarked;
+          if (isEligible) {
+            nextEligiblePeriod = p;
+            break;
+          }
+        }
+      }
+
+      // 4. Handle completion or auto-scroll
+      if (nextEligiblePeriod == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('All eligible periods for this date have been recorded.'),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF0B7A55),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } else {
+        _scrollToPeriod(currentTabIndex, nextEligiblePeriod.periodNumber);
+      }
     }
+  }
+
+  void _scrollToPeriod(int tabIndex, int periodNumber) {
+    _pendingScrollTabIndex = tabIndex;
+    _pendingScrollPeriodNumber = periodNumber;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (_tabController.index != tabIndex) return;
+      if (_pendingScrollTabIndex != tabIndex) return;
+      if (_pendingScrollPeriodNumber != periodNumber) return;
+
+      // Brief delay to allow the reloaded widget tree to finish laying out
+      await Future.delayed(const Duration(milliseconds: 80));
+      if (!mounted) return;
+      if (_tabController.index != tabIndex) return;
+      if (_pendingScrollTabIndex != tabIndex) return;
+      if (_pendingScrollPeriodNumber != periodNumber) return;
+
+      final key = _getOrCreatePeriodKey(tabIndex, periodNumber);
+      final targetContext = key.currentContext;
+
+      if (targetContext != null && targetContext.mounted) {
+        await Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeInOutCubic,
+          alignment: 0.0,
+        );
+      }
+      _pendingScrollPeriodNumber = null;
+      _pendingScrollTabIndex = null;
+    });
   }
 
   void _showDailySummary(String date) async {
@@ -155,157 +294,131 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: colors.surface,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
           shape: RoundedRectangleBorder(borderRadius: AppRadius.cardBorder),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
           title: Row(
             children: [
               Icon(Icons.analytics_rounded, color: colors.primary, size: 24),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Daily Half-Day Summary',
-                style: typography.titleMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colors.textPrimary,
+              Expanded(
+                child: Text(
+                  'Daily Half-Day Summary',
+                  style: typography.titleMedium.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
                 ),
               ),
             ],
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${summary.className} — $date',
-                  style: typography.caption.copyWith(color: colors.textMuted),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceMuted,
-                    borderRadius: AppRadius.mediumBorder,
-                    border: Border.all(color: colors.glassBorder),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.75,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '${summary.className} — $date',
+                    style: typography.caption.copyWith(color: colors.textMuted),
                   ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildSummaryStat('Full Day Present', '${summary.fullDayPresentCount}', colors.present),
-                          _buildSummaryStat('Half-Day Present', '${summary.halfDayPresentCount}', colors.present),
-                          _buildSummaryStat('Full Day Absent', '${summary.fullDayAbsentCount}', colors.error),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildSummaryStat('On Duty (OD)', '${summary.odCount}', colors.warning),
-                          _buildSummaryStat('Partial / Mixed', '${summary.partialCount}', colors.warning),
-                          _buildSummaryStat('Not Entered', '${summary.notEnteredCount}', colors.textMuted),
-                        ],
-                      ),
-                    ],
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: colors.surfaceMuted,
+                      borderRadius: AppRadius.mediumBorder,
+                      border: Border.all(color: colors.glassBorder),
+                    ),
+                    child: DailyAttendanceSummaryMetrics(summary: summary),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colors.warningBg,
-                    borderRadius: AppRadius.smallBorder,
-                    border: Border.all(color: colors.warning.withValues(alpha: 0.4)),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Student Statuses:',
+                    style: typography.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: colors.textPrimary),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.restaurant, size: 16, color: colors.warning),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Lunch Break: ${summary.lunchInterval} • Not counted',
-                          style: TextStyle(fontSize: 11, color: colors.warning, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Student Statuses:',
-                  style: typography.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: colors.textPrimary),
-                ),
-                const SizedBox(height: 6),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 220),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: summary.students.length,
-                    itemBuilder: (context, idx) {
-                      final st = summary.students[idx];
-                      Color badgeColor = colors.textMuted;
-                      if (st.dailyResult == 'FULL DAY PRESENT') badgeColor = colors.present;
-                      if (st.dailyResult == 'HALF-DAY PRESENT') badgeColor = colors.present;
-                      if (st.dailyResult == 'FULL DAY ABSENT') badgeColor = colors.error;
-                      if (st.dailyResult == 'OD') badgeColor = colors.warning;
+                  const SizedBox(height: 6),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: summary.students.length,
+                      itemBuilder: (context, idx) {
+                        final st = summary.students[idx];
+                        Color badgeColor = colors.textMuted;
+                        if (st.dailyResult == 'FULL DAY PRESENT') badgeColor = colors.present;
+                        if (st.dailyResult == 'HALF-DAY PRESENT') badgeColor = colors.present;
+                        if (st.dailyResult == 'FULL DAY ABSENT') badgeColor = colors.error;
+                        if (st.dailyResult == 'OD') badgeColor = colors.warning;
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: colors.surfaceMuted,
-                          borderRadius: AppRadius.smallBorder,
-                          border: Border.all(color: colors.glassBorder),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    st.fullName,
-                                    style: typography.bodySmall.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: colors.textPrimary,
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceMuted,
+                            borderRadius: AppRadius.smallBorder,
+                            border: Border.all(color: colors.glassBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      st.fullName,
+                                      style: typography.bodySmall.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.textPrimary,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    'M: ${st.morningStatus} | A: ${st.afternoonStatus}',
-                                    style: typography.caption.copyWith(color: colors.textMuted),
-                                  ),
-                                ],
+                                    Text(
+                                      'M: ${st.morningStatus} | A: ${st.afternoonStatus}',
+                                      style: typography.caption.copyWith(color: colors.textMuted),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: badgeColor.withValues(alpha: 0.15),
-                                borderRadius: AppRadius.pillBorder,
-                                border: Border.all(color: badgeColor, width: 0.8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: badgeColor.withValues(alpha: 0.15),
+                                  borderRadius: AppRadius.pillBorder,
+                                  border: Border.all(color: badgeColor, width: 0.8),
+                                ),
+                                child: Text(
+                                  st.dailyResult,
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: badgeColor),
+                                ),
                               ),
-                              child: Text(
-                                st.dailyResult,
-                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: badgeColor),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.primary,
-                foregroundColor: colors.onPrimary,
-                shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.primary,
+                  foregroundColor: colors.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
             ),
           ],
         ),
@@ -319,26 +432,11 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
     }
   }
 
-  Widget _buildSummaryStat(String label, String value, Color color) {
-    final typography = context.typography;
-    final colors = context.colors;
-
-    return Column(
-      children: [
-        Text(
-          value,
-          style: typography.numeric.copyWith(fontSize: 16, fontWeight: FontWeight.bold, color: color),
-        ),
-        const SizedBox(height: 2),
-        Text(label, style: typography.caption.copyWith(fontSize: 9, color: colors.textMuted)),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
+    final facultyService = Provider.of<FacultyService>(context);
     Widget content;
 
     if (_isLoading) {
@@ -404,10 +502,8 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
     } else {
       final advisedClass = _data!.advisedClass;
 
-      content = DefaultTabController(
-        length: 3,
-        child: Column(
-          children: [
+      content = Column(
+        children: [
             // Class Advisor Header
             GlassCard(
               variant: GlassCardVariant.hero,
@@ -478,41 +574,51 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
                 border: Border(bottom: BorderSide(color: colors.glassBorder)),
               ),
               child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 12),
                 indicatorColor: colors.primary,
                 indicatorWeight: 3,
                 labelColor: colors.primary,
                 unselectedLabelColor: colors.textMuted,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                 tabs: const [
                   Tab(text: 'TODAY'),
                   Tab(text: 'YESTERDAY'),
                   Tab(text: 'PAST DATES'),
+                  Tab(key: Key('tab_class_schedule'), text: 'CLASS SCHEDULE'),
                 ],
               ),
             ),
 
             Expanded(
               child: TabBarView(
+                controller: _tabController,
                 children: [
                   _buildPeriodSchedule(
+                    tabIndex: 0,
+                    scrollController: _todayScrollController,
                     periods: _data!.todayPeriods,
                     dateStr: _data!.todayDate,
                     dayStr: _data!.todayDay,
                     isToday: true,
                   ),
                   _buildPeriodSchedule(
+                    tabIndex: 1,
+                    scrollController: _yesterdayScrollController,
                     periods: _data!.yesterdayPeriods,
                     dateStr: _data!.yesterdayDate,
                     dayStr: _data!.yesterdayDay,
                     isToday: false,
                   ),
                   _buildPastDatesTab(),
+                  _buildClassScheduleTab(facultyService),
                 ],
               ),
             ),
           ],
-        ),
-      );
+        );
     }
 
     if (widget.isStandalone) {
@@ -534,7 +640,188 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
     return content;
   }
 
+  Widget _buildClassScheduleTab(FacultyService facultyService) {
+    final colors = context.colors;
+    final schedule = facultyService.classAdvisorSchedule;
+    final advisedClass = _data?.advisedClass;
+    final className = facultyService.classAdvisorClassName ??
+        advisedClass?.name ??
+        'Advised Class Schedule';
+
+    if (facultyService.isLoading && schedule.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (facultyService.errorMessage != null && schedule.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.cloud_off_rounded, size: 48, color: colors.error),
+              const SizedBox(height: 12),
+              Text(
+                'Timetable Unavailable',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                facultyService.errorMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.primary,
+                  foregroundColor: colors.onPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => facultyService.fetchClassAdvisorTimetable(),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Refresh Timetable'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (schedule.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.calendar_month_rounded, size: 48, color: colors.textMuted),
+              const SizedBox(height: 12),
+              Text(
+                'No schedule entries available',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No timetable entries configured for $className',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => facultyService.fetchClassAdvisorTimetable(),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Refresh Timetable'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return WeeklyMatrixTimetableView(
+      items: schedule.map((i) => i.toTimetableItemModel()).toList(),
+      title: 'Class Schedule',
+      subtitle: className,
+      showHeader: false,
+    );
+  }
+
+  String _getNoClassesTitle({
+    required bool isSunday,
+    required int tabIndex,
+    required String dateStr,
+  }) {
+    if (isSunday) {
+      if (tabIndex == 0) {
+        return 'No Classes Today';
+      } else if (tabIndex == 1) {
+        return 'No Classes Yesterday';
+      } else {
+        return 'No Classes on Sunday';
+      }
+    } else {
+      return 'No classes scheduled for this date';
+    }
+  }
+
+  Widget _buildNoClassesCard({
+    required String title,
+    required String subtitle,
+    required bool isSunday,
+  }) {
+    final colors = context.colors;
+    final typography = context.typography;
+
+    return Center(
+      child: GlassCard(
+        variant: GlassCardVariant.standard,
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.surfaceMuted,
+                border: Border.all(
+                  color: colors.glassBorder,
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                isSunday ? Icons.hotel_class_rounded : Icons.event_busy_rounded,
+                size: 34,
+                color: isSunday ? colors.primary : colors.textMuted,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              title,
+              style: typography.titleLarge.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: colors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              subtitle,
+              style: typography.bodyMedium.copyWith(
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPeriodSchedule({
+    required int tabIndex,
+    required ScrollController scrollController,
     required List<ClassAdvisorPeriodItem> periods,
     required String dateStr,
     required String dayStr,
@@ -542,6 +829,59 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
   }) {
     final colors = context.colors;
     final typography = context.typography;
+
+    final parsedDate = DateTime.tryParse(dateStr);
+    final isSunday = (parsedDate != null && parsedDate.weekday == DateTime.sunday) ||
+        dayStr.trim().toUpperCase() == 'SUNDAY';
+    final hasAttendanceRecords = periods.any((p) => p.recordCount > 0 || p.status == 'ALREADY_MARKED');
+
+    if (periods.isEmpty) {
+      final title = _getNoClassesTitle(isSunday: isSunday, tabIndex: tabIndex, dateStr: dateStr);
+      final String subtitle;
+      if (isSunday) {
+        subtitle = 'There are no scheduled classes on Sunday. Enjoy your day off!';
+      } else {
+        subtitle = 'There are no scheduled teaching periods for $dayStr ($dateStr).';
+      }
+
+      return RefreshIndicator(
+        color: colors.primary,
+        onRefresh: () => _loadData(isRefresh: true),
+        child: ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, 110),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            if (hasAttendanceRecords) ...[
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.surfaceMuted,
+                  foregroundColor: colors.textPrimary,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.pillBorder,
+                    side: BorderSide(color: colors.glassBorder),
+                  ),
+                ),
+                icon: Icon(Icons.analytics_rounded, size: 18, color: colors.primary),
+                label: const Text(
+                  'View Daily Half-Day Summary for this date',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () => _showDailySummary(dateStr),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            _buildNoClassesCard(
+              title: title,
+              subtitle: subtitle,
+              isSunday: isSunday,
+            ),
+          ],
+        ),
+      );
+    }
 
     // Separate morning (P1-P4) and afternoon (P5-P7)
     final morning = periods.where((p) => p.periodNumber <= 4).toList();
@@ -551,7 +891,8 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
       color: colors.primary,
       onRefresh: () => _loadData(isRefresh: true),
       child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 110),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           // Role Responsibility Notice Banner
@@ -621,49 +962,8 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
           if (morning.isEmpty)
             _buildEmptyPeriodNote('No morning timetable periods scheduled.')
           else
-            ..._buildMorningList(morning, isToday),
+            ..._buildMorningList(morning, isToday, tabIndex),
 
-          const SizedBox(height: AppSpacing.sm),
-
-          // LUNCH BREAK CARD (Strictly non-selectable, excluded from attendance)
-          GlassCard(
-            variant: GlassCardVariant.muted,
-            borderColor: colors.warning.withValues(alpha: 0.4),
-            padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colors.warningBg,
-                    borderRadius: AppRadius.smallBorder,
-                  ),
-                  child: Icon(Icons.restaurant_rounded, color: colors.warning, size: 24),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Lunch Break (12:50 PM – 01:40 PM)',
-                        style: typography.bodyMedium.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colors.warning,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Institutional College Break — Strictly excluded from attendance marking and percentage denominators.',
-                        style: typography.caption.copyWith(color: colors.textMuted),
-                        softWrap: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: AppSpacing.md),
 
           // AFTERNOON SESSION HEADER
@@ -673,7 +973,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
           if (afternoon.isEmpty)
             _buildEmptyPeriodNote('No afternoon timetable periods scheduled.')
           else
-            ...afternoon.map((p) => _buildPeriodCard(p, isToday)),
+            ...afternoon.map((p) => _buildPeriodCard(p, isToday, tabIndex)),
 
           const SizedBox(height: AppSpacing.md),
 
@@ -707,39 +1007,10 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
     );
   }
 
-  List<Widget> _buildMorningList(List<ClassAdvisorPeriodItem> morning, bool isToday) {
-    final colors = context.colors;
+  List<Widget> _buildMorningList(List<ClassAdvisorPeriodItem> morning, bool isToday, int tabIndex) {
     List<Widget> widgets = [];
     for (int i = 0; i < morning.length; i++) {
-      widgets.add(_buildPeriodCard(morning[i], isToday));
-      // Insert short tea break between P2 and P3
-      if (morning[i].periodNumber == 2) {
-        widgets.add(
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: colors.surfaceMuted,
-              borderRadius: AppRadius.pillBorder,
-              border: Border.all(color: colors.glassBorder),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.coffee_rounded, size: 16, color: colors.primary),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    'Short Break (10:50 AM – 11:10 AM)',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.primary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
+      widgets.add(_buildPeriodCard(morning[i], isToday, tabIndex));
     }
     return widgets;
   }
@@ -756,12 +1027,14 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
           decoration: BoxDecoration(color: accent, borderRadius: AppRadius.pillBorder),
         ),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: typography.titleMedium.copyWith(
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-            color: colors.textPrimary,
+        Expanded(
+          child: Text(
+            title,
+            style: typography.titleMedium.copyWith(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: colors.textPrimary,
+            ),
           ),
         ),
       ],
@@ -780,7 +1053,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
     );
   }
 
-  Widget _buildPeriodCard(ClassAdvisorPeriodItem period, bool isToday) {
+  Widget _buildPeriodCard(ClassAdvisorPeriodItem period, bool isToday, int tabIndex) {
     final colors = context.colors;
     final typography = context.typography;
     final isAvailable = period.status == 'AVAILABLE';
@@ -795,6 +1068,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
     }
 
     return GlassCard(
+      key: _getOrCreatePeriodKey(tabIndex, period.periodNumber),
       variant: isAvailable ? GlassCardVariant.elevated : GlassCardVariant.standard,
       enableBlur: false, // Smooth scroll list rule
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -876,7 +1150,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      period.lockReason ?? 'Opens after period ends at ${TimezoneUtils.format24hTo12h(period.endTime)}',
+                      period.lockReason ?? 'Attendance opens at ${TimezoneUtils.format24hTo12h(period.startTime)}',
                       style: TextStyle(fontSize: 11, color: colors.warning, fontWeight: FontWeight.w500),
                       softWrap: true,
                     ),
@@ -981,7 +1255,8 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
       color: colors.primary,
       onRefresh: () => _loadPastPeriods(_selectedPastDate),
       child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        controller: _pastScrollController,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 110),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           // Past Date Picker Header Card
@@ -1035,23 +1310,26 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
           ),
           const SizedBox(height: AppSpacing.sm),
 
-          // Daily Summary Shortcut Button
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.surfaceMuted,
-              foregroundColor: colors.textPrimary,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: AppRadius.pillBorder,
-                side: BorderSide(color: colors.glassBorder),
+          // Daily Summary Shortcut Button (Only if attendance records or scheduled periods exist)
+          if ((_pastData?.periods.isNotEmpty ?? false) ||
+              (_pastData?.periods.any((p) => p.recordCount > 0 || p.status == 'ALREADY_MARKED') ?? false)) ...[
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.surfaceMuted,
+                foregroundColor: colors.textPrimary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: AppRadius.pillBorder,
+                  side: BorderSide(color: colors.glassBorder),
+                ),
               ),
+              icon: Icon(Icons.analytics_rounded, size: 18, color: colors.primary),
+              label: const Text('View Daily Half-Day Summary for this date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              onPressed: () => _showDailySummary(dateStr),
             ),
-            icon: Icon(Icons.analytics_rounded, size: 18, color: colors.primary),
-            label: const Text('View Daily Half-Day Summary for this date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            onPressed: () => _showDailySummary(dateStr),
-          ),
-          const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
+          ],
 
           // Content state
           if (_isLoadingPast)
@@ -1076,30 +1354,27 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
                 ],
               ),
             )
-          else if (_pastData != null && _pastData!.periods.isEmpty)
-            GlassCard(
-              variant: GlassCardVariant.standard,
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-              child: Column(
-                children: [
-                  Icon(Icons.event_busy, size: 48, color: colors.textMuted),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'No Timetable Periods Scheduled',
-                    style: typography.titleMedium.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'There are no teaching periods scheduled for ${_pastData!.dayOfWeek} ($dateStr). Select another past date using the calendar.',
-                    style: typography.bodySmall.copyWith(color: colors.textSecondary),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            )
+          else if (_pastData != null && _pastData!.periods.isEmpty) ...[
+            Builder(
+              builder: (context) {
+                final isSunday = _selectedPastDate.weekday == DateTime.sunday ||
+                    (_pastData?.dayOfWeek.trim().toUpperCase() == 'SUNDAY');
+                final title = _getNoClassesTitle(
+                  isSunday: isSunday,
+                  tabIndex: 2,
+                  dateStr: dateStr,
+                );
+                final subtitle = isSunday
+                    ? 'There are no scheduled classes on Sunday. Enjoy your day off!'
+                    : 'There are no teaching periods scheduled for ${_pastData!.dayOfWeek} ($dateStr). Select another past date using the calendar.';
+                return _buildNoClassesCard(
+                  title: title,
+                  subtitle: subtitle,
+                  isSunday: isSunday,
+                );
+              },
+            ),
+          ]
           else if (_pastData != null) ...[
             // MORNING SESSION HEADER
             _buildSessionHeader('MORNING SESSION (P1 – P4)', colors.primary),
@@ -1107,49 +1382,8 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
             if (_pastData!.periods.where((p) => p.periodNumber <= 4).isEmpty)
               _buildEmptyPeriodNote('No morning timetable periods scheduled.')
             else
-              ..._buildMorningList(_pastData!.periods.where((p) => p.periodNumber <= 4).toList(), false),
+              ..._buildMorningList(_pastData!.periods.where((p) => p.periodNumber <= 4).toList(), false, 2),
 
-            const SizedBox(height: AppSpacing.sm),
-
-            // LUNCH BREAK CARD
-            GlassCard(
-              variant: GlassCardVariant.muted,
-              borderColor: colors.warning.withValues(alpha: 0.4),
-              padding: const EdgeInsets.all(AppSpacing.cardInnerPadding),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: colors.warningBg,
-                      borderRadius: AppRadius.smallBorder,
-                    ),
-                    child: Icon(Icons.restaurant_rounded, color: colors.warning, size: 24),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Lunch Break (12:50 PM – 01:40 PM)',
-                          style: typography.bodyMedium.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colors.warning,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Institutional College Break — Strictly excluded from attendance marking and percentage denominators.',
-                          style: typography.caption.copyWith(color: colors.textMuted),
-                          softWrap: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: AppSpacing.md),
 
             // AFTERNOON SESSION HEADER
@@ -1158,7 +1392,7 @@ class _FacultyClassAdvisorScreenState extends State<FacultyClassAdvisorScreen> {
             if (_pastData!.periods.where((p) => p.periodNumber >= 5).isEmpty)
               _buildEmptyPeriodNote('No afternoon timetable periods scheduled.')
             else
-              ..._pastData!.periods.where((p) => p.periodNumber >= 5).map((p) => _buildPeriodCard(p, false)),
+              ..._pastData!.periods.where((p) => p.periodNumber >= 5).map((p) => _buildPeriodCard(p, false, 2)),
 
             const SizedBox(height: AppSpacing.md),
 

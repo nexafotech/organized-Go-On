@@ -39,6 +39,15 @@ class FacultyAdminUpdate(BaseModel):
     is_active: Optional[bool] = None
     role: Optional[str] = None
 
+class FacultySelfProfileUpdate(BaseModel):
+    """Self-service profile update by authenticated faculty member.
+    Only allows modifying personal contact and presentation details.
+    Institutional fields (employee_id, department, role, etc.) are strictly excluded."""
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    avatar_id: Optional[str] = None
+
 class UserAdminOut(BaseModel):
     id: int
     username: str

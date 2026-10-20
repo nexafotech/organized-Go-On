@@ -52,7 +52,13 @@ class ApiClient {
       final body = jsonDecode(response.body);
       if (body is Map && body.containsKey('detail')) {
         final d = body['detail'];
-        errorMsg = d is String ? d : jsonEncode(d);
+        if (d is String) {
+          errorMsg = d;
+        } else if (d is Map && d.containsKey('message')) {
+          errorMsg = d['message'].toString();
+        } else {
+          errorMsg = jsonEncode(d);
+        }
       }
     } catch (_) {}
     throw ApiException(response.statusCode, errorMsg);
@@ -125,7 +131,13 @@ class ApiClient {
       final body = jsonDecode(response.body);
       if (body is Map && body.containsKey('detail')) {
         final d = body['detail'];
-        errorMsg = d is String ? d : jsonEncode(d);
+        if (d is String) {
+          errorMsg = d;
+        } else if (d is Map && d.containsKey('message')) {
+          errorMsg = d['message'].toString();
+        } else {
+          errorMsg = jsonEncode(d);
+        }
       } else if (body is Map && body.containsKey('message')) {
         errorMsg = body['message'].toString();
       }
@@ -134,25 +146,64 @@ class ApiClient {
     throw ApiException(response.statusCode, errorMsg);
   }
 
-  Future<dynamic> get(String path, {Map<String, String>? queryParams, bool includeAuth = true}) async {
+  static bool _isProbing = false;
+
+  Future<bool> _tryFailover() async {
+    if (_isProbing) return false;
+    _isProbing = true;
     try {
+      final current = ApiConfig.baseUrl;
+      for (final candidate in ApiConfig.candidateEndpoints) {
+        if (candidate == current) continue;
+        try {
+          final uri = Uri.parse('$candidate${ApiConfig.healthCheck}');
+          final res = await _httpClient.get(uri).timeout(const Duration(milliseconds: 1800));
+          if (res.statusCode == 200) {
+            ApiConfig.setBaseUrl(candidate);
+            return true;
+          }
+        } catch (_) {}
+      }
+    } finally {
+      _isProbing = false;
+    }
+    return false;
+  }
+
+  Future<T> _executeWithFailover<T>(Future<T> Function() call) async {
+    try {
+      return await call();
+    } on SocketException {
+      if (await _tryFailover()) {
+        return await call();
+      }
+      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
+    } on http.ClientException {
+      if (await _tryFailover()) {
+        return await call();
+      }
+      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
+    } on TimeoutException {
+      if (await _tryFailover()) {
+        return await call();
+      }
+      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
+    }
+  }
+
+  Future<dynamic> get(String path, {Map<String, String>? queryParams, bool includeAuth = true}) async {
+    return _executeWithFailover(() async {
       final uri = _buildUri(path, queryParams);
       final headers = await _getHeaders(includeAuth: includeAuth);
       final response = await _httpClient
           .get(uri, headers: headers)
           .timeout(const Duration(seconds: 15));
       return _processResponse(response, isAuthRequest: !includeAuth);
-    } on SocketException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on http.ClientException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on TimeoutException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    }
+    });
   }
 
   Future<dynamic> post(String path, {dynamic body, bool includeAuth = true}) async {
-    try {
+    return _executeWithFailover(() async {
       final uri = _buildUri(path);
       final headers = await _getHeaders(includeAuth: includeAuth);
       final String? jsonBody = body != null ? jsonEncode(body) : null;
@@ -160,17 +211,11 @@ class ApiClient {
           .post(uri, headers: headers, body: jsonBody)
           .timeout(const Duration(seconds: 15));
       return _processResponse(response, isAuthRequest: !includeAuth);
-    } on SocketException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on http.ClientException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on TimeoutException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    }
+    });
   }
 
   Future<dynamic> put(String path, {dynamic body, bool includeAuth = true}) async {
-    try {
+    return _executeWithFailover(() async {
       final uri = _buildUri(path);
       final headers = await _getHeaders(includeAuth: includeAuth);
       final String? jsonBody = body != null ? jsonEncode(body) : null;
@@ -178,17 +223,11 @@ class ApiClient {
           .put(uri, headers: headers, body: jsonBody)
           .timeout(const Duration(seconds: 15));
       return _processResponse(response, isAuthRequest: !includeAuth);
-    } on SocketException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on http.ClientException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on TimeoutException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    }
+    });
   }
 
   Future<dynamic> patch(String path, {dynamic body, bool includeAuth = true}) async {
-    try {
+    return _executeWithFailover(() async {
       final uri = _buildUri(path);
       final headers = await _getHeaders(includeAuth: includeAuth);
       final String? jsonBody = body != null ? jsonEncode(body) : null;
@@ -196,30 +235,18 @@ class ApiClient {
           .patch(uri, headers: headers, body: jsonBody)
           .timeout(const Duration(seconds: 15));
       return _processResponse(response, isAuthRequest: !includeAuth);
-    } on SocketException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on http.ClientException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on TimeoutException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    }
+    });
   }
 
   Future<dynamic> delete(String path, {bool includeAuth = true}) async {
-    try {
+    return _executeWithFailover(() async {
       final uri = _buildUri(path);
       final headers = await _getHeaders(includeAuth: includeAuth);
       final response = await _httpClient
           .delete(uri, headers: headers)
           .timeout(const Duration(seconds: 15));
       return _processResponse(response, isAuthRequest: !includeAuth);
-    } on SocketException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on http.ClientException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    } on TimeoutException {
-      throw ApiException(0, 'Unable to reach the server. Check your connection or server address.');
-    }
+    });
   }
 
   /// Multipart upload for future camera / group photo images

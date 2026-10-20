@@ -233,65 +233,6 @@ class DateDetailSheet extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // Lunch Break Banner (Authoritative Exclusion)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colors.glassSurfaceSubtle,
-                      borderRadius: AppRadius.mediumBorder,
-                      border: Border.all(color: colors.glassBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.restaurant_rounded, size: 20, color: colors.textMuted),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'LUNCH BREAK',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                      color: colors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: colors.glassSurface,
-                                      borderRadius: AppRadius.smallBorder,
-                                      border: Border.all(color: colors.glassBorder),
-                                    ),
-                                    child: Text(
-                                      'NOT COUNTED',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        color: colors.textMuted,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                entry.lunchInterval,
-                                style: TextStyle(fontSize: 11, color: colors.textMuted),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
                   // Afternoon Section Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

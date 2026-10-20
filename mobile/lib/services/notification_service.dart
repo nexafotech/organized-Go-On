@@ -10,6 +10,7 @@ import '../core/network/api_client.dart';
 import '../models/notification_model.dart';
 import '../models/user_model.dart';
 import '../student/screens/student_timetable_screen.dart';
+import '../student/screens/student_attendance_report_screen.dart';
 import '../faculty/screens/faculty_attendance_screen.dart';
 import '../faculty/screens/faculty_attendance_report_screen.dart';
 import '../faculty/screens/faculty_notification_history_screen.dart';
@@ -363,12 +364,24 @@ class NotificationService extends ChangeNotifier {
 
       _notifications = items;
       _sortNotifications();
-      if (!unreadOnly) {
-        _unreadCount = items.where((it) => !it.isRead).length;
-      }
       _initialPollDone = true;
       _isLoading = false;
+
+      // Authoritative count alignment: exact active unread count
+      final activeUnread = items.where((n) => !n.isRead && !n.isDeleted).length;
+      _unreadCount = items.isEmpty ? 0 : activeUnread;
       notifyListeners();
+
+      // If items reach pagination limit, query backend count to account for unread items beyond limit
+      if (items.length >= limit) {
+        try {
+          final backendUnread = await refreshUnreadCount(apiClient);
+          if (backendUnread > _unreadCount) {
+            _unreadCount = backendUnread;
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
       return items;
     } catch (e) {
       _isLoading = false;
@@ -401,10 +414,8 @@ class NotificationService extends ChangeNotifier {
         return;
       }
       _deletedNotificationIds.add(notificationId);
-      final item = _notifications.removeAt(existingIndex);
-      if (!item.isRead && _unreadCount > 0) {
-        _unreadCount--;
-      }
+      _notifications.removeAt(existingIndex);
+      _unreadCount = _notifications.where((n) => !n.isRead && !n.isDeleted).length;
       notifyListeners();
     }
   }
@@ -419,9 +430,7 @@ class NotificationService extends ChangeNotifier {
     NotificationItem? removedItem;
     if (existingIndex != -1) {
       removedItem = _notifications.removeAt(existingIndex);
-      if (!removedItem.isRead && _unreadCount > 0) {
-        _unreadCount--;
-      }
+      _unreadCount = _notifications.where((n) => !n.isRead && !n.isDeleted).length;
       notifyListeners();
     }
 
@@ -433,9 +442,7 @@ class NotificationService extends ChangeNotifier {
       if (removedItem != null) {
         _deletedNotificationIds.remove(notificationId);
         _notifications.insert(existingIndex, removedItem);
-        if (!removedItem.isRead) {
-          _unreadCount++;
-        }
+        _unreadCount = _notifications.where((n) => !n.isRead && !n.isDeleted).length;
         _sortNotifications();
         notifyListeners();
       }
@@ -495,6 +502,7 @@ class NotificationService extends ChangeNotifier {
       }
 
       notifyListeners();
+      unawaited(refreshUnreadCount(apiClient));
       return {
         'success': true,
         'deleted_count': deletedCount,
@@ -586,12 +594,16 @@ class NotificationService extends ChangeNotifier {
     try {
       final res = await apiClient.get(ApiConfig.notificationUnreadCount);
       if (res is Map && res['unread_count'] != null) {
-        final count = res['unread_count'] as int;
-        if (count != _unreadCount) {
-          _unreadCount = count;
+        final count = (res['unread_count'] as int).clamp(0, 999999);
+        // If initial poll is completed and user's loaded notifications are empty, authoritative unread must be 0
+        final verifiedCount = (_initialPollDone && _notifications.where((n) => !n.isDeleted).isEmpty)
+            ? 0
+            : count;
+        if (verifiedCount != _unreadCount) {
+          _unreadCount = verifiedCount;
           notifyListeners();
         }
-        return count;
+        return verifiedCount;
       }
     } catch (_) {}
     return _unreadCount;
@@ -606,9 +618,7 @@ class NotificationService extends ChangeNotifier {
       if (idx != -1) {
         _notifications[idx] = _notifications[idx].copyWith(isRead: true, readAt: DateTime.now());
       }
-      if (_unreadCount > 0) {
-        _unreadCount--;
-      }
+      _unreadCount = _notifications.where((n) => !n.isRead && !n.isDeleted).length;
       notifyListeners();
       return true;
     } catch (e) {
@@ -826,6 +836,12 @@ class NotificationService extends ChangeNotifier {
     if (kDebugMode) print('[Go-On Notifications] Deep-linking to route: $route');
 
     switch (route) {
+      case 'student_attendance':
+      case 'attendance':
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const StudentAttendanceReportScreen()),
+        );
+        break;
       case 'student_timetable':
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const StudentTimetableScreen()),

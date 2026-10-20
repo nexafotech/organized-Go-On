@@ -15,7 +15,6 @@ import 'package:attendance_marker_mobile/services/faculty_service.dart';
 import 'package:attendance_marker_mobile/services/admin_service.dart';
 import 'package:attendance_marker_mobile/services/biometric_enrollment_service.dart';
 import 'package:attendance_marker_mobile/services/notification_service.dart';
-import 'package:attendance_marker_mobile/widgets/common/go_on_brand.dart';
 
 class FakeAuthService extends ChangeNotifier implements AuthService {
   UserModel? _mockUser;

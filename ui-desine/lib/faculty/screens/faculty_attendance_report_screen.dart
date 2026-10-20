@@ -6,7 +6,9 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/file_saver.dart';
 import '../../models/faculty_report_model.dart';
 import '../../services/faculty_service.dart';
+import '../../utils/timezone_utils.dart';
 import '../../widgets/widgets.dart';
+import '../widgets/faculty_calendar_theme.dart';
 
 class FacultyAttendanceReportScreen extends StatefulWidget {
   final int? initialClassId;
@@ -51,11 +53,13 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
 
   // Phase 9: Date Range Report & Export State
   AttendanceRangeReportModel? _rangeReport;
-  DateTime _rangeFromDate = DateTime.now().subtract(const Duration(days: 7));
-  DateTime _rangeToDate = DateTime.now();
+  DateTime _rangeFromDate = TimezoneUtils.todayIst().subtract(const Duration(days: 6));
+  DateTime _rangeToDate = TimezoneUtils.todayIst();
   bool _isExportingPdf = false;
   bool _isExportingExcel = false;
   String? _rangeValidationError;
+
+  final ScrollController _histTableScrollController = ScrollController();
 
   @override
   void initState() {
@@ -77,6 +81,7 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
     try {
       final facultyService = Provider.of<FacultyService>(context, listen: false);
       final options = await facultyService.fetchReportAuthorizedOptions();
+      final todayIst = TimezoneUtils.todayIst();
 
       if (options.attendanceStartDate != null && options.attendanceStartDate!.isNotEmpty) {
         _minAttendanceDate = DateTime.tryParse(options.attendanceStartDate!);
@@ -90,11 +95,12 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
         }
       }
       _minAttendanceDate ??= DateTime(2024, 1, 1);
-      _maxAllowedDate ??= DateTime.now();
+      _maxAllowedDate ??= todayIst;
       _histStartDate ??= _minAttendanceDate;
       _histEndDate ??= _maxAllowedDate;
-      _rangeToDate = _maxAllowedDate ?? DateTime.now();
-      _rangeFromDate = _rangeToDate.subtract(const Duration(days: 7));
+      _rangeToDate = _maxAllowedDate ?? todayIst;
+      // Default to Past 7 Days: today and previous 6 calendar days
+      _rangeFromDate = _rangeToDate.subtract(const Duration(days: 6));
       if (_minAttendanceDate != null && _rangeFromDate.isBefore(_minAttendanceDate!)) {
         _rangeFromDate = _minAttendanceDate!;
       }
@@ -225,16 +231,18 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
         }
       } else {
         // Load Date Range Report (_viewMode == 3)
-        if (_rangeFromDate.isAfter(_rangeToDate)) {
+        final dFrom = DateTime(_rangeFromDate.year, _rangeFromDate.month, _rangeFromDate.day);
+        final dTo = DateTime(_rangeToDate.year, _rangeToDate.month, _rangeToDate.day);
+        final todayIst = TimezoneUtils.todayIst();
+
+        if (dFrom.isAfter(dTo)) {
           setState(() {
             _rangeValidationError = 'From date cannot be after To date.';
             _isLoadingReport = false;
           });
           return;
         }
-        final now = DateTime.now();
-        final todayMidnight = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        if (_rangeToDate.isAfter(todayMidnight)) {
+        if (dTo.isAfter(todayIst)) {
           setState(() {
             _rangeValidationError = 'To date cannot be in the future.';
             _isLoadingReport = false;
@@ -298,7 +306,6 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
   }
 
   Future<void> _pickDate() async {
-    final colors = context.colors;
     final calendarFirstDate = DateTime(2020, 1, 1);
     final calendarLastDate = DateTime(2035, 12, 31);
     final initial = _selectedDate.isBefore(calendarFirstDate)
@@ -310,18 +317,7 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
       initialDate: initial,
       firstDate: calendarFirstDate,
       lastDate: calendarLastDate,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: colors.primary,
-              surface: colors.surface,
-              onSurface: colors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => buildFacultyDatePickerTheme(context, child!),
     );
 
     if (picked != null && picked != _selectedDate) {
@@ -333,7 +329,6 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
   }
 
   Future<void> _pickDateRange() async {
-    final colors = context.colors;
     final calendarFirstDate = DateTime(2020, 1, 1);
     final calendarLastDate = DateTime(2035, 12, 31);
     final start = _histStartDate ?? calendarFirstDate;
@@ -351,18 +346,7 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
       ),
       firstDate: calendarFirstDate,
       lastDate: calendarLastDate,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: colors.primary,
-              surface: colors.surface,
-              onSurface: colors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => buildFacultyDatePickerTheme(context, child!),
     );
 
     if (picked != null) {
@@ -380,33 +364,44 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
 
   Future<void> _pickRangeFromDate() async {
     final colors = context.colors;
-    final calendarFirstDate = DateTime(2020, 1, 1);
-    final calendarLastDate = DateTime.now();
+    final todayIst = TimezoneUtils.todayIst();
+    final calendarFirstDate = _minAttendanceDate ?? DateTime(2020, 1, 1);
+    final calendarLastDate = _maxAllowedDate ?? todayIst;
+
+    final initialDate = _rangeFromDate.isBefore(calendarFirstDate)
+        ? calendarFirstDate
+        : (_rangeFromDate.isAfter(calendarLastDate) ? calendarLastDate : _rangeFromDate);
 
     final picked = await showDatePicker(
       context: context,
-      initialDate: _rangeFromDate.isBefore(calendarFirstDate)
-          ? calendarFirstDate
-          : (_rangeFromDate.isAfter(calendarLastDate) ? calendarLastDate : _rangeFromDate),
+      initialDate: initialDate,
       firstDate: calendarFirstDate,
       lastDate: calendarLastDate,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: colors.primary,
-              surface: colors.surface,
-              onSurface: colors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => buildFacultyDatePickerTheme(context, child!),
     );
 
     if (picked != null) {
+      final pickedDate = DateTime(picked.year, picked.month, picked.day);
+      final currentToDate = DateTime(_rangeToDate.year, _rangeToDate.month, _rangeToDate.day);
+      if (pickedDate.isAfter(currentToDate)) {
+        setState(() {
+          _rangeValidationError = 'From date cannot be after To date.';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: colors.error,
+              content: const Text('From date cannot be after To date.'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
       setState(() {
-        _rangeFromDate = picked;
+        _rangeFromDate = pickedDate;
+        _rangeValidationError = null;
       });
       _loadCurrentReport();
     }
@@ -414,36 +409,117 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
 
   Future<void> _pickRangeToDate() async {
     final colors = context.colors;
-    final calendarFirstDate = DateTime(2020, 1, 1);
-    final calendarLastDate = DateTime.now();
+    final todayIst = TimezoneUtils.todayIst();
+    final calendarFirstDate = _minAttendanceDate ?? DateTime(2020, 1, 1);
+    final calendarLastDate = _maxAllowedDate ?? todayIst;
+
+    final initialDate = _rangeToDate.isBefore(calendarFirstDate)
+        ? calendarFirstDate
+        : (_rangeToDate.isAfter(calendarLastDate) ? calendarLastDate : _rangeToDate);
 
     final picked = await showDatePicker(
       context: context,
-      initialDate: _rangeToDate.isBefore(calendarFirstDate)
-          ? calendarFirstDate
-          : (_rangeToDate.isAfter(calendarLastDate) ? calendarLastDate : _rangeToDate),
+      initialDate: initialDate,
       firstDate: calendarFirstDate,
       lastDate: calendarLastDate,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: colors.primary,
-              surface: colors.surface,
-              onSurface: colors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => buildFacultyDatePickerTheme(context, child!),
     );
 
     if (picked != null) {
+      final pickedDate = DateTime(picked.year, picked.month, picked.day);
+      final currentFromDate = DateTime(_rangeFromDate.year, _rangeFromDate.month, _rangeFromDate.day);
+      if (pickedDate.isBefore(currentFromDate)) {
+        setState(() {
+          _rangeValidationError = 'To date cannot be before From date.';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: colors.error,
+              content: const Text('To date cannot be before From date.'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      if (pickedDate.isAfter(todayIst)) {
+        setState(() {
+          _rangeValidationError = 'To date cannot be in the future.';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: colors.error,
+              content: const Text('To date cannot be in the future.'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
       setState(() {
-        _rangeToDate = picked;
+        _rangeToDate = pickedDate;
+        _rangeValidationError = null;
       });
       _loadCurrentReport();
     }
+  }
+
+  void _applyQuickRange(int preset) {
+    final today = TimezoneUtils.todayIst();
+    setState(() {
+      _rangeToDate = today;
+      if (preset == 7) {
+        // Past 7 Days: today and previous 6 calendar days (7 calendar days total)
+        _rangeFromDate = today.subtract(const Duration(days: 6));
+      } else if (preset == 14) {
+        // Past 14 Days: today and previous 13 calendar days (14 calendar days total)
+        _rangeFromDate = today.subtract(const Duration(days: 13));
+      } else if (preset == 30) {
+        // Past 30 Days: today and previous 29 calendar days (30 calendar days total)
+        _rangeFromDate = today.subtract(const Duration(days: 29));
+      } else if (preset == -1) {
+        // This Month: the first calendar day of current month through today
+        _rangeFromDate = DateTime(today.year, today.month, 1);
+      }
+      if (_minAttendanceDate != null && _rangeFromDate.isBefore(_minAttendanceDate!)) {
+        _rangeFromDate = _minAttendanceDate!;
+      }
+      _rangeValidationError = null;
+    });
+    _loadCurrentReport();
+  }
+
+  int? get _activeQuickRangePreset {
+    final today = TimezoneUtils.todayIst();
+    final dFrom = DateTime(_rangeFromDate.year, _rangeFromDate.month, _rangeFromDate.day);
+    final dTo = DateTime(_rangeToDate.year, _rangeToDate.month, _rangeToDate.day);
+
+    if (dTo != today) return null;
+
+    final minD = _minAttendanceDate != null
+        ? DateTime(_minAttendanceDate!.year, _minAttendanceDate!.month, _minAttendanceDate!.day)
+        : null;
+
+    DateTime p7 = today.subtract(const Duration(days: 6));
+    if (minD != null && p7.isBefore(minD)) p7 = minD;
+    if (dFrom == p7) return 7;
+
+    DateTime p14 = today.subtract(const Duration(days: 13));
+    if (minD != null && p14.isBefore(minD)) p14 = minD;
+    if (dFrom == p14) return 14;
+
+    DateTime p30 = today.subtract(const Duration(days: 29));
+    if (minD != null && p30.isBefore(minD)) p30 = minD;
+    if (dFrom == p30) return 30;
+
+    DateTime monthStart = DateTime(today.year, today.month, 1);
+    if (minD != null && monthStart.isBefore(minD)) monthStart = minD;
+    if (dFrom == monthStart) return -1;
+
+    return null;
   }
 
   Future<void> _exportPdf() async {
@@ -470,6 +546,7 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
       final fileName =
           'attendance_report_${_selectedClass!.id}_${subjectPart}_${_formatDate(_rangeFromDate)}_${_formatDate(_rangeToDate)}.pdf';
       final savedPath = await saveFile(bytes, fileName);
+      debugPrint('[TEST LOG] SAVED PATH: $savedPath');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -483,7 +560,8 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[TEST LOG] EXPORT PDF ERROR: $e\n$st');
       if (mounted) {
         String msg = 'Failed to generate PDF: $e';
         if (e is ApiException) {
@@ -605,6 +683,7 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.max,
             children: [
               Icon(
                 icon,
@@ -613,14 +692,16 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
               ),
               const SizedBox(width: 4),
               Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: typography.caption.copyWith(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    color: isSelected ? Colors.white : colors.textSecondary,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: typography.caption.copyWith(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      color: isSelected ? Colors.white : colors.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -818,26 +899,33 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                   border: Border.all(color: colors.glassBorder),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_month_rounded, size: 18, color: colors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Date: ${_formatDate(_selectedDate)}',
-                          style: typography.labelLarge.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colors.textPrimary,
-                          ),
+                    Icon(Icons.calendar_month_rounded, size: 18, color: colors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Date: ${_formatDate(_selectedDate)}',
+                        style: typography.labelLarge.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
                         ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    Text(
-                      'Change Date',
-                      style: typography.caption.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colors.primary,
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Change Date',
+                        style: typography.caption.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colors.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -860,26 +948,33 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                   border: Border.all(color: colors.glassBorder),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.date_range_rounded, size: 18, color: colors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Range: ${_histStartDate != null ? _formatDate(_histStartDate!) : "Start"} → ${_histEndDate != null ? _formatDate(_histEndDate!) : "Today"}',
-                          style: typography.caption.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colors.textPrimary,
-                          ),
+                    Icon(Icons.date_range_rounded, size: 18, color: colors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Range: ${_histStartDate != null ? _formatDate(_histStartDate!) : "Start"} → ${_histEndDate != null ? _formatDate(_histEndDate!) : "Today"}',
+                        style: typography.caption.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
                         ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    Text(
-                      'Filter Range',
-                      style: typography.caption.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colors.primary,
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Filter Range',
+                        style: typography.caption.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colors.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -1272,10 +1367,6 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                       label: Text(title, style: typography.caption.copyWith(fontWeight: FontWeight.bold, fontSize: 10, color: colors.primary), textAlign: TextAlign.center),
                     );
                   }),
-                  // Lunch Break (Not Counted)
-                  DataColumn(
-                    label: Text('LUNCH\n(Not Counted)', style: typography.caption.copyWith(fontWeight: FontWeight.bold, fontSize: 9, color: colors.textMuted), textAlign: TextAlign.center),
-                  ),
                   // Afternoon P5 to P7
                   ...afternoonPeriods.map((p) {
                     final title = p.subjectCode != null && p.subjectCode!.isNotEmpty ? '${p.subjectCode}\nP${p.periodNumber}' : 'P${p.periodNumber}';
@@ -1359,16 +1450,6 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                   rollCell,
                   nameCell,
                   ...morningPeriods.map((p) => DataCell(_buildMatrixCell(student.periodStatuses[p.periodNumber.toString()] ?? student.periodStatuses['${p.periodNumber}'] ?? '-'))),
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: colors.surfaceMuted,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text('L', style: typography.caption.copyWith(fontSize: 10, color: colors.textMuted)),
-                    ),
-                  ),
                   ...afternoonPeriods.map((p) => DataCell(_buildMatrixCell(student.periodStatuses[p.periodNumber.toString()] ?? student.periodStatuses['${p.periodNumber}'] ?? '-'))),
                   statusResultCell,
                 ],
@@ -1433,34 +1514,6 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colors.surfaceMuted.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(AppRadius.small),
-                  border: Border.all(color: colors.glassBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'LUNCH BREAK',
-                      style: typography.caption.copyWith(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                    Text(
-                      m.lunchInterval,
-                      style: typography.bodySmall.copyWith(
-                        fontSize: 9,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -1485,19 +1538,25 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
     final colors = context.colors;
     final typography = context.typography;
 
+    final isCompact = MediaQuery.sizeOf(context).width < 500;
+
     return GlassCard(
       variant: GlassCardVariant.standard,
       padding: EdgeInsets.zero,
       enableBlur: false,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: 16,
-          headingRowHeight: 44,
-          dataRowMinHeight: 40,
-          dataRowMaxHeight: 48,
-          horizontalMargin: 14,
-          headingRowColor: WidgetStateProperty.all(colors.surfaceMuted.withValues(alpha: 0.5)),
+      child: Scrollbar(
+        controller: _histTableScrollController,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _histTableScrollController,
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columnSpacing: isCompact ? 14 : 20,
+            headingRowHeight: 44,
+            dataRowMinHeight: 40,
+            dataRowMaxHeight: 48,
+            horizontalMargin: isCompact ? 12 : 16,
+            headingRowColor: WidgetStateProperty.all(colors.surfaceMuted.withValues(alpha: 0.5)),
           columns: [
             DataColumn(label: Text('Roll No', style: typography.caption.copyWith(fontWeight: FontWeight.bold, color: colors.textPrimary))),
             DataColumn(label: Text('Student', style: typography.caption.copyWith(fontWeight: FontWeight.bold, color: colors.textPrimary))),
@@ -1547,8 +1606,9 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
           }).toList(),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHistoricalDateCard(HistoricalMatrixDateEntryModel dateEntry, bool isAdvisorScope) {
     final colors = context.colors;
@@ -1560,7 +1620,9 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
       padding: EdgeInsets.zero,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
+        child: Material(
+          color: Colors.transparent,
+          child: ExpansionTile(
           initiallyExpanded: false,
           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: CircleAvatar(
@@ -1599,6 +1661,7 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1680,8 +1743,11 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
               const SizedBox(height: AppSpacing.sm),
               Divider(height: 1, color: colors.border),
               const SizedBox(height: AppSpacing.sm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   Text(
                     'Range: ${hm.startDate} to ${hm.endDate}',
@@ -1750,6 +1816,8 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
   Widget _buildDateRangeReportView() {
     final colors = context.colors;
     final typography = context.typography;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isRangeInvalid = _rangeValidationError != null && _rangeFromDate.isAfter(_rangeToDate);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1763,7 +1831,7 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
             children: [
               Row(
                 children: [
-                  Icon(Icons.date_range_rounded, color: colors.primary, size: 20),
+                  Icon(Icons.calendar_month_rounded, color: colors.textPrimary, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Date Range Selection',
@@ -1782,31 +1850,55 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                       onTap: _pickRangeFromDate,
                       borderRadius: BorderRadius.circular(AppRadius.small),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: colors.surfaceElevated.withValues(alpha: 0.6),
+                          color: isDark
+                              ? colors.surfaceElevated.withValues(alpha: 0.6)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(AppRadius.small),
-                          border: Border.all(color: colors.glassBorder),
+                          border: Border.all(
+                            color: isRangeInvalid ? colors.error : colors.glassBorder,
+                            width: isRangeInvalid ? 1.5 : 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'From Date',
-                              style: typography.caption.copyWith(color: colors.textMuted),
+                              style: typography.caption.copyWith(
+                                color: colors.textMuted,
+                                fontSize: 12,
+                              ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 3),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  _formatDate(_rangeFromDate),
-                                  style: typography.bodyMedium.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.textPrimary,
+                                Expanded(
+                                  child: Text(
+                                    _formatDate(_rangeFromDate),
+                                    style: typography.bodyMedium.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: colors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Icon(Icons.calendar_today_rounded, size: 14, color: colors.primary),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 16,
+                                  color: colors.textPrimary.withValues(alpha: 0.7),
+                                ),
                               ],
                             ),
                           ],
@@ -1820,31 +1912,55 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                       onTap: _pickRangeToDate,
                       borderRadius: BorderRadius.circular(AppRadius.small),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: colors.surfaceElevated.withValues(alpha: 0.6),
+                          color: isDark
+                              ? colors.surfaceElevated.withValues(alpha: 0.6)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(AppRadius.small),
-                          border: Border.all(color: colors.glassBorder),
+                          border: Border.all(
+                            color: isRangeInvalid ? colors.error : colors.glassBorder,
+                            width: isRangeInvalid ? 1.5 : 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'To Date',
-                              style: typography.caption.copyWith(color: colors.textMuted),
+                              style: typography.caption.copyWith(
+                                color: colors.textMuted,
+                                fontSize: 12,
+                              ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 3),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  _formatDate(_rangeToDate),
-                                  style: typography.bodyMedium.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.textPrimary,
+                                Expanded(
+                                  child: Text(
+                                    _formatDate(_rangeToDate),
+                                    style: typography.bodyMedium.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: colors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Icon(Icons.calendar_today_rounded, size: 14, color: colors.primary),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 16,
+                                  color: colors.textPrimary.withValues(alpha: 0.7),
+                                ),
                               ],
                             ),
                           ],
@@ -1857,9 +1973,20 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
 
               if (_rangeValidationError != null) ...[
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  _rangeValidationError!,
-                  style: typography.caption.copyWith(color: colors.error, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    Icon(Icons.error_outline_rounded, size: 14, color: colors.error),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _rangeValidationError!,
+                        style: typography.caption.copyWith(
+                          color: colors.error,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
 
@@ -1867,7 +1994,7 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
               // Quick date range presets
               Wrap(
                 spacing: 8,
-                runSpacing: 6,
+                runSpacing: 8,
                 children: [
                   _buildRangePresetChip('Past 7 Days', 7),
                   _buildRangePresetChip('Past 14 Days', 14),
@@ -1885,7 +2012,9 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                     child: SizedBox(
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: _isExportingPdf || _isExportingExcel ? null : _exportPdf,
+                        onPressed: (_isExportingPdf || _isExportingExcel || _rangeValidationError != null || _selectedClass == null)
+                            ? null
+                            : _exportPdf,
                         icon: _isExportingPdf
                             ? const SizedBox(
                                 width: 18,
@@ -1895,13 +2024,18 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                             : const Icon(Icons.picture_as_pdf_rounded, size: 20),
                         label: Text(
                           _isExportingPdf ? 'Generating PDF...' : 'Generate PDF',
-                          style: typography.labelLarge.copyWith(fontWeight: FontWeight.bold),
+                          style: typography.labelLarge.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade700,
+                          backgroundColor: const Color(0xFFDC2626),
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFFDC2626).withValues(alpha: 0.5),
+                          disabledForegroundColor: Colors.white.withValues(alpha: 0.8),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.medium),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 2,
                         ),
@@ -1914,7 +2048,9 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                     child: SizedBox(
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: _isExportingPdf || _isExportingExcel ? null : _exportExcel,
+                        onPressed: (_isExportingPdf || _isExportingExcel || _rangeValidationError != null || _selectedClass == null)
+                            ? null
+                            : _exportExcel,
                         icon: _isExportingExcel
                             ? const SizedBox(
                                 width: 18,
@@ -1924,13 +2060,18 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
                             : const Icon(Icons.table_view_rounded, size: 20),
                         label: Text(
                           _isExportingExcel ? 'Exporting...' : 'Export Excel',
-                          style: typography.labelLarge.copyWith(fontWeight: FontWeight.bold),
+                          style: typography.labelLarge.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
+                          backgroundColor: const Color(0xFF16A34A),
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFF16A34A).withValues(alpha: 0.5),
+                          disabledForegroundColor: Colors.white.withValues(alpha: 0.8),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.medium),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 2,
                         ),
@@ -1966,33 +2107,54 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
     );
   }
 
-  Widget _buildRangePresetChip(String label, int days) {
+  Widget _buildRangePresetChip(String label, int preset) {
     final colors = context.colors;
     final typography = context.typography;
-    final now = DateTime.now();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = _activeQuickRangePreset == preset;
 
-    return ActionChip(
-      label: Text(label, style: typography.caption.copyWith(fontSize: 11)),
-      backgroundColor: colors.surfaceElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.border),
+    return InkWell(
+      onTap: () => _applyQuickRange(preset),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: AppMotion.fast,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colors.primary
+              : (isDark ? colors.surfaceElevated : Colors.white),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? colors.primary : colors.glassBorder,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: colors.primary.withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+        ),
+        child: Text(
+          label,
+          style: typography.caption.copyWith(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected
+                ? Colors.white
+                : colors.textPrimary,
+          ),
+        ),
       ),
-      onPressed: () {
-        setState(() {
-          _rangeToDate = now;
-          if (days > 0) {
-            _rangeFromDate = now.subtract(Duration(days: days));
-          } else {
-            // This Month (from 1st of current month)
-            _rangeFromDate = DateTime(now.year, now.month, 1);
-          }
-          if (_minAttendanceDate != null && _rangeFromDate.isBefore(_minAttendanceDate!)) {
-            _rangeFromDate = _minAttendanceDate!;
-          }
-        });
-        _loadCurrentReport();
-      },
     );
   }
 
@@ -2063,8 +2225,11 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
           const SizedBox(height: AppSpacing.sm),
           Divider(height: 1, color: colors.border),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               Text(
                 'Range: ${report.fromDate} to ${report.toDate}',
@@ -2118,13 +2283,17 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Student Summary (${report.summary.length})',
-                style: typography.titleMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colors.textPrimary,
+              Expanded(
+                child: Text(
+                  'Student Summary (${report.summary.length})',
+                  style: typography.titleMedium.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 'Policy Percentage',
                 style: typography.caption.copyWith(color: colors.textMuted),
@@ -2380,9 +2549,13 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
-        title: Text(
-          isAdvisor ? 'CLASS ADVISOR ATTENDANCE MATRIX' : 'FACULTY ATTENDANCE REPORT',
-          style: typography.headlineMedium.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            isAdvisor ? 'CLASS ADVISOR ATTENDANCE MATRIX' : 'FACULTY ATTENDANCE REPORT',
+            style: typography.headlineMedium.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
         ),
         actions: [
           IconButton(
@@ -2457,6 +2630,12 @@ class _FacultyAttendanceReportScreenState extends State<FacultyAttendanceReportS
               ),
             ),
     );
+  }
+
+  @override
+  void dispose() {
+    _histTableScrollController.dispose();
+    super.dispose();
   }
 }
 
@@ -2641,11 +2820,15 @@ class _StudentDetailModalState extends State<_StudentDetailModal> {
                               ),
                             ),
                             if (d.dailyResult != null)
-                              Text(
-                                d.dailyResult!.replaceAll('_', ' '),
-                                style: typography.caption.copyWith(
-                                  fontSize: 10,
-                                  color: colors.textMuted,
+                              Flexible(
+                                child: Text(
+                                  d.dailyResult!.replaceAll('_', ' '),
+                                  style: typography.caption.copyWith(
+                                    fontSize: 10,
+                                    color: colors.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                           ],

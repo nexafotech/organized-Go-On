@@ -59,7 +59,7 @@ class MockFacultyServiceForAttendanceWindow extends ChangeNotifier
               facultyName: 'Dr. Shankar',
               status: 'LOCKED',
               canMark: false,
-              lockReason: 'Attendance opens after this period ends at 15:20',
+              lockReason: 'Attendance opens at 2:30 PM',
             ),
             AvailablePeriodItem(
               timetableEntryId: 165,
@@ -77,7 +77,7 @@ class MockFacultyServiceForAttendanceWindow extends ChangeNotifier
               facultyName: 'Dr. Shankar',
               status: 'LOCKED',
               canMark: false,
-              lockReason: 'Attendance opens after this period ends at 16:10',
+              lockReason: 'Attendance opens at 3:20 PM',
             ),
           ],
           yesterdayPeriods: [
@@ -217,16 +217,16 @@ void main() {
       expect(find.text('P2'), findsOneWidget);
       expect(find.text('MARK ATTENDANCE'), findsOneWidget);
 
-      // Verify Active Period (P6) is LOCKED with lockReason
+      // Verify Future Periods (P6 and P7) are LOCKED with lockReason
       expect(find.text('P6'), findsOneWidget);
       expect(
-          find.text('Attendance opens after this period ends at 15:20'),
+          find.text('Attendance opens at 2:30 PM'),
           findsOneWidget);
 
       // Verify Future Period (P7) is LOCKED with lockReason
       expect(find.text('P7'), findsOneWidget);
       expect(
-          find.text('Attendance opens after this period ends at 16:10'),
+          find.text('Attendance opens at 3:20 PM'),
           findsOneWidget);
     });
 
@@ -348,7 +348,7 @@ void main() {
       final mockService = MockFacultyServiceForAttendanceWindow();
       mockService.shouldFailSubmit = true;
       mockService.submitErrorMessage =
-          "Attendance isn't open yet. This period ends at 15:20.";
+          "Attendance isn't open yet. This period starts at 2:30 PM.";
 
       await tester.pumpWidget(
         MaterialApp(
@@ -374,7 +374,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text("Attendance isn't open yet. This period ends at 15:20."),
+        find.text("Attendance isn't open yet. This period starts at 2:30 PM."),
         findsOneWidget,
       );
     });

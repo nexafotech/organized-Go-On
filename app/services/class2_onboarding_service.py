@@ -17,7 +17,10 @@ from app.models.audit import AuditLog
 from app.services.college_importer import ImportValidationError
 
 DEFAULT_ROSTER_PATH = os.path.abspath("college_seed/students_class2_development.json")
-DEFAULT_DOCX_OUTPUT_PATH = r"C:\Users\Abishek\Documents\Attendance_Marker\CLASS2_STUDENT_CREDENTIALS.docx"
+DEFAULT_DOCX_OUTPUT_PATH = os.environ.get(
+    "CLASS2_DOCX_PATH",
+    os.path.join(os.path.expanduser("~"), "Documents", "Attendance_Marker", "CLASS2_STUDENT_CREDENTIALS.docx")
+)
 EXPECTED_CLASS_NAME = "III Year CSE Cyber Security - Class 2"
 EXPECTED_STUDENT_COUNT = 55
 MAX_SYSTEM_STUDENTS = int(os.getenv("MAX_SYSTEM_STUDENTS", "130"))

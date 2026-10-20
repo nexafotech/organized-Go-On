@@ -120,21 +120,49 @@ def get_faculty_schedule(db: Session, faculty_id: int) -> List[Dict[str, Any]]:
     )
 
     result = []
+    seen_entry_ids = set()
     for entry in entries:
+        if not entry or entry.id in seen_entry_ids:
+            continue
+
+        period = entry.period
+        if not period or (period.period_number is not None and period.period_number <= 0):
+            continue
+
+        p_name = period.name.upper() if period.name else ""
+        sub_code = entry.assignment.subject.code if (entry.assignment and entry.assignment.subject) else ""
+        sub_name = entry.assignment.subject.name if (entry.assignment and entry.assignment.subject) else ""
+
+        # Exclude non-teaching breaks and lunch intervals
+        if any(term in p_name or term in sub_code.upper() or term in sub_name.upper() for term in ["BREAK", "LUNCH", "RECESS"]):
+            continue
+
+        seen_entry_ids.add(entry.id)
+
+        is_lab = False
+        if sub_code and "LAB" in sub_code.upper():
+            is_lab = True
+        elif sub_name and "LAB" in sub_name.upper():
+            is_lab = True
+
         result.append({
             "id": entry.id,
             "day_of_week": entry.day_of_week,
-            "period_id": entry.period.id,
-            "period_number": entry.period.period_number,
-            "period_name": entry.period.name,
-            "start_time": entry.period.start_time,
-            "end_time": entry.period.end_time,
+            "period_id": period.id,
+            "period_number": period.period_number,
+            "period_name": period.name,
+            "start_time": period.start_time,
+            "end_time": period.end_time,
             "assignment_id": entry.assignment.id,
-            "subject_code": entry.assignment.subject.code,
-            "subject_name": entry.assignment.subject.name,
+            "subject_code": sub_code,
+            "subject_name": sub_name,
             "class_name": entry.assignment.class_section.name,
             "faculty_name": entry.assignment.display_faculty_name,
+            "room_no": entry.room,
+            "type": "Lab" if is_lab else "Theory",
         })
+    day_weights = {d: i for i, d in enumerate(_DAY_ORDER, 1)}
+    result.sort(key=lambda x: (day_weights.get(normalize_day_name(x.get("day_of_week") or ""), 8), x.get("period_number") or 0))
     return result
 
 def get_active_and_upcoming_class(db: Session, faculty_id: int, dt: Optional[datetime] = None) -> Dict[str, Any]:

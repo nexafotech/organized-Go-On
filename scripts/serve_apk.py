@@ -13,22 +13,37 @@ HOST = "0.0.0.0"
 PORT = 8080
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-APK_PATH = os.path.join(PROJECT_ROOT, "app-debug.apk")
-if not os.path.exists(APK_PATH):
+RELEASE_APK = os.path.join(PROJECT_ROOT, "mobile", "build", "app", "outputs", "flutter-apk", "app-release.apk")
+if os.path.exists(RELEASE_APK):
+    APK_PATH = RELEASE_APK
+elif os.path.exists(os.path.join(PROJECT_ROOT, "app-debug.apk")):
+    APK_PATH = os.path.join(PROJECT_ROOT, "app-debug.apk")
+else:
     APK_PATH = os.path.join(PROJECT_ROOT, "mobile", "build", "app", "outputs", "flutter-apk", "app-debug.apk")
-PDF_REPORT = os.path.join(PROJECT_ROOT, "reports", "go-On_IST_Notification_Timestamp_Fix_Report.pdf")
-JSON_RESULTS = os.path.join(PROJECT_ROOT, "reports", "go-On_IST_Notification_Timestamp_Test_Results.json")
+
+PDF_REPORT = os.path.join(PROJECT_ROOT, "reports", "go-On_Final_Performance_Deployment_and_Tunnel_Report.pdf")
+if not os.path.exists(PDF_REPORT):
+    PDF_REPORT = os.path.join(PROJECT_ROOT, "reports", "go-On_Avatar_Save_Performance_Fix_Report.pdf")
+JSON_RESULTS = os.path.join(PROJECT_ROOT, "reports", "go-On_Attendance_Real_Data_and_Mobile_UI_Test_Results.json")
 
 APK_SIZE = os.path.getsize(APK_PATH) if os.path.exists(APK_PATH) else 0
 APK_SIZE_MB = round(APK_SIZE / (1024 * 1024), 2)
-APK_SHA256 = "E7CEE02CF25B7B9ECE59C374F70C3FB99560EB14D5E1C31AE2E952070F67E7CC"
+
+if os.path.exists(APK_PATH):
+    _h = hashlib.sha256()
+    with open(APK_PATH, "rb") as _f:
+        while _chunk := _f.read(65536):
+            _h.update(_chunk)
+    APK_SHA256 = _h.hexdigest().upper()
+else:
+    APK_SHA256 = "UNKNOWN"
 
 HTML_TEMPLATE = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>go-On AI Face Attendance - APK & Attendance Fix Release</title>
+  <title>go-On AI Face Attendance - Faculty / Class Advisor Portal Optimization</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -222,8 +237,8 @@ HTML_TEMPLATE = f"""<!DOCTYPE html>
       <div class="badge-icon">📱</div>
       <div class="title-group">
         <h1>go-On AI Face Attendance System</h1>
-        <p>IST Timezone Normalization & Mobile Verification Release</p>
-        <div class="status-badge">IST TIMESTAMPS VERIFIED (203 MOBILE + 31 BACKEND TESTS PASSED)</div>
+        <p>Faculty & Class Advisor Portal — Lunch Break Card Removal Release</p>
+        <div class="status-badge">LUNCH BREAK REMOVAL VERIFIED (239 MOBILE + 17 BACKEND TESTS PASSED)</div>
       </div>
     </div>
 
@@ -246,7 +261,7 @@ HTML_TEMPLATE = f"""<!DOCTYPE html>
       </div>
     </div>
 
-    <a href="/app-debug.apk" class="download-btn" download="go-on-ist-timestamp-release.apk">
+    <a href="/app-release.apk" class="download-btn" download="go-on-faculty-advisor-lunch-removal-release.apk">
       <span>⬇️</span> Download Android APK ({APK_SIZE_MB} MB)
     </a>
 
@@ -257,10 +272,10 @@ HTML_TEMPLATE = f"""<!DOCTYPE html>
 
     <div class="links-row">
       <a href="/report.pdf" class="secondary-link" target="_blank">
-        <span>📄</span> View IST Fix PDF (1.39 MB)
+        <span>📄</span> View Lunch Break Removal PDF Report
       </a>
-      <a href="/results.json" class="secondary-link" target="_blank">
-        <span>⚙️</span> View IST Results JSON
+      <a href="/reports/go-On_Faculty_Class_Advisor_Lunch_Break_Removal_Report.pdf" class="secondary-link" target="_blank">
+        <span>📑</span> Direct PDF Link
       </a>
     </div>
 
@@ -307,8 +322,13 @@ class ApkHandler(BaseHTTPRequestHandler):
             content_type = "application/octet-stream"
             download_name = None
 
-            if path in ["/app-debug.apk", "/download/apk", "/apk"]:
-                target_file = APK_PATH if os.path.exists(APK_PATH) else os.path.join(PROJECT_ROOT, "app-debug.apk")
+            if path in ["/app-release.apk", "/app-debug.apk", "/download/apk", "/apk"]:
+                if os.path.exists(RELEASE_APK):
+                    target_file = RELEASE_APK
+                elif os.path.exists(APK_PATH):
+                    target_file = APK_PATH
+                else:
+                    target_file = os.path.join(PROJECT_ROOT, "app-debug.apk")
                 content_type = "application/vnd.android.package-archive"
                 download_name = "go-on-attendance-release.apk"
             elif path.startswith("/reports/"):
@@ -324,11 +344,9 @@ class ApkHandler(BaseHTTPRequestHandler):
                         content_type = "image/png"
                     download_name = rel_name
             elif path in ["/report.pdf", "/report"]:
-                target_file = os.path.join(PROJECT_ROOT, "reports", "go-On_Attendance_Real_Data_and_Mobile_UI_Fix_Report.pdf")
-                if not os.path.exists(target_file):
-                    target_file = PDF_REPORT
+                target_file = PDF_REPORT
                 content_type = "application/pdf"
-                download_name = "go-On_Attendance_Real_Data_and_Mobile_UI_Fix_Report.pdf"
+                download_name = os.path.basename(PDF_REPORT)
             elif path in ["/results.json", "/json"]:
                 target_file = os.path.join(PROJECT_ROOT, "reports", "go-On_Attendance_Real_Data_and_Mobile_UI_Test_Results.json")
                 if not os.path.exists(target_file):

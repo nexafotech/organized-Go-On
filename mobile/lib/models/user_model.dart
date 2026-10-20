@@ -10,6 +10,10 @@ class UserModel {
   final bool isClassAdvisor;
   final int? advisedClassId;
   final String? advisedClassName;
+  final String? department;
+  final String? employeeId;
+  final String? avatarId;
+  final String? phone;
 
   UserModel({
     required this.id,
@@ -23,6 +27,10 @@ class UserModel {
     this.isClassAdvisor = false,
     this.advisedClassId,
     this.advisedClassName,
+    this.department,
+    this.employeeId,
+    this.avatarId,
+    this.phone,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +46,10 @@ class UserModel {
       isClassAdvisor: json['is_class_advisor'] as bool? ?? false,
       advisedClassId: json['advised_class_id'] as int?,
       advisedClassName: json['advised_class_name'] as String?,
+      department: json['department'] as String?,
+      employeeId: json['employee_id'] as String?,
+      avatarId: json['avatar_id'] as String?,
+      phone: json['phone'] as String?,
     );
   }
 
@@ -54,7 +66,47 @@ class UserModel {
       'is_class_advisor': isClassAdvisor,
       'advised_class_id': advisedClassId,
       'advised_class_name': advisedClassName,
+      'department': department,
+      'employee_id': employeeId,
+      'avatar_id': avatarId,
+      'phone': phone,
     };
+  }
+
+  UserModel copyWith({
+    int? id,
+    String? username,
+    String? email,
+    String? role,
+    bool? isActive,
+    String? fullName,
+    int? facultyProfileId,
+    bool? forcePasswordChange,
+    bool? isClassAdvisor,
+    int? advisedClassId,
+    String? advisedClassName,
+    String? department,
+    String? employeeId,
+    String? avatarId,
+    String? phone,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      isActive: isActive ?? this.isActive,
+      fullName: fullName ?? this.fullName,
+      facultyProfileId: facultyProfileId ?? this.facultyProfileId,
+      forcePasswordChange: forcePasswordChange ?? this.forcePasswordChange,
+      isClassAdvisor: isClassAdvisor ?? this.isClassAdvisor,
+      advisedClassId: advisedClassId ?? this.advisedClassId,
+      advisedClassName: advisedClassName ?? this.advisedClassName,
+      department: department ?? this.department,
+      employeeId: employeeId ?? this.employeeId,
+      avatarId: avatarId ?? this.avatarId,
+      phone: phone ?? this.phone,
+    );
   }
 
   bool get isStudent => role == 'STUDENT';

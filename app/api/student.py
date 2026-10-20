@@ -67,6 +67,7 @@ def get_student_profile(
         avatar_id=resolve_avatar(student.avatar_id, student.roll_number or student.id),
         total=summary["total"],
         present=summary["present"],
+        pure_present=summary.get("pure_present"),
         absent=summary["absent"],
         od=summary["od"],
         half_day_present=summary.get("half_day_present", 0),
@@ -108,6 +109,7 @@ def get_student_attendance_report(
             "period_name": p["period_name"],
             "total": p["total"],
             "present": p["present"],
+            "pure_present": p.get("pure_present"),
             "absent": p["absent"],
             "od": p["od"],
             "percentage": p["percentage"],
@@ -124,6 +126,7 @@ def get_student_attendance_report(
             subject_name=s["subject_name"],
             total=s["total"],
             present=s["present"],
+            pure_present=s.get("pure_present"),
             absent=s["absent"],
             od=s["od"],
             percentage=s["percentage"],
@@ -168,6 +171,7 @@ def get_student_attendance_report(
         semester=student.semester,
         total=overall["total"],
         present=overall["present"],
+        pure_present=overall.get("pure_present"),
         absent=overall["absent"],
         od=overall["od"],
         half_day_present=overall.get("half_day_present", 0),
@@ -206,6 +210,7 @@ def get_student_subject_attendance(
             subject_name=s["subject_name"],
             total=s["total"],
             present=s["present"],
+            pure_present=s.get("pure_present"),
             absent=s["absent"],
             od=s["od"],
             percentage=s["percentage"],
@@ -326,6 +331,9 @@ def get_student_timetable(
             "room": e.room,
         })
 
+    day_weights = {"Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7}
+    timetable.sort(key=lambda x: (day_weights.get(str(x.get("day_of_week") or "").strip().capitalize(), 8), x.get("period_number") or 0))
+
     return {
         "class_name": class_section.name if class_section else None,
         "semester": student.semester,
@@ -392,14 +400,19 @@ def update_student_avatar(
             detail=f"Invalid avatar ID '{body.avatar_id}'. Must be one of approved avatar catalog IDs.",
         )
 
+    # Fast-path: return immediately if avatar is unchanged without redundant DB writes
+    if student.avatar_id == body.avatar_id:
+        return {
+            "success": True,
+            "avatar_id": student.avatar_id,
+            "message": "Avatar unchanged",
+        }
+
     student.avatar_id = body.avatar_id
     if student.user:
         student.user.avatar_id = body.avatar_id
 
-    db.commit()
-    db.refresh(student)
-
-    # Audit logging
+    # Single atomic commit for profile and audit log
     try:
         audit = AuditLog(
             action="UPDATE_STUDENT_AVATAR",
@@ -408,9 +421,11 @@ def update_student_avatar(
             details=json.dumps({"student_id": student.id, "avatar_id": body.avatar_id}),
         )
         db.add(audit)
-        db.commit()
     except Exception:
         pass
+
+    db.commit()
+    db.refresh(student)
 
     return {
         "success": True,

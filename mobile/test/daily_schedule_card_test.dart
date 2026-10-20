@@ -71,7 +71,34 @@ void main() {
       expect(find.text('19IT503'), findsOneWidget);
       expect(find.text('19IT504'), findsOneWidget);
 
-      // Verify overall today target bar
+      // Verify overall today target bar is NOT rendered by default
+      expect(find.text('Overall today'), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().contains('target 75%'),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('Explicitly passing showOverallToday: true renders target bar', (WidgetTester tester) async {
+      final mockEntry = DateWiseEntryModel(
+        date: '2026-10-14',
+        periods: [
+          PeriodEntryModel(periodNumber: 1, status: 'ABSENT', subjectCode: '19IT501'),
+        ],
+        dailyResult: 'ABSENT',
+      );
+
+      await tester.pumpWidget(wrapWidget(
+        DailyScheduleCard(
+          entry: mockEntry,
+          dateLabel: 'Wed, 14 Oct',
+          showOverallToday: true,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
       expect(find.text('Overall today'), findsOneWidget);
       expect(
         find.byWidgetPredicate(
@@ -197,12 +224,13 @@ void main() {
       );
       expect(find.text('Schedule will update as classes proceed.'), findsOneWidget);
 
-      // Verify bottom bar shows Pending target 75%
+      // Verify bottom bar is NOT rendered by default
+      expect(find.text('Overall today'), findsNothing);
       expect(
         find.byWidgetPredicate(
-          (w) => w is RichText && w.text.toPlainText().contains('Pending') && w.text.toPlainText().contains('target 75%'),
+          (w) => w is RichText && w.text.toPlainText().contains('target 75%'),
         ),
-        findsOneWidget,
+        findsNothing,
       );
 
       // Verify featured card and grid items are No record (Pending)

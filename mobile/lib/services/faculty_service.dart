@@ -20,13 +20,23 @@ class FacultyService extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  bool _isScheduleLoading = false;
+  String? _scheduleErrorMessage;
+
+  bool _isClassAdvisorScheduleLoading = false;
+  String? _classAdvisorScheduleErrorMessage;
+
   bool _isClassAdvisor = false;
   AdvisedClassInfo? _advisedClass;
+  List<FacultyScheduleItem> _classAdvisorSchedule = [];
+  String? _classAdvisorClassName;
 
   FacultyService({ApiClient? apiClient})
       : _apiClient = apiClient ?? ApiClient();
 
   List<FacultyScheduleItem> get schedule => _schedule;
+  List<FacultyScheduleItem> get classAdvisorSchedule => _classAdvisorSchedule;
+  String? get classAdvisorClassName => _classAdvisorClassName;
   ActiveClassSlot? get activeSlot => _activeSlot;
   bool get hasActiveSlot => _hasActiveSlot;
   int? get activeSessionId => _activeSessionId;
@@ -35,17 +45,33 @@ class FacultyService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  bool get isScheduleLoading => _isScheduleLoading;
+  String? get scheduleErrorMessage => _scheduleErrorMessage;
+
+  bool get isClassAdvisorScheduleLoading => _isClassAdvisorScheduleLoading;
+  String? get classAdvisorScheduleErrorMessage => _classAdvisorScheduleErrorMessage;
+
   bool get isClassAdvisor => _isClassAdvisor;
   AdvisedClassInfo? get advisedClass => _advisedClass;
 
   void setMockData({
     List<FacultyScheduleItem>? schedule,
+    List<FacultyScheduleItem>? classAdvisorSchedule,
+    String? classAdvisorClassName,
     ActiveClassSlot? activeSlot,
     List<RosterStudentModel>? roster,
     bool? isClassAdvisor,
     AdvisedClassInfo? advisedClass,
+    bool? isScheduleLoading,
+    String? scheduleErrorMessage,
+    bool? isClassAdvisorScheduleLoading,
+    String? classAdvisorScheduleErrorMessage,
+    bool? isLoading,
+    String? errorMessage,
   }) {
     if (schedule != null) _schedule = schedule;
+    if (classAdvisorSchedule != null) _classAdvisorSchedule = classAdvisorSchedule;
+    if (classAdvisorClassName != null) _classAdvisorClassName = classAdvisorClassName;
     if (activeSlot != null) {
       _activeSlot = activeSlot;
       _hasActiveSlot = true;
@@ -53,14 +79,18 @@ class FacultyService extends ChangeNotifier {
     if (roster != null) _roster = roster;
     if (isClassAdvisor != null) _isClassAdvisor = isClassAdvisor;
     if (advisedClass != null) _advisedClass = advisedClass;
-    _isLoading = false;
-    _errorMessage = null;
+    if (isScheduleLoading != null) _isScheduleLoading = isScheduleLoading;
+    if (scheduleErrorMessage != null) _scheduleErrorMessage = scheduleErrorMessage;
+    if (isClassAdvisorScheduleLoading != null) _isClassAdvisorScheduleLoading = isClassAdvisorScheduleLoading;
+    if (classAdvisorScheduleErrorMessage != null) _classAdvisorScheduleErrorMessage = classAdvisorScheduleErrorMessage;
+    if (isLoading != null) _isLoading = isLoading;
+    if (errorMessage != null) _errorMessage = errorMessage;
     notifyListeners();
   }
 
   Future<void> fetchSchedule() async {
-    _isLoading = true;
-    _errorMessage = null;
+    _isScheduleLoading = true;
+    _scheduleErrorMessage = null;
     notifyListeners();
 
     try {
@@ -70,16 +100,84 @@ class FacultyService extends ChangeNotifier {
         _schedule = rawList
             .map((item) => FacultyScheduleItem.fromJson(Map<String, dynamic>.from(item as Map)))
             .toList();
+        _scheduleErrorMessage = null;
+      } else {
+        _scheduleErrorMessage = 'Invalid timetable data format from server';
       }
-      _isLoading = false;
+      _isScheduleLoading = false;
       notifyListeners();
     } on ApiException catch (e) {
-      _isLoading = false;
-      _errorMessage = e.message;
+      _isScheduleLoading = false;
+      _scheduleErrorMessage = e.message;
       notifyListeners();
     } catch (_) {
-      _isLoading = false;
-      _errorMessage = 'Failed to load faculty schedule';
+      _isScheduleLoading = false;
+      _scheduleErrorMessage = 'Failed to load faculty schedule';
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchClassAdvisorTimetable() async {
+    _isClassAdvisorScheduleLoading = true;
+    _classAdvisorScheduleErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiClient.get(ApiConfig.facultyClassAdvisorTimetable);
+      if (response is Map && response['timetable'] is List) {
+        _classAdvisorClassName = response['class_name'] as String?;
+        final List rawList = response['timetable'];
+        _classAdvisorSchedule = rawList
+            .map((item) => FacultyScheduleItem.fromJson(Map<String, dynamic>.from(item as Map)))
+            .toList();
+        _classAdvisorScheduleErrorMessage = null;
+        _isClassAdvisorScheduleLoading = false;
+        notifyListeners();
+      } else {
+        _isClassAdvisorScheduleLoading = false;
+        _classAdvisorScheduleErrorMessage = 'Invalid timetable data format from server';
+        notifyListeners();
+      }
+    } on ApiException catch (e) {
+      _isClassAdvisorScheduleLoading = false;
+      _classAdvisorScheduleErrorMessage = e.message;
+      notifyListeners();
+    } catch (e) {
+      _isClassAdvisorScheduleLoading = false;
+      _classAdvisorScheduleErrorMessage = 'Unable to reach the server. Check your connection or server address.';
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchClassTimetable(int classId) async {
+    if (classId <= 0) return;
+    _isClassAdvisorScheduleLoading = true;
+    _classAdvisorScheduleErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiClient.get(ApiConfig.facultyClassTimetable(classId));
+      if (response is Map && response['timetable'] is List) {
+        _classAdvisorClassName = response['class_name'] as String?;
+        final List rawList = response['timetable'];
+        _classAdvisorSchedule = rawList
+            .map((item) => FacultyScheduleItem.fromJson(Map<String, dynamic>.from(item as Map)))
+            .toList();
+        _isClassAdvisorScheduleLoading = false;
+        _classAdvisorScheduleErrorMessage = null;
+        notifyListeners();
+      } else {
+        _isClassAdvisorScheduleLoading = false;
+        _classAdvisorScheduleErrorMessage = 'Invalid timetable data format from server';
+        notifyListeners();
+      }
+    } on ApiException catch (e) {
+      _isClassAdvisorScheduleLoading = false;
+      _classAdvisorScheduleErrorMessage = e.message;
+      notifyListeners();
+    } catch (e) {
+      _isClassAdvisorScheduleLoading = false;
+      _classAdvisorScheduleErrorMessage = 'Unable to reach the server. Check your connection or server address.';
       notifyListeners();
     }
   }
@@ -301,13 +399,16 @@ class FacultyService extends ChangeNotifier {
   Future<void> loadDashboardData() async {
     await Future.wait([
       fetchSchedule().catchError((e) {
-        _isLoading = false;
-        _errorMessage = 'Failed to load faculty schedule';
+        _isScheduleLoading = false;
+        _scheduleErrorMessage = 'Failed to load faculty schedule';
         notifyListeners();
       }),
       checkActiveClassSlot().catchError((_) {}),
       checkActiveSession().catchError((_) {}),
     ]);
+    if (_isClassAdvisor) {
+      await fetchClassAdvisorTimetable().catchError((_) {});
+    }
   }
 
   Future<AvailablePeriodsResponse> fetchAvailableAttendancePeriods() async {
@@ -721,6 +822,45 @@ class FacultyService extends ChangeNotifier {
       subjectId: subjectId,
     );
     return await _apiClient.getBytes(path);
+  }
+
+  /// Update Faculty Self-Service Profile Details
+  Future<bool> updateProfileDetails({
+    String? fullName,
+    String? email,
+    String? phone,
+    String? avatarId,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (fullName != null && fullName.trim().isNotEmpty) payload['full_name'] = fullName.trim();
+    if (email != null) payload['email'] = email.trim();
+    if (phone != null) payload['phone'] = phone.trim();
+    if (avatarId != null && avatarId.trim().isNotEmpty) payload['avatar_id'] = avatarId.trim();
+
+    try {
+      final response = await _apiClient.patch(
+        ApiConfig.facultyProfile,
+        body: payload,
+      );
+      return response is Map && (response['success'] == true || response.containsKey('user_id'));
+    } catch (e) {
+      debugPrint('[FacultyService] updateProfileDetails error: $e');
+      rethrow;
+    }
+  }
+
+  /// Update Faculty Avatar
+  Future<bool> updateAvatar(String avatarId) async {
+    try {
+      final response = await _apiClient.patch(
+        ApiConfig.facultyAvatar,
+        body: {'avatar_id': avatarId},
+      );
+      return response is Map && response['success'] == true;
+    } catch (e) {
+      debugPrint('[FacultyService] updateAvatar error: $e');
+      rethrow;
+    }
   }
 }
 

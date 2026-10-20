@@ -186,4 +186,87 @@ class TimezoneUtils {
     ];
     return days[now.weekday - 1];
   }
+
+  /// Returns the current DateTime in Indian Standard Time (Asia/Kolkata).
+  static DateTime nowIst() {
+    return toIst(DateTime.now());
+  }
+
+  /// Returns today's date at midnight in Indian Standard Time (Asia/Kolkata).
+  static DateTime todayIst() {
+    final now = nowIst();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  /// Returns the uppercase weekday name for any DateTime (e.g. 'MONDAY', 'SUNDAY').
+  static String weekdayNameFor(DateTime dt) {
+    const days = [
+      'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
+    ];
+    return days[dt.weekday - 1];
+  }
+
+  /// Formats a DateTime as 'YYYY-MM-DD'.
+  static String dateToIsoString(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  /// Determines whether a scheduled period has ended based strictly on its
+  /// scheduled end time and the target date in IST.
+  ///
+  /// - Historical dates (strictly before today): returns `true` (period has already ended).
+  /// - Future dates (strictly after today): returns `false` (period is in the future).
+  /// - Today: returns `true` ONLY if [now] is strictly after the period's scheduled end time.
+  /// - Invalid/missing end time: returns `false` (cannot verify completion).
+  static bool isPeriodCompleted({
+    required DateTime targetDate,
+    required String? endTimeStr,
+    required DateTime now,
+  }) {
+    if (endTimeStr == null || endTimeStr.trim().isEmpty) {
+      return false;
+    }
+
+    final parts = endTimeStr.trim().split(':');
+    if (parts.length < 2) {
+      return false;
+    }
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) {
+      return false;
+    }
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      return false;
+    }
+
+    final second = parts.length >= 3 ? (int.tryParse(parts[2]) ?? 0) : 0;
+
+    // Construct the authoritative period end instant on targetDate
+    final periodEnd = DateTime.utc(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      hour,
+      minute,
+      second,
+    );
+
+    // Current instant normalized with UTC components for timezone-agnostic comparison
+    final currentInstant = DateTime.utc(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+      now.second,
+    );
+
+    // The period has completed if and only if the current time is strictly after the scheduled end time
+    return currentInstant.isAfter(periodEnd);
+  }
 }

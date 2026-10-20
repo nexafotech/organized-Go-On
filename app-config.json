@@ -1,0 +1,12 @@
+{
+  "command": "python3 -u main.py",
+  "stack": "python_3_11",
+  "buildPath": ".",
+  "memory": 1024,
+  "env_variables": {
+    "ENVIRONMENT": "staging",
+    "PYTHONUNBUFFERED": "1",
+    "DATABASE_URL": "sqlite:////tmp/attendance_system.db",
+    "SECRET_KEY": "go-on-catalyst-staging-secret-key-2026-attendance-verified"
+  }
+}

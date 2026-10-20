@@ -85,9 +85,42 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 from app.api.admin_web import router as admin_web_router
 app.include_router(admin_web_router)
 
+from fastapi import Response, status
+from sqlalchemy import text
+
 @app.get("/health")
 def health_check():
+    """Basic liveness probe."""
     return {"status": "ok", "project": settings.PROJECT_NAME, "version": settings.VERSION}
+
+@app.get("/health/live")
+def liveness_check():
+    """Liveness probe verifying HTTP server responsiveness."""
+    return {"status": "alive", "project": settings.PROJECT_NAME}
+
+@app.get("/health/ready")
+def readiness_check(response: Response):
+    """Readiness probe verifying database connectivity."""
+    try:
+        from app.core.database import SessionLocal
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+            return {
+                "status": "ready",
+                "database": "connected",
+                "project": settings.PROJECT_NAME,
+                "version": settings.VERSION
+            }
+        finally:
+            db.close()
+    except Exception as e:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {
+            "status": "not_ready",
+            "database": "disconnected",
+            "error": "Database connectivity check failed"
+        }
 
 # Mount Flutter Web Application (if built)
 flutter_web_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mobile", "build", "web")

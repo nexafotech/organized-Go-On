@@ -242,9 +242,9 @@ void main() {
       expect(find.text('FULL DAY PRESENT'), findsOneWidget);
       expect(find.text('FULL DAY ABSENT'), findsOneWidget);
 
-      // Lunch break column is present and marked Not Counted
-      expect(find.text('LUNCH\n(Not Counted)'), findsOneWidget);
-      expect(find.text('LUNCH BREAK'), findsOneWidget);
+      // Lunch break column and banner are NOT displayed
+      expect(find.text('LUNCH\n(Not Counted)'), findsNothing);
+      expect(find.text('LUNCH BREAK'), findsNothing);
     });
 
     testWidgets('Date without records renders semantic NO RECORDS AVAILABLE empty state', (tester) async {

@@ -88,10 +88,13 @@ class AttendanceMarkerApp extends StatelessWidget {
       ],
       child: Consumer<ThemeService>(
         builder: (context, themeService, _) {
+          final isDark = themeService.isDarkMode;
           return MaterialApp(
             title: 'Go-On',
             navigatorKey: appNavigatorKey,
             debugShowCheckedModeBanner: false,
+            color: isDark ? AppColors.dark.background : AppColors.light.background,
+            themeAnimationDuration: Duration.zero,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeService.themeMode,

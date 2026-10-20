@@ -226,6 +226,7 @@ class FacultyStudentAttendanceRow(BaseModel):
     full_name: str
     total: int
     present: int
+    pure_present: int = 0
     absent: int
     od: int
     percentage: float
@@ -238,10 +239,19 @@ class FacultyClassSummaryResponse(BaseModel):
     subject_name: Optional[str] = None
     is_class_advisor_scope: bool = False
     total_periods: int
+    total_students: int = 0
     present: int
+    pure_present: int = 0
     absent: int
     od: int
+    total_marks: int = 0
     percentage: float
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    date_range_display: Optional[str] = None
+    is_sunday: bool = False
+    has_scheduled_classes: bool = True
+    no_class_message: Optional[str] = None
     students: List[FacultyStudentAttendanceRow] = []
 
 class FacultyStudentReportPeriodItem(BaseModel):

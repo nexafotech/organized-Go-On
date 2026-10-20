@@ -5,13 +5,23 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../models/student_model.dart';
-import '../common/app_card.dart';
+import '../../utils/timezone_utils.dart';
 
 /// Live state of a class period throughout the college day
 enum PeriodLiveState {
   upcoming,
   inProgress,
   completed,
+}
+
+/// Truthful attendance & schedule status for each period
+enum PeriodAttendanceStatus {
+  present,       // Attended (Recorded as Present or OD)
+  absent,        // Recorded as Absent
+  od,            // Recorded as On-Duty
+  inProgress,    // Live right now
+  upcoming,      // Not yet started
+  unrecorded,    // Period time passed, but attendance not yet submitted
 }
 
 /// Class item bound with its timetable schedule and calculated chromatic fade
@@ -28,6 +38,8 @@ class SubjectClassItem {
   final double remainingFraction; // 1.0 (full) down to 0.0 (dark/completed)
   final double elapsedProgress;   // 0.0 to 1.0
   final PeriodLiveState liveState;
+  final PeriodAttendanceStatus attendanceStatus;
+  final String? statusLabel;
 
   const SubjectClassItem({
     required this.subject,
@@ -42,6 +54,8 @@ class SubjectClassItem {
     required this.remainingFraction,
     required this.elapsedProgress,
     required this.liveState,
+    required this.attendanceStatus,
+    this.statusLabel,
   });
 
   String get displayName => subject.subjectName;
@@ -93,18 +107,22 @@ class SubjectClassItem {
 /// 2. Interactive Apple Liquid Day Scrubber:
 ///    - Interactive slider to scrub time from 08:00 AM to 03:00 PM.
 ///    - Play/Pause automated day simulation.
-///    - Real-time live clock sync.
+///    - Real-time live clock sync in IST.
 ///    - One-tap quick period shortcuts.
 /// 3. Liquid Glass UI & Apple visionOS optics with specular reflections.
 class SubjectPetalChartCard extends StatefulWidget {
   final List<SubjectAttendanceModel> subjects;
   final List<TimetableItemModel>? timetable;
+  final List<DateWiseEntryModel>? dateWiseEntries;
+  final DateTime? targetDate;
   final double minimumRequired;
 
   const SubjectPetalChartCard({
     Key? key,
     required this.subjects,
     this.timetable,
+    this.dateWiseEntries,
+    this.targetDate,
     this.minimumRequired = 75.0,
   }) : super(key: key);
 
@@ -183,7 +201,7 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
   }
 
   void _syncToCurrentTime() {
-    final now = DateTime.now();
+    final now = TimezoneUtils.nowIst();
     setState(() {
       _currentDayMinutes = (now.hour * 60 + now.minute).toDouble().clamp(minDayMinutes, maxDayMinutes);
     });
@@ -212,22 +230,15 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
     }
   }
 
-  static String _getCurrentWeekdayName() {
-    final now = DateTime.now();
-    switch (now.weekday) {
-      case DateTime.monday: return 'MONDAY';
-      case DateTime.tuesday: return 'TUESDAY';
-      case DateTime.wednesday: return 'WEDNESDAY';
-      case DateTime.thursday: return 'THURSDAY';
-      case DateTime.friday: return 'FRIDAY';
-      case DateTime.saturday: return 'SATURDAY';
-      case DateTime.sunday: return 'SUNDAY';
-      default: return 'MONDAY';
-    }
-  }
-
   List<SubjectClassItem> _buildClassItems() {
-    // 1. Build rapid lookup table of subjects by uppercase code and name
+    // 1. Determine target date and weekday in Asia/Kolkata
+    final target = widget.targetDate ?? TimezoneUtils.todayIst();
+    final targetIso = TimezoneUtils.dateToIsoString(target);
+    final todayIso = TimezoneUtils.dateToIsoString(TimezoneUtils.todayIst());
+    final isToday = targetIso == todayIso;
+    final weekdayName = TimezoneUtils.weekdayNameFor(target);
+
+    // 2. Build rapid lookup table of subjects by uppercase code and name
     final subjectMap = <String, SubjectAttendanceModel>{};
     for (final subj in widget.subjects) {
       if (subj.subjectCode.isNotEmpty) {
@@ -238,22 +249,21 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
       }
     }
 
-    // 2. Extract periods for a single day from timetable
+    // 3. Extract periods for this target date from authoritative timetable
     List<TimetableItemModel> daySchedule = [];
     if (widget.timetable != null && widget.timetable!.isNotEmpty) {
-      final todayName = _getCurrentWeekdayName();
-      final dayGroups = <String, List<TimetableItemModel>>{};
       for (final tt in widget.timetable!) {
-        final d = tt.dayOfWeek.trim().toUpperCase();
-        dayGroups.putIfAbsent(d, () => []).add(tt);
+        if (tt.dayOfWeek.trim().toUpperCase() == weekdayName) {
+          daySchedule.add(tt);
+        }
       }
+    }
 
-      if (dayGroups.containsKey(todayName) && dayGroups[todayName]!.isNotEmpty) {
-        daySchedule = List.from(dayGroups[todayName]!);
-      } else if (dayGroups.isNotEmpty) {
-        // Fallback to MONDAY or first day with scheduled classes
-        daySchedule = List.from(dayGroups['MONDAY'] ?? dayGroups.values.first);
-      }
+    // CRITICAL FIX: If no classes are scheduled for this day (e.g. Sunday or non-working day),
+    // NEVER fall back to Monday and NEVER fall back to semester subjects!
+    // Return empty list so _buildNoClassesCard() is rendered truthfully.
+    if (daySchedule.isEmpty) {
+      return [];
     }
 
     // Sort periods strictly by periodNumber, then startTime
@@ -266,39 +276,25 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
       return tA.compareTo(tB);
     });
 
-    // 3. Assemble pairs representing the single day's period breakdown
-    final List<({SubjectAttendanceModel subject, TimetableItemModel? timetable})> paired = [];
-
-    if (daySchedule.isNotEmpty) {
-      // The single day's timetable dictates the exact number of graph parts (e.g. 7 petals for 7 periods)
-      for (int i = 0; i < daySchedule.length; i++) {
-        final tt = daySchedule[i];
-        final codeKey = (tt.subjectCode ?? '').toUpperCase();
-        final nameKey = (tt.subjectName ?? '').toUpperCase();
-        var matched = subjectMap[codeKey] ?? subjectMap[nameKey];
-
-        // Fallback subject model if not explicitly in attendance roster yet
-        matched ??= SubjectAttendanceModel(
-          subjectId: tt.periodNumber ?? (i + 1),
-          subjectCode: tt.subjectCode ?? 'P${tt.periodNumber ?? (i + 1)}',
-          subjectName: tt.subjectName ?? tt.periodName ?? 'Period ${tt.periodNumber ?? (i + 1)}',
-          total: 20,
-          present: 18,
-          absent: 2,
-          od: 0,
-          percentage: 90.0,
-        );
-
-        paired.add((subject: matched, timetable: tt));
-      }
-    } else if (widget.subjects.isNotEmpty) {
-      // Fallback if no timetable is available: partition by subject list
-      for (final subj in widget.subjects) {
-        paired.add((subject: subj, timetable: null));
+    // 4. Match with real attendance records from dateWiseEntries
+    DateWiseEntryModel? matchingDayEntry;
+    if (widget.dateWiseEntries != null) {
+      for (final entry in widget.dateWiseEntries!) {
+        if (entry.date.trim() == targetIso) {
+          matchingDayEntry = entry;
+          break;
+        }
       }
     }
 
-    if (paired.isEmpty) return [];
+    final periodEntryMap = <int, PeriodEntryModel>{};
+    if (matchingDayEntry != null) {
+      for (final p in matchingDayEntry.periods) {
+        if (p.periodNumber != null) {
+          periodEntryMap[p.periodNumber!] = p;
+        }
+      }
+    }
 
     const defaultTimes = [
       (start: 525, end: 580), // P1: 08:45 AM - 09:40 AM
@@ -311,40 +307,113 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
       (start: 980, end: 1030), // P8: 04:20 PM - 05:10 PM
     ];
 
-    final total = paired.length;
+    final total = daySchedule.length;
     return List.generate(total, (i) {
-      final pair = paired[i];
+      final tt = daySchedule[i];
+      final codeKey = (tt.subjectCode ?? '').toUpperCase();
+      final nameKey = (tt.subjectName ?? '').toUpperCase();
+      var matched = subjectMap[codeKey] ?? subjectMap[nameKey];
+
+      // Fallback subject model if not explicitly in attendance roster yet
+      matched ??= SubjectAttendanceModel(
+        subjectId: tt.periodNumber ?? (i + 1),
+        subjectCode: tt.subjectCode ?? 'P${tt.periodNumber ?? (i + 1)}',
+        subjectName: tt.subjectName ?? tt.periodName ?? 'Period ${tt.periodNumber ?? (i + 1)}',
+        total: 0,
+        present: 0,
+        absent: 0,
+        od: 0,
+        percentage: 0.0,
+      );
+
       final double t = total > 1 ? (i / (total - 1)) : 0.0;
       final petalColor = _interpolateTimeColor(t);
 
       final def = i < defaultTimes.length ? defaultTimes[i] : (start: 525 + i * 55, end: 580 + i * 55);
-      final int startM = _parseTimeToMinutes(pair.timetable?.startTime, def.start ~/ 60, def.start % 60);
-      final int endM = _parseTimeToMinutes(pair.timetable?.endTime, def.end ~/ 60, def.end % 60);
+      final int startM = _parseTimeToMinutes(tt.startTime, def.start ~/ 60, def.start % 60);
+      final int endM = _parseTimeToMinutes(tt.endTime, def.end ~/ 60, def.end % 60);
 
-      PeriodLiveState state;
-      double remaining;
-      double elapsed;
+      final periodNum = tt.periodNumber ?? (i + 1);
+      final periodEntry = periodEntryMap[periodNum];
 
-      if (_currentDayMinutes < startM) {
-        state = PeriodLiveState.upcoming;
-        remaining = 1.0;
-        elapsed = 0.0;
-      } else if (_currentDayMinutes >= endM) {
-        state = PeriodLiveState.completed;
+      PeriodAttendanceStatus attendanceStatus;
+      PeriodLiveState liveState;
+      double remaining = 1.0;
+      double elapsed = 0.0;
+      String? statusLabel;
+
+      final rawStatus = periodEntry?.status.trim().toUpperCase() ?? 'NOT_ENTERED';
+      final hasRealPresent = rawStatus == 'PRESENT' || rawStatus == 'P';
+      final hasRealAbsent = rawStatus == 'ABSENT' || rawStatus == 'A';
+      final hasRealOd = rawStatus == 'OD';
+
+      if (hasRealPresent) {
+        attendanceStatus = PeriodAttendanceStatus.present;
+        liveState = PeriodLiveState.completed;
         remaining = 0.0;
         elapsed = 1.0;
+        statusLabel = 'Present ✓';
+      } else if (hasRealAbsent) {
+        attendanceStatus = PeriodAttendanceStatus.absent;
+        liveState = PeriodLiveState.completed;
+        remaining = 0.0;
+        elapsed = 1.0;
+        statusLabel = 'Absent ✗';
+      } else if (hasRealOd) {
+        attendanceStatus = PeriodAttendanceStatus.od;
+        liveState = PeriodLiveState.completed;
+        remaining = 0.0;
+        elapsed = 1.0;
+        statusLabel = 'On-Duty';
       } else {
-        state = PeriodLiveState.inProgress;
-        elapsed = ((_currentDayMinutes - startM) / (endM - startM)).clamp(0.0, 1.0);
-        remaining = (1.0 - elapsed).clamp(0.0, 1.0);
+        // Attendance record has NOT been submitted yet by faculty
+        if (isToday) {
+          if (_currentDayMinutes < startM) {
+            attendanceStatus = PeriodAttendanceStatus.upcoming;
+            liveState = PeriodLiveState.upcoming;
+            remaining = 1.0;
+            elapsed = 0.0;
+            statusLabel = tt.startTime ?? 'Upcoming';
+          } else if (_currentDayMinutes >= endM) {
+            // Period time elapsed, but NO attendance record entered: mark as Pending, NEVER Done!
+            attendanceStatus = PeriodAttendanceStatus.unrecorded;
+            liveState = PeriodLiveState.completed;
+            remaining = 0.0;
+            elapsed = 1.0;
+            statusLabel = 'Pending';
+          } else {
+            // Currently active / in progress
+            attendanceStatus = PeriodAttendanceStatus.inProgress;
+            liveState = PeriodLiveState.inProgress;
+            elapsed = ((_currentDayMinutes - startM) / (endM - startM)).clamp(0.0, 1.0);
+            remaining = (1.0 - elapsed).clamp(0.0, 1.0);
+            statusLabel = 'Live';
+          }
+        } else if (target.isBefore(TimezoneUtils.todayIst())) {
+          // Past date with no recorded attendance
+          attendanceStatus = PeriodAttendanceStatus.unrecorded;
+          liveState = PeriodLiveState.completed;
+          remaining = 0.0;
+          elapsed = 1.0;
+          statusLabel = 'No Record';
+        } else {
+          // Future date
+          attendanceStatus = PeriodAttendanceStatus.upcoming;
+          liveState = PeriodLiveState.upcoming;
+          remaining = 1.0;
+          elapsed = 0.0;
+          statusLabel = tt.startTime ?? 'Upcoming';
+        }
       }
 
-      final bool isLight = petalColor.computeLuminance() > 0.45;
-      final textColor = isLight ? const Color(0xFF1B1922) : Colors.white;
+      final bool isLight = (attendanceStatus == PeriodAttendanceStatus.upcoming)
+          ? petalColor.computeLuminance() > 0.45
+          : false;
+      final textColor = isLight ? const Color(0xFF0F172A) : Colors.white;
 
       return SubjectClassItem(
-        subject: pair.subject,
-        timetable: pair.timetable,
+        subject: matched,
+        timetable: tt,
         index: i,
         totalCount: total,
         petalColor: petalColor,
@@ -354,7 +423,9 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
         endMinutes: endM,
         remainingFraction: remaining,
         elapsedProgress: elapsed,
-        liveState: state,
+        liveState: liveState,
+        attendanceStatus: attendanceStatus,
+        statusLabel: statusLabel,
       );
     });
   }
@@ -365,17 +436,7 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
     final items = _buildClassItems();
 
     if (items.isEmpty) {
-      return GlassCard(
-        variant: GlassCardVariant.muted,
-        enableBlur: false,
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Center(
-          child: Text(
-            'No subject attendance recorded yet.',
-            style: TextStyle(color: colors.textSecondary),
-          ),
-        ),
-      );
+      return _buildNoClassesCard(context);
     }
 
     final selectedItem = (_selectedIndex != null && _selectedIndex! < items.length)
@@ -475,19 +536,226 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
     );
   }
 
+  /// Truthful Empty State rendered when no classes are scheduled (e.g. Sunday or holiday)
+  Widget _buildNoClassesCard(BuildContext context) {
+    final colors = context.colors;
+    final target = widget.targetDate ?? TimezoneUtils.todayIst();
+    final weekdayName = TimezoneUtils.weekdayNameFor(target);
+    final isSunday = target.weekday == DateTime.sunday;
+    final dateFormatted = TimezoneUtils.formatIstDate(target);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: AppGlass.shadow,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colors.glassSurfaceStrong,
+                  colors.glassSurface,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: colors.glassBorderStrong,
+                width: 1.2,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          "Today's Schedule",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.4,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: colors.textMuted.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: colors.textMuted.withValues(alpha: 0.4),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            isSunday ? 'Sunday Holiday' : 'No Classes',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Center Peaceful Icon
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.glassSurfaceSubtle,
+                      border: Border.all(
+                        color: colors.glassBorderStrong,
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      isSunday ? Icons.hotel_class_rounded : Icons.event_busy_rounded,
+                      size: 34,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    'No Classes Scheduled Today',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.3,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: Text(
+                    isSunday
+                        ? 'Sunday is not a scheduled working day for your class timetable.'
+                        : 'No periods scheduled in the academic timetable for $weekdayName ($dateFormatted).',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Informative Status Chips
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: colors.glassSurfaceSubtle,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colors.glassBorder, width: 0.8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.event_busy_outlined, size: 14, color: colors.textMuted),
+                          const SizedBox(width: 6),
+                          Text(
+                            '0 Scheduled Periods',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: colors.glassSurfaceSubtle,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colors.glassBorder, width: 0.8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.weekend_outlined, size: 14, color: colors.textMuted),
+                          const SizedBox(width: 6),
+                          Text(
+                            isSunday ? 'Weekend Rest Day' : 'Academic Recess',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Header with Title, Live Status Subtitle, and View Toggle
   Widget _buildHeader(List<SubjectClassItem> items) {
     final colors = context.colors;
-    final completedCount = items.where((e) => e.liveState == PeriodLiveState.completed).length;
-    final inProgressItem = items.where((e) => e.liveState == PeriodLiveState.inProgress).firstOrNull;
+    final recordedItems = items.where((e) =>
+        e.attendanceStatus == PeriodAttendanceStatus.present ||
+        e.attendanceStatus == PeriodAttendanceStatus.absent ||
+        e.attendanceStatus == PeriodAttendanceStatus.od
+    ).toList();
+    final recordedCount = recordedItems.length;
+    final attendedCount = items.where((e) =>
+        e.attendanceStatus == PeriodAttendanceStatus.present ||
+        e.attendanceStatus == PeriodAttendanceStatus.od
+    ).length;
+    final inProgressItem = items.where((e) => e.attendanceStatus == PeriodAttendanceStatus.inProgress).firstOrNull;
 
     String statusText;
-    if (completedCount == items.length) {
-      statusText = 'All ${items.length} classes completed today • All dark';
+    if (recordedCount == items.length) {
+      statusText = 'All ${items.length} classes recorded today ($attendedCount attended)';
+    } else if (recordedCount > 0) {
+      statusText = '$recordedCount of ${items.length} classes recorded ($attendedCount attended)';
     } else if (inProgressItem != null) {
-      statusText = '${inProgressItem.periodLabel} in progress • Draining down to dark';
+      statusText = '${inProgressItem.periodLabel} in progress • Awaiting attendance submission';
+    } else if (items.any((e) => e.attendanceStatus == PeriodAttendanceStatus.unrecorded)) {
+      statusText = 'Periods concluded • Awaiting faculty attendance submission';
     } else {
-      statusText = 'Morning schedule ready • All periods full & luminous';
+      statusText = "Today's schedule ready • 0 of ${items.length} recorded";
     }
 
     return Row(
@@ -497,48 +765,47 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
-                  Flexible(
-                    child: Text(
-                      'Subject Breakdown',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.4,
-                        color: colors.textPrimary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: completedCount == items.length
-                        ? colors.textMuted.withValues(alpha: 0.15)
-                        : colors.present.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: completedCount == items.length
-                          ? colors.textMuted.withValues(alpha: 0.4)
-                          : colors.present.withValues(alpha: 0.4),
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Text(
-                    '$completedCount/${items.length} Done',
+                  Text(
+                    "Today's Schedule",
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: completedCount == items.length
-                          ? colors.textSecondary
-                          : colors.present,
+                      letterSpacing: -0.4,
+                      color: colors.textPrimary,
                     ),
                   ),
-                ),
-              ],
-            ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: recordedCount > 0
+                          ? colors.present.withValues(alpha: 0.15)
+                          : colors.textMuted.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: recordedCount > 0
+                            ? colors.present.withValues(alpha: 0.4)
+                            : colors.textMuted.withValues(alpha: 0.4),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      '$recordedCount/${items.length} Recorded',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: recordedCount > 0
+                            ? colors.present
+                            : colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 3),
             Text(
               statusText,
@@ -778,7 +1045,7 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'P1 Full → Dark (Done)',
+                      'Real-time Period Status',
                       style: TextStyle(
                         fontSize: 9.5,
                         fontWeight: FontWeight.w600,
@@ -799,15 +1066,39 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
 
                       String stateLabel;
                       Color gemColor;
-                      if (item.liveState == PeriodLiveState.completed) {
-                        stateLabel = 'Done ✓';
-                        gemColor = colors.textMuted;
-                      } else if (item.liveState == PeriodLiveState.inProgress) {
-                        stateLabel = '${(item.remainingFraction * 100).toInt()}% left';
-                        gemColor = item.petalColor;
-                      } else {
-                        stateLabel = item.simpleStartTime;
-                        gemColor = item.petalColor;
+                      Color stateTextColor = colors.textSecondary;
+
+                      switch (item.attendanceStatus) {
+                        case PeriodAttendanceStatus.present:
+                          stateLabel = 'Present ✓';
+                          gemColor = colors.present;
+                          stateTextColor = colors.present;
+                          break;
+                        case PeriodAttendanceStatus.absent:
+                          stateLabel = 'Absent ✗';
+                          gemColor = colors.absent;
+                          stateTextColor = colors.absent;
+                          break;
+                        case PeriodAttendanceStatus.od:
+                          stateLabel = 'On-Duty';
+                          gemColor = colors.od;
+                          stateTextColor = colors.od;
+                          break;
+                        case PeriodAttendanceStatus.inProgress:
+                          stateLabel = '${(item.remainingFraction * 100).toInt()}% left';
+                          gemColor = colors.present;
+                          stateTextColor = colors.present;
+                          break;
+                        case PeriodAttendanceStatus.unrecorded:
+                          stateLabel = 'Pending';
+                          gemColor = colors.textMuted;
+                          stateTextColor = colors.textMuted;
+                          break;
+                        case PeriodAttendanceStatus.upcoming:
+                          stateLabel = item.simpleStartTime;
+                          gemColor = item.petalColor;
+                          stateTextColor = colors.textSecondary;
+                          break;
                       }
 
                       return GestureDetector(
@@ -821,16 +1112,18 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? colors.primary.withValues(alpha: 0.12)
-                                : (item.liveState == PeriodLiveState.completed
+                                : (item.attendanceStatus == PeriodAttendanceStatus.unrecorded
                                     ? colors.surfaceMuted
                                     : colors.glassSurface),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isSelected
                                   ? colors.primary
-                                  : (item.liveState == PeriodLiveState.inProgress
+                                  : (item.attendanceStatus == PeriodAttendanceStatus.inProgress
                                       ? colors.present
-                                      : colors.glassBorder),
+                                      : (item.attendanceStatus == PeriodAttendanceStatus.present
+                                          ? colors.present.withValues(alpha: 0.5)
+                                          : colors.glassBorder)),
                               width: isSelected ? 1.5 : 0.8,
                             ),
                             boxShadow: isSelected ? AppGlass.shadow : null,
@@ -881,7 +1174,7 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
                                       fontWeight: FontWeight.w700,
                                       color: isSelected
                                           ? colors.primary
-                                          : (item.liveState == PeriodLiveState.completed
+                                          : (item.attendanceStatus == PeriodAttendanceStatus.unrecorded
                                               ? colors.textMuted
                                               : colors.textPrimary),
                                     ),
@@ -890,12 +1183,11 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
                                     stateLabel,
                                     style: TextStyle(
                                       fontSize: 9.5,
-                                      fontWeight: item.liveState == PeriodLiveState.inProgress
+                                      fontWeight: (item.attendanceStatus == PeriodAttendanceStatus.inProgress ||
+                                              item.attendanceStatus == PeriodAttendanceStatus.present)
                                           ? FontWeight.w700
                                           : FontWeight.w500,
-                                      color: item.liveState == PeriodLiveState.inProgress
-                                          ? colors.present
-                                          : colors.textSecondary,
+                                      color: stateTextColor,
                                     ),
                                   ),
                                 ],
@@ -918,21 +1210,41 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
   /// Selected Subject Apple Frosted Glass Card
   Widget _buildSelectedSubjectCard(SubjectClassItem item) {
     final colors = context.colors;
-    final isSafe = item.subject.percentage >= widget.minimumRequired;
-    final statusColor = isSafe ? colors.present : colors.absent;
+    final hasSubjectHistory = item.subject.total > 0;
+    final isSafe = hasSubjectHistory && item.subject.percentage >= widget.minimumRequired;
+    final statusColor = hasSubjectHistory
+        ? (isSafe ? colors.present : colors.absent)
+        : colors.textMuted;
 
     String liveStatusText;
     Color liveBadgeColor;
-    if (item.liveState == PeriodLiveState.completed) {
-      liveStatusText = 'Completed ✓';
-      liveBadgeColor = colors.textMuted;
-    } else if (item.liveState == PeriodLiveState.inProgress) {
-      final leftM = (item.endMinutes - _currentDayMinutes).toInt();
-      liveStatusText = 'In Progress (${leftM}m left)';
-      liveBadgeColor = colors.present;
-    } else {
-      liveStatusText = 'Upcoming (Starts ${item.simpleStartTime})';
-      liveBadgeColor = colors.od;
+
+    switch (item.attendanceStatus) {
+      case PeriodAttendanceStatus.present:
+        liveStatusText = 'Present ✓';
+        liveBadgeColor = colors.present;
+        break;
+      case PeriodAttendanceStatus.absent:
+        liveStatusText = 'Absent ✗';
+        liveBadgeColor = colors.absent;
+        break;
+      case PeriodAttendanceStatus.od:
+        liveStatusText = 'On-Duty';
+        liveBadgeColor = colors.od;
+        break;
+      case PeriodAttendanceStatus.inProgress:
+        final leftM = (item.endMinutes - _currentDayMinutes).toInt();
+        liveStatusText = 'In Progress (${leftM}m)';
+        liveBadgeColor = colors.present;
+        break;
+      case PeriodAttendanceStatus.unrecorded:
+        liveStatusText = 'Pending';
+        liveBadgeColor = colors.warning;
+        break;
+      case PeriodAttendanceStatus.upcoming:
+        liveStatusText = 'Starts ${item.simpleStartTime}';
+        liveBadgeColor = colors.od;
+        break;
     }
 
     return Container(
@@ -957,15 +1269,20 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
-                    Expanded(
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 150),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 12,
-                            height: 12,
+                            width: 11,
+                            height: 11,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               gradient: RadialGradient(
@@ -976,35 +1293,27 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
                               border: Border.all(color: Colors.white, width: 1.2),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 7),
                           Flexible(
                             child: Text(
-                              item.periodLabel,
+                              item.timeSlot != null
+                                  ? '${item.periodLabel} • ${item.timeSlot}'
+                                  : item.periodLabel,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
                                 color: colors.textPrimary,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (item.timeSlot != null) ...[
-                            Text(
-                              ' • ${item.timeSlot}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: colors.textSecondary,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
 
                     // Live Status Pill
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
                         color: liveBadgeColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
@@ -1013,7 +1322,7 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
                       child: Text(
                         liveStatusText,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: liveBadgeColor,
                         ),
@@ -1060,7 +1369,7 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
                         border: Border.all(color: statusColor, width: 1.2),
                       ),
                       child: Text(
-                        '${item.subject.percentage.toStringAsFixed(1)}%',
+                        hasSubjectHistory ? '${item.subject.percentage.toStringAsFixed(1)}%' : '--',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -1119,31 +1428,36 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
   }
 
   Widget _buildStatChip(String label, String value, {Color? color, required AppColors colors}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: colors.glassSurface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.glassBorder, width: 0.8),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: color ?? colors.textPrimary,
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2.5),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+        decoration: BoxDecoration(
+          color: colors.glassSurface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.glassBorder, width: 0.8),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: color ?? colors.textPrimary,
+              ),
             ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: colors.textMuted,
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9.5,
+                color: colors.textMuted,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1153,8 +1467,7 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
     final colors = context.colors;
     return Column(
       children: items.map((item) {
-        final isSafe = item.subject.percentage >= widget.minimumRequired;
-        final statusColor = isSafe ? colors.present : colors.absent;
+        final hasSubjectHistory = item.subject.total > 0;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -1168,36 +1481,47 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            leading: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: item.petalColor,
-                border: Border.all(
-                  color: const Color(0xFF383542).withValues(alpha: 0.35),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF2B1A13).withValues(alpha: 0.14),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1.5),
+            leading: Builder(
+              builder: (context) {
+                final badgeColor = (item.attendanceStatus == PeriodAttendanceStatus.present
+                    ? colors.present
+                    : (item.attendanceStatus == PeriodAttendanceStatus.absent
+                        ? colors.absent
+                        : (item.attendanceStatus == PeriodAttendanceStatus.od
+                            ? colors.od
+                            : item.petalColor)));
+                return Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: badgeColor,
+                    border: Border.all(
+                      color: const Color(0xFF383542).withValues(alpha: 0.35),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2B1A13).withValues(alpha: 0.14),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1.5),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  '${item.index + 1}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: item.petalColor.computeLuminance() > 0.45
-                        ? const Color(0xFF1B1922)
-                        : Colors.white,
+                  child: Center(
+                    child: Text(
+                      '${item.index + 1}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: badgeColor.computeLuminance() > 0.45
+                            ? const Color(0xFF1B1922)
+                            : Colors.white,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
             title: Text(
               item.displayName,
@@ -1210,8 +1534,8 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 3.0),
               child: Text(
-                'Code: ${item.code} | Classes: ${item.subject.present}/${item.subject.total}'
-                '${item.timeSlot != null ? " • ${item.simpleStartTime}" : ""}',
+                '${item.periodLabel} • ${item.timeSlot ?? item.simpleStartTime}'
+                '${hasSubjectHistory ? " | ${item.subject.percentage.toStringAsFixed(0)}% Overall" : ""}',
                 style: TextStyle(
                   fontSize: 12,
                   color: colors.textSecondary,
@@ -1221,16 +1545,37 @@ class _SubjectPetalChartCardState extends State<SubjectPetalChartCard>
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
+                color: (item.attendanceStatus == PeriodAttendanceStatus.present
+                    ? colors.present
+                    : (item.attendanceStatus == PeriodAttendanceStatus.absent
+                        ? colors.absent
+                        : (item.attendanceStatus == PeriodAttendanceStatus.od
+                            ? colors.od
+                            : colors.textMuted))).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: statusColor, width: 1),
+                border: Border.all(
+                  color: item.attendanceStatus == PeriodAttendanceStatus.present
+                      ? colors.present
+                      : (item.attendanceStatus == PeriodAttendanceStatus.absent
+                          ? colors.absent
+                          : (item.attendanceStatus == PeriodAttendanceStatus.od
+                              ? colors.od
+                              : colors.textMuted)),
+                  width: 1,
+                ),
               ),
               child: Text(
-                '${item.subject.percentage.toStringAsFixed(1)}%',
+                item.statusLabel ?? item.simpleStartTime,
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: statusColor,
-                  fontSize: 13,
+                  color: item.attendanceStatus == PeriodAttendanceStatus.present
+                      ? colors.present
+                      : (item.attendanceStatus == PeriodAttendanceStatus.absent
+                          ? colors.absent
+                          : (item.attendanceStatus == PeriodAttendanceStatus.od
+                              ? colors.od
+                              : colors.textSecondary)),
+                  fontSize: 12,
                 ),
               ),
             ),
@@ -1301,8 +1646,8 @@ class _NightingalePetalPainter extends CustomPainter {
       final pEnd = center + radialDir * rOuterActive;
 
       // -------------------------------------------------------------
-      // Step A: Draw Dark Backing Base Petal (Liquid Smoky Obsidian)
-      // When class is completed, this dark petal is what's fully visible!
+      // Step A: Draw Backing Base Petal (Semantic Jewel Tone)
+      // When class is completed, this distinct jewel-toned petal is what's fully visible!
       // -------------------------------------------------------------
       final backPath = _buildRoundedPetalPath(
         center: center,
@@ -1313,30 +1658,99 @@ class _NightingalePetalPainter extends CustomPainter {
         cornerRadius: cornerRadius,
       );
 
+      Color baseColorTop;
+      Color baseColorBottom;
+      Color borderColor;
+      Color glowColor;
+
+      switch (item.attendanceStatus) {
+        case PeriodAttendanceStatus.present:
+          baseColorTop = const Color(0xFF166534); // Rich vibrant emerald
+          baseColorBottom = const Color(0xFF0D3820); // Deep midnight forest jade
+          borderColor = const Color(0xFF34D399).withValues(alpha: 0.65);
+          glowColor = const Color(0xFF10B981);
+          break;
+        case PeriodAttendanceStatus.absent:
+          baseColorTop = const Color(0xFF7F1D1D); // Rich ruby wine
+          baseColorBottom = const Color(0xFF450A0A); // Deep dark burgundy
+          borderColor = const Color(0xFFF87171).withValues(alpha: 0.65);
+          glowColor = const Color(0xFFF43F5E);
+          break;
+        case PeriodAttendanceStatus.od:
+          baseColorTop = const Color(0xFF1E40AF); // Royal sapphire blue
+          baseColorBottom = const Color(0xFF172554); // Deep midnight navy
+          borderColor = const Color(0xFF60A5FA).withValues(alpha: 0.65);
+          glowColor = const Color(0xFF3B82F6);
+          break;
+        case PeriodAttendanceStatus.inProgress:
+          baseColorTop = const Color(0xFF14532D);
+          baseColorBottom = const Color(0xFF052E16);
+          borderColor = const Color(0xFF10B981).withValues(alpha: 0.75);
+          glowColor = const Color(0xFF10B981);
+          break;
+        case PeriodAttendanceStatus.unrecorded:
+          baseColorTop = const Color(0xFF334155); // Slate graphite
+          baseColorBottom = const Color(0xFF1E293B); // Deep charcoal
+          borderColor = Colors.white.withValues(alpha: 0.28);
+          glowColor = const Color(0xFF64748B);
+          break;
+        case PeriodAttendanceStatus.upcoming:
+          baseColorTop = const Color(0xFF33303D);
+          baseColorBottom = const Color(0xFF1D1B26);
+          borderColor = Colors.white.withValues(alpha: 0.20);
+          glowColor = item.petalColor;
+          break;
+      }
+
       final backGradient = ui.Gradient.linear(
         pStart,
         center + radialDir * curOuterMax,
         [
-          const Color(0xFF383544).withValues(alpha: 0.90),
-          const Color(0xFF1E1C25).withValues(alpha: 0.96),
+          baseColorTop.withValues(alpha: 0.95),
+          baseColorBottom.withValues(alpha: 0.98),
         ],
       );
       final backPaint = Paint()
         ..style = PaintingStyle.fill
         ..shader = backGradient;
+
+      if (isSelected) {
+        canvas.drawShadow(backPath, glowColor.withValues(alpha: 0.85), 14, true);
+      } else if (item.attendanceStatus == PeriodAttendanceStatus.present ||
+          item.attendanceStatus == PeriodAttendanceStatus.absent ||
+          item.attendanceStatus == PeriodAttendanceStatus.od) {
+        canvas.drawShadow(backPath, glowColor.withValues(alpha: 0.35), 6, true);
+      }
+
       canvas.drawPath(backPath, backPaint);
+
+      // Subtle specular rim sheen on outer arc for finished jewel effect
+      final backGlareGradient = ui.Gradient.linear(
+        center + radialDir * curOuterMax,
+        center + radialDir * (rInner + (curOuterMax - rInner) * 0.60),
+        [
+          Colors.white.withValues(alpha: 0.22),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+      );
+      final backGlarePaint = Paint()
+        ..style = PaintingStyle.fill
+        ..shader = backGlareGradient;
+      canvas.drawPath(backPath, backGlarePaint);
 
       final backStroke = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.9
-        ..color = Colors.white.withValues(alpha: 0.14);
+        ..strokeWidth = isSelected ? 1.8 : 1.0
+        ..color = isSelected ? Colors.white : borderColor;
       canvas.drawPath(backPath, backStroke);
 
       // -------------------------------------------------------------
       // Step B: Draw Active Foreground Petal (Liquid Crystal Petal)
       // Only drawn while period is upcoming or in progress (remaining > 0)!
       // -------------------------------------------------------------
-      if (item.remainingFraction > 0.015) {
+      if (item.remainingFraction > 0.015 &&
+          (item.attendanceStatus == PeriodAttendanceStatus.upcoming ||
+           item.attendanceStatus == PeriodAttendanceStatus.inProgress)) {
         final activePath = _buildRoundedPetalPath(
           center: center,
           rInner: rInner,
@@ -1346,10 +1760,9 @@ class _NightingalePetalPainter extends CustomPainter {
           cornerRadius: cornerRadius,
         );
 
-        // Fluid color: transitions towards dark as class hour drains
         Color activePetalColor = item.petalColor;
         if (item.liveState == PeriodLiveState.inProgress) {
-          activePetalColor = Color.lerp(item.petalColor, const Color(0xFF383544), item.elapsedProgress)!;
+          activePetalColor = const Color(0xFF10B981);
         }
 
         final activeGradient = ui.Gradient.linear(
@@ -1419,46 +1832,56 @@ class _NightingalePetalPainter extends CustomPainter {
       // -------------------------------------------------------------
       // Step C: Draw Percentage & Subject Text on Petal
       // -------------------------------------------------------------
-      final double rText = rInner + (curOuterMax - rInner) * 0.56;
+      final double rText = rInner + (curOuterMax - rInner) * 0.54;
       final textCenter = center + radialDir * rText;
 
-      String topNumberText;
-      String subLabelText;
+      final bool isLightSurface = (item.attendanceStatus == PeriodAttendanceStatus.upcoming)
+          ? item.petalColor.computeLuminance() > 0.45
+          : false;
 
-      final currentPetalLuminance = (item.liveState == PeriodLiveState.completed)
-          ? 0.12 // dark smoky backing
-          : ((item.liveState == PeriodLiveState.inProgress)
-              ? Color.lerp(item.petalColor, const Color(0xFF383544), item.elapsedProgress)!.computeLuminance()
-              : item.petalColor.computeLuminance());
+      final Color mainTextColor = isLightSurface ? const Color(0xFF0F172A) : Colors.white;
+      final Color subjectTextColor = isLightSurface ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
 
-      final bool isLightSurface = currentPetalLuminance > 0.45;
-      final Color mainTextColor = isLightSurface ? const Color(0xFF1B1922) : Colors.white;
-      final Color subTextColor = isLightSurface
-          ? const Color(0xFF1B1922).withValues(alpha: 0.82)
-          : Colors.white.withValues(alpha: 0.85);
+      Color statusAccentColor;
+      String statusText;
 
-      if (item.liveState == PeriodLiveState.completed) {
-        // Class completed: soft white text on dark smoky backing petal
-        topNumberText = 'P${item.index + 1} • ✓${item.subject.percentage.toStringAsFixed(0)}%';
-        subLabelText = 'Done';
-      } else if (item.liveState == PeriodLiveState.inProgress) {
-        // In Progress: displays remaining % and short name
-        topNumberText = 'P${item.index + 1} • ${(item.remainingFraction * 100).toInt()}% left';
-        subLabelText = 'Live';
-      } else {
-        // Upcoming: displays attendance % and start time
-        topNumberText = 'P${item.index + 1} • ${item.subject.percentage.toStringAsFixed(0)}%';
-        subLabelText = item.simpleStartTime;
+      switch (item.attendanceStatus) {
+        case PeriodAttendanceStatus.present:
+          statusText = 'Present ✓';
+          statusAccentColor = isLightSurface ? const Color(0xFF059669) : const Color(0xFF4ADE80);
+          break;
+        case PeriodAttendanceStatus.absent:
+          statusText = 'Absent ✗';
+          statusAccentColor = isLightSurface ? const Color(0xFFDC2626) : const Color(0xFFFCA5A5);
+          break;
+        case PeriodAttendanceStatus.od:
+          statusText = 'On-Duty';
+          statusAccentColor = isLightSurface ? const Color(0xFF2563EB) : const Color(0xFF93C5FD);
+          break;
+        case PeriodAttendanceStatus.inProgress:
+          statusText = '${(item.remainingFraction * 100).toInt()}% left';
+          statusAccentColor = isLightSurface ? const Color(0xFF059669) : const Color(0xFF34D399);
+          break;
+        case PeriodAttendanceStatus.unrecorded:
+          statusText = 'Pending';
+          statusAccentColor = isLightSurface ? const Color(0xFFD97706) : const Color(0xFFFCD34D);
+          break;
+        case PeriodAttendanceStatus.upcoming:
+          statusText = item.simpleStartTime;
+          statusAccentColor = isLightSurface ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+          break;
       }
 
       _drawPetalText(
         canvas: canvas,
         position: textCenter,
-        numberText: topNumberText,
-        labelText: item.shortName,
-        subLabel: subLabelText,
+        periodNumber: item.index + 1,
+        statusText: statusText,
+        subjectName: item.shortName,
         mainColor: mainTextColor,
-        subColor: subTextColor,
+        accentColor: statusAccentColor,
+        subjectColor: subjectTextColor,
+        isLightSurface: isLightSurface,
         count: count,
       );
     }
@@ -1508,27 +1931,63 @@ class _NightingalePetalPainter extends CustomPainter {
     String hubBottomText;
     Color hubTopColor = const Color(0xFFFFF8F0);
 
-    final completedCount = items.where((e) => e.liveState == PeriodLiveState.completed).length;
-    final inProgressItem = items.where((e) => e.liveState == PeriodLiveState.inProgress).firstOrNull;
+    final recordedItems = items.where((e) =>
+        e.attendanceStatus == PeriodAttendanceStatus.present ||
+        e.attendanceStatus == PeriodAttendanceStatus.absent ||
+        e.attendanceStatus == PeriodAttendanceStatus.od
+    ).toList();
+    final recordedCount = recordedItems.length;
+    final attendedCount = items.where((e) =>
+        e.attendanceStatus == PeriodAttendanceStatus.present ||
+        e.attendanceStatus == PeriodAttendanceStatus.od
+    ).length;
+    final inProgressItem = items.where((e) => e.attendanceStatus == PeriodAttendanceStatus.inProgress).firstOrNull;
 
     if (selectedIndex != null && selectedIndex! < items.length) {
       final sel = items[selectedIndex!];
-      hubTopText = '${sel.subject.percentage.toStringAsFixed(1)}%';
+      switch (sel.attendanceStatus) {
+        case PeriodAttendanceStatus.present:
+          hubTopText = 'Present ✓';
+          hubTopColor = const Color(0xFF34D399);
+          break;
+        case PeriodAttendanceStatus.absent:
+          hubTopText = 'Absent ✗';
+          hubTopColor = const Color(0xFFFB7185);
+          break;
+        case PeriodAttendanceStatus.od:
+          hubTopText = 'On-Duty';
+          hubTopColor = const Color(0xFF60A5FA);
+          break;
+        case PeriodAttendanceStatus.inProgress:
+          hubTopText = '${(sel.remainingFraction * 100).toInt()}% Left';
+          hubTopColor = const Color(0xFF34D399);
+          break;
+        case PeriodAttendanceStatus.unrecorded:
+          hubTopText = 'Pending';
+          hubTopColor = const Color(0xFFFCD34D);
+          break;
+        case PeriodAttendanceStatus.upcoming:
+          hubTopText = sel.simpleStartTime;
+          hubTopColor = Colors.white;
+          break;
+      }
       hubBottomText = sel.shortName;
-      final isSafe = sel.subject.percentage >= 75.0;
-      hubTopColor = isSafe ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
-    } else if (completedCount == count) {
-      hubTopText = 'All Done';
-      hubBottomText = '$count/$count Dark ✓';
-      hubTopColor = const Color(0xFFD9C7B8);
+    } else if (recordedCount > 0) {
+      hubTopText = '$attendedCount/$recordedCount';
+      hubBottomText = 'Present';
+      hubTopColor = const Color(0xFF34D399);
     } else if (inProgressItem != null) {
       hubTopText = inProgressItem.periodLabel;
       hubBottomText = '${(inProgressItem.remainingFraction * 100).toInt()}% Left';
-      hubTopColor = const Color(0xFF10B981);
+      hubTopColor = const Color(0xFF34D399);
+    } else if (items.any((e) => e.attendanceStatus == PeriodAttendanceStatus.unrecorded)) {
+      hubTopText = 'Pending';
+      hubBottomText = '0/$count Recorded';
+      hubTopColor = const Color(0xFFFCD34D);
     } else {
-      hubTopText = '${overallAvg.toStringAsFixed(1)}%';
-      hubBottomText = 'All Upcoming';
-      hubTopColor = const Color(0xFFFFF8F0);
+      hubTopText = 'Today';
+      hubBottomText = '$count Periods';
+      hubTopColor = Colors.white;
     }
 
     _drawHubText(
@@ -1549,8 +2008,12 @@ class _NightingalePetalPainter extends CustomPainter {
     required double cornerRadius,
   }) {
     final path = Path();
+    if (rOuter <= rInner + 0.5) return path;
+
     final sweep = aEnd - aStart;
-    final r = cornerRadius.clamp(2.0, (rOuter - rInner) * 0.35);
+    final maxR = math.max(0.1, (rOuter - rInner) * 0.35);
+    final minR = math.min(1.0, maxR);
+    final r = cornerRadius.clamp(minR, maxR);
 
     final dThetaOut = (r / rOuter).clamp(0.01, sweep * 0.35);
     final dThetaIn = (r / rInner).clamp(0.01, sweep * 0.35);
@@ -1606,69 +2069,75 @@ class _NightingalePetalPainter extends CustomPainter {
   void _drawPetalText({
     required Canvas canvas,
     required Offset position,
-    required String numberText,
-    required String labelText,
-    required String subLabel,
+    required int periodNumber,
+    required String statusText,
+    required String subjectName,
     required Color mainColor,
-    required Color subColor,
+    required Color accentColor,
+    required Color subjectColor,
+    required bool isLightSurface,
     required int count,
   }) {
     final double numFontSize = count >= 7 ? 10.5 : 12.0;
-    final double labelFontSize = count >= 7 ? 8.5 : 9.5;
-    final double subFontSize = count >= 7 ? 7.0 : 7.5;
+    final double subjectFontSize = count >= 7 ? 9.5 : 10.5;
 
-    final tpNum = TextPainter(
+    final shadow = Shadow(
+      color: (isLightSurface ? Colors.white : Colors.black).withValues(alpha: 0.65),
+      blurRadius: 3.5,
+      offset: const Offset(0, 1),
+    );
+
+    // Line 1: Period number + Status badge
+    final tpLine1 = TextPainter(
       text: TextSpan(
-        text: numberText,
         style: TextStyle(
-          color: mainColor,
           fontSize: numFontSize,
           fontWeight: FontWeight.w800,
-          letterSpacing: -0.3,
+          letterSpacing: -0.2,
+          shadows: [shadow],
         ),
+        children: [
+          TextSpan(
+            text: 'P$periodNumber • ',
+            style: TextStyle(color: mainColor),
+          ),
+          TextSpan(
+            text: statusText,
+            style: TextStyle(
+              color: accentColor,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
       textDirection: TextDirection.ltr,
     )..layout();
 
-    final tpLabel = TextPainter(
+    // Line 2: Subject name (Single clean occurrence, high contrast)
+    final tpLine2 = TextPainter(
       text: TextSpan(
-        text: labelText,
+        text: subjectName,
         style: TextStyle(
-          color: subColor,
-          fontSize: labelFontSize,
+          color: subjectColor,
+          fontSize: subjectFontSize,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
+          shadows: [shadow],
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
 
-    final tpSub = TextPainter(
-      text: TextSpan(
-        text: subLabel,
-        style: TextStyle(
-          color: subColor.withValues(alpha: 0.8),
-          fontSize: subFontSize,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final totalHeight = tpNum.height + tpLabel.height + tpSub.height + 1.5;
+    final totalHeight = tpLine1.height + tpLine2.height + 2.5;
     final startY = position.dy - totalHeight / 2;
 
-    tpNum.paint(
+    tpLine1.paint(
       canvas,
-      Offset(position.dx - tpNum.width / 2, startY),
+      Offset(position.dx - tpLine1.width / 2, startY),
     );
-    tpLabel.paint(
+    tpLine2.paint(
       canvas,
-      Offset(position.dx - tpLabel.width / 2, startY + tpNum.height + 0.5),
-    );
-    tpSub.paint(
-      canvas,
-      Offset(position.dx - tpSub.width / 2, startY + tpNum.height + tpLabel.height + 1.0),
+      Offset(position.dx - tpLine2.width / 2, startY + tpLine1.height + 2.5),
     );
   }
 
@@ -1684,9 +2153,16 @@ class _NightingalePetalPainter extends CustomPainter {
         text: topText,
         style: TextStyle(
           color: topColor,
-          fontSize: 12.5,
+          fontSize: 13.0,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.3,
+          shadows: [
+            Shadow(
+              color: Colors.black.withValues(alpha: 0.6),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -1695,21 +2171,28 @@ class _NightingalePetalPainter extends CustomPainter {
     final tpBottom = TextPainter(
       text: TextSpan(
         text: bottomText,
-        style: const TextStyle(
-          color: Color(0xFFD9C7B8),
-          fontSize: 8.5,
-          fontWeight: FontWeight.w600,
+        style: TextStyle(
+          color: const Color(0xFFF1F5F9),
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0.2,
+          shadows: [
+            Shadow(
+              color: Colors.black.withValues(alpha: 0.6),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
 
-    final totalHeight = tpTop.height + tpBottom.height + 1;
+    final totalHeight = tpTop.height + tpBottom.height + 1.5;
     final startY = center.dy - totalHeight / 2;
 
     tpTop.paint(canvas, Offset(center.dx - tpTop.width / 2, startY));
-    tpBottom.paint(canvas, Offset(center.dx - tpBottom.width / 2, startY + tpTop.height + 1));
+    tpBottom.paint(canvas, Offset(center.dx - tpBottom.width / 2, startY + tpTop.height + 1.5));
   }
 
   @override

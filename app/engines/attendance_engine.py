@@ -12,6 +12,7 @@ from app.models.student import Student
 from app.models.attendance import ClassSession, AttendanceRecord, SessionStatus, AttendanceStatus, RecognitionSource, ReviewStatus
 from app.models.audit import AuditLog
 from app.engines.timetable_engine import get_active_and_upcoming_class, get_ist_now, format_time_12h
+from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -319,6 +320,20 @@ def admin_correct_attendance(
 
     db.commit()
     db.refresh(record)
+
+    try:
+        NotificationService.send_attendance_marking_notifications(
+            db=db,
+            session_id=session_id,
+            records_data=[{
+                "student_id": student_id,
+                "status": new_status.value,
+                "od_reason": reason if new_status == AttendanceStatus.OD else None,
+            }],
+        )
+    except Exception as e:
+        logger.error(f"Failed to send admin attendance correction notification: {e}", exc_info=True)
+
     return record
 
 
@@ -329,7 +344,7 @@ def get_faculty_available_attendance_periods(
 ) -> Dict[str, Any]:
     """
     Evaluates attendance availability for the faculty attendance-entry window:
-    - TODAY: completed periods only (now_local >= scheduled period end_time)
+    - TODAY: available periods (now_local >= scheduled period start_time)
     - YESTERDAY: all scheduled periods
     Strictly uses Asia/Kolkata local time.
     """
@@ -391,7 +406,7 @@ def get_faculty_available_attendance_periods(
                 can_mark = True
                 lock_reason = None
         else:
-            if current_time_str >= end:
+            if current_time_str >= start:
                 if has_records or (session and session.status == SessionStatus.COMPLETED):
                     status_str = "ALREADY_MARKED"
                     can_mark = False
@@ -400,14 +415,10 @@ def get_faculty_available_attendance_periods(
                     status_str = "AVAILABLE"
                     can_mark = True
                     lock_reason = None
-            elif start <= current_time_str < end:
-                status_str = "LOCKED"
-                can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
             else:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
+                lock_reason = f"Attendance opens at {format_time_12h(start)}"
 
         return {
             "timetable_entry_id": entry.id,
@@ -527,7 +538,7 @@ def get_faculty_periods_for_date(
                 can_mark = True
                 lock_reason = None
         else:
-            if current_time_str >= end:
+            if current_time_str >= start:
                 if has_records or (session and session.status == SessionStatus.COMPLETED):
                     status_str = "ALREADY_MARKED"
                     can_mark = True
@@ -539,7 +550,7 @@ def get_faculty_periods_for_date(
             else:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
+                lock_reason = f"Attendance opens at {format_time_12h(start)}"
 
         periods.append({
             "timetable_entry_id": entry.id,
@@ -632,13 +643,13 @@ def get_faculty_attendance_roster(
             detail="You are not authorized to mark attendance for this class."
         )
 
-    # 5. If date is today, validate period has ended
+    # 5. If date is today, validate period has started
     current_time_str = dt.strftime("%H:%M")
     if date_str == today_date_str:
-        if current_time_str < entry.period.end_time:
+        if current_time_str < entry.period.start_time:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Attendance isn't open yet. This period ends at {format_time_12h(entry.period.end_time)}."
+                detail=f"Attendance isn't open yet. This period starts at {format_time_12h(entry.period.start_time)}."
             )
 
     # 6. Check existing session and records
@@ -716,7 +727,7 @@ def submit_faculty_attendance(
     - Date window (today or yesterday)
     - Timetable day of week
     - Faculty authorization
-    - Period end time (for today)
+    - Period start time (for today)
     - Student enrollment
     Creates or reuses ClassSession with exact class date.
     Deduplicates attendance records and creates an AuditLog.
@@ -768,13 +779,13 @@ def submit_faculty_attendance(
             detail="You are not authorized to mark attendance for this class."
         )
 
-    # 5. If date is today, re-validate period end time
+    # 5. If date is today, re-validate period start time
     current_time_str = dt.strftime("%H:%M")
     if date_str == today_date_str:
-        if current_time_str < entry.period.end_time:
+        if current_time_str < entry.period.start_time:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Attendance isn't open yet. This period ends at {format_time_12h(entry.period.end_time)}."
+                detail=f"Attendance isn't open yet. This period starts at {format_time_12h(entry.period.start_time)}."
             )
 
     # 6. Validate all student IDs belong to the class
@@ -874,6 +885,15 @@ def submit_faculty_attendance(
     db.commit()
     db.refresh(session)
 
+    try:
+        NotificationService.send_attendance_marking_notifications(
+            db=db,
+            session_id=session.id,
+            records_data=records,
+        )
+    except Exception as e:
+        logger.error(f"Failed to send faculty attendance notifications: {e}", exc_info=True)
+
     return {
         "message": "Attendance submitted successfully.",
         "session_id": session.id,
@@ -891,7 +911,7 @@ def get_class_advisor_available_periods(
 ) -> Dict[str, Any]:
     """
     Evaluates periods for the Class Advisor's assigned class:
-    - TODAY: completed periods only (current_time >= period end_time)
+    - TODAY: completed or active periods (current_time >= period start_time)
     - YESTERDAY: all scheduled periods
     - Institutional Lunch Break (12:50 - 13:40): strictly excluded from attendance slots.
     """
@@ -958,7 +978,7 @@ def get_class_advisor_available_periods(
                 can_mark = True
                 lock_reason = None
         else:
-            if current_time_str >= end:
+            if current_time_str >= start:
                 if has_records:
                     status_str = "ALREADY_MARKED"
                     can_mark = True
@@ -970,7 +990,7 @@ def get_class_advisor_available_periods(
             else:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
+                lock_reason = f"Attendance opens at {format_time_12h(start)}"
 
         subject_fac_name = entry.assignment.display_faculty_name if entry.assignment else "Unassigned"
 
@@ -1112,7 +1132,7 @@ def get_class_advisor_periods_for_date(
                 can_mark = True
                 lock_reason = None
         else:
-            if current_time_str >= end:
+            if current_time_str >= start:
                 if has_records:
                     status_str = "ALREADY_MARKED"
                     can_mark = True
@@ -1124,7 +1144,7 @@ def get_class_advisor_periods_for_date(
             else:
                 status_str = "LOCKED"
                 can_mark = False
-                lock_reason = f"Attendance opens after this period ends at {format_time_12h(end)}"
+                lock_reason = f"Attendance opens at {format_time_12h(start)}"
 
         subject_fac_name = entry.assignment.display_faculty_name if entry.assignment else "Unassigned"
 
@@ -1230,12 +1250,12 @@ def get_class_advisor_attendance_roster(
             detail=f"Timetable slot #{timetable_entry_id} is for {entry.day_of_week}, which does not match date {date_str} ({req_day_name})."
         )
 
-    # 5. For today, period must have ended
+    # 5. For today, period must have started
     current_time_str = dt.strftime("%H:%M")
-    if date_str == today_date_str and current_time_str < entry.period.end_time:
+    if date_str == today_date_str and current_time_str < entry.period.start_time:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Attendance cannot be entered before the period ends at {format_time_12h(entry.period.end_time)}."
+            detail=f"Attendance cannot be entered before the period starts at {format_time_12h(entry.period.start_time)}."
         )
 
     # 6. Existing records
@@ -1363,12 +1383,12 @@ def submit_class_advisor_attendance(
             detail=f"Timetable slot is for {entry.day_of_week}, which does not match date {date_str} ({req_day_name})."
         )
 
-    # 5. Period end time for today
+    # 5. Period start time for today
     current_time_str = dt.strftime("%H:%M")
-    if date_str == today_date_str and current_time_str < entry.period.end_time:
+    if date_str == today_date_str and current_time_str < entry.period.start_time:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Attendance cannot be entered before the period ends at {format_time_12h(entry.period.end_time)}."
+            detail=f"Attendance cannot be entered before the period starts at {format_time_12h(entry.period.start_time)}."
         )
 
     # 6. Validate student enrollment
@@ -1493,6 +1513,15 @@ def submit_class_advisor_attendance(
     db.add(audit_log)
     db.commit()
     db.refresh(session)
+
+    try:
+        NotificationService.send_attendance_marking_notifications(
+            db=db,
+            session_id=session.id,
+            records_data=records,
+        )
+    except Exception as e:
+        logger.error(f"Failed to send class advisor attendance notifications: {e}", exc_info=True)
 
     # 10. Compute updated daily summary
     daily_summary = get_class_daily_summary(db, class_sec.id, date_str)

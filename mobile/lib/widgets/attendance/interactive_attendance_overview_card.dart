@@ -126,13 +126,14 @@ class _InteractiveAttendanceOverviewCardState
     final summary = widget.summary;
     final statusColor = _getStatusColor(summary.attendanceStatus, colors);
 
-    // Calculate percentages
+    // Calculate mutually exclusive percentages for activity rings & legend pills
     final total = summary.total > 0 ? summary.total : 1;
+    final purePresent = summary.purePresentCount;
     final presentPct = summary.total > 0
-        ? (summary.present / total) * 100.0
-        : (summary.percentage > 0 ? summary.percentage : 0.0);
-    final absentPct = (summary.absent / total) * 100.0;
-    final odPct = (summary.od / total) * 100.0;
+        ? (purePresent / total) * 100.0
+        : 0.0;
+    final absentPct = summary.total > 0 ? (summary.absent / total) * 100.0 : 0.0;
+    final odPct = summary.total > 0 ? (summary.od / total) * 100.0 : 0.0;
 
     return GlassCard(
       variant: GlassCardVariant.elevated,
@@ -272,10 +273,12 @@ class _InteractiveAttendanceOverviewCardState
                     final curAbsent = absentPct * _anim.value;
                     final curOd = odPct * _anim.value;
                     final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-                    final activePresent = disableAnimations ? presentPct : curPresent;
-                    final displayPercentage = (presentPct % 1 == 0)
-                        ? '${activePresent.round()}%'
-                        : '${activePresent.toStringAsFixed(1)}%';
+                    final overallPct = summary.percentage;
+                    final curOverall = overallPct * _anim.value;
+                    final activeOverall = disableAnimations ? overallPct : curOverall;
+                    final displayPercentage = (activeOverall % 1 == 0)
+                        ? '${activeOverall.round()}%'
+                        : '${activeOverall.toStringAsFixed(1)}%';
 
                     return Stack(
                       alignment: Alignment.center,
@@ -365,7 +368,7 @@ class _InteractiveAttendanceOverviewCardState
               color: colors.present,
               percentage: presentPct,
               label: 'Present',
-              count: '${summary.present} / ${summary.total}',
+              count: '${summary.purePresentCount} / ${summary.total}',
               colors: colors,
             ),
             _buildGlassLegendPill(
@@ -378,7 +381,7 @@ class _InteractiveAttendanceOverviewCardState
             _buildGlassLegendPill(
               color: colors.od,
               percentage: odPct,
-              label: 'On-Duty (OD)',
+              label: 'On-Duty',
               count: '${summary.od} / ${summary.total}',
               colors: colors,
             ),
@@ -510,7 +513,8 @@ class _InteractiveAttendanceOverviewCardState
     required AppColors colors,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      constraints: const BoxConstraints(maxWidth: 260.0),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
       decoration: BoxDecoration(
         color: colors.glassSurfaceSubtle,
         borderRadius: AppRadius.pillBorder,
@@ -528,8 +532,8 @@ class _InteractiveAttendanceOverviewCardState
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 10,
-            height: 10,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: color,
@@ -542,22 +546,25 @@ class _InteractiveAttendanceOverviewCardState
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 5),
           Text(
             '${percentage.toStringAsFixed(1)}%',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12.5,
               fontWeight: FontWeight.w800,
               color: colors.textPrimary,
             ),
           ),
-          const SizedBox(width: 5),
-          Text(
-            '$label ($count)',
-            style: TextStyle(
-              fontSize: 11,
-              color: colors.textSecondary,
-              fontWeight: FontWeight.w500,
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              '$label ($count)',
+              style: TextStyle(
+                fontSize: 10,
+                color: colors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1419,63 +1426,6 @@ class _InteractiveAttendanceOverviewCardState
   // ─────────────────────────────────────────────────────────────────────────────
   // Data Generator from January onwards
   // ─────────────────────────────────────────────────────────────────────────────
-  static const Map<String, List<Map<String, String>>> _fallbackCurriculum = {
-    'Monday': [
-      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'FDS', 'name': 'Foundations of Data Science'},
-      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
-      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'FDS LAB', 'name': 'Foundations of Data Science Laboratory'},
-      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'FDS LAB', 'name': 'Foundations of Data Science Laboratory'},
-      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
-      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
-      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'DS', 'name': 'Data Structures'},
-    ],
-    'Tuesday': [
-      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
-      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'FDS', 'name': 'Foundations of Data Science'},
-      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
-      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
-      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
-      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'LIB', 'name': 'Library Hour'},
-      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
-    ],
-    'Wednesday': [
-      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
-      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
-      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
-      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'DS', 'name': 'Data Structures'},
-      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'ACE-I', 'name': 'Aptitude & Communication Enhancement I'},
-      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'ACE-I', 'name': 'Aptitude & Communication Enhancement I'},
-      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'ACE-I', 'name': 'Aptitude & Communication Enhancement I'},
-    ],
-    'Thursday': [
-      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'DPCO', 'name': 'Digital Principles & Computer Organization'},
-      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'IKS', 'name': 'Indian Knowledge System'},
-      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'DS LAB', 'name': 'Data Structures Laboratory'},
-      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'DS LAB', 'name': 'Data Structures Laboratory'},
-      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'IIC', 'name': 'Innovation & Incubation Cell'},
-      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'DS', 'name': 'Data Structures'},
-      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'FDS', 'name': 'Foundations of Data Science'},
-    ],
-    'Friday': [
-      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'DS', 'name': 'Data Structures'},
-      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'FDS', 'name': 'Foundations of Data Science'},
-      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'JAVA LAB', 'name': 'Java Programming Laboratory'},
-      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'JAVA LAB', 'name': 'Java Programming Laboratory'},
-      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'TWM', 'name': 'Tutor Ward Meeting'},
-      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
-      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
-    ],
-    'Saturday': [
-      {'num': '1', 'time': '09:10 AM - 10:00 AM', 'code': 'IKS', 'name': 'Indian Knowledge System'},
-      {'num': '2', 'time': '10:00 AM - 10:50 AM', 'code': 'OOPS', 'name': 'Object Oriented Programming Systems'},
-      {'num': '3', 'time': '11:10 AM - 12:00 PM', 'code': 'DMC', 'name': 'Discrete Mathematics for Computing'},
-      {'num': '4', 'time': '12:00 PM - 12:50 PM', 'code': 'DS', 'name': 'Data Structures'},
-      {'num': '5', 'time': '01:40 PM - 02:30 PM', 'code': 'LIB', 'name': 'Library Hour'},
-      {'num': '6', 'time': '02:30 PM - 03:20 PM', 'code': 'ASSOC', 'name': 'Department Association Hour'},
-      {'num': '7', 'time': '03:20 PM - 04:10 PM', 'code': 'TWM', 'name': 'Tutor Ward Meeting'},
-    ],
-  };
-
   List<_DayAttendanceData> _generateMonthDays(int year, int month) {
     final List<_DayAttendanceData> list = [];
     final daysInMonth = DateTime(year, month + 1, 0).day;
@@ -1491,7 +1441,7 @@ class _InteractiveAttendanceOverviewCardState
       final weekdayName = _getWeekdayShort(date.weekday);
       final targetDayName = dayNames[date.weekday - 1];
 
-      // Check real matching entry
+      // Check real matching entry from backend
       DateWiseEntryModel? matchingEntry;
       for (final e in existingEntries) {
         if (e.date == dateStr) {
@@ -1507,7 +1457,8 @@ class _InteractiveAttendanceOverviewCardState
         return d == td || (d.length >= 3 && td.startsWith(d));
       }).toList();
 
-      final int scheduledCount = isSunday ? 0 : (dayTimetable.isNotEmpty ? dayTimetable.length : 7);
+      final bool hasTimetableForDay = dayTimetable.isNotEmpty;
+      final int scheduledCount = dayTimetable.length;
 
       String status;
       String label;
@@ -1515,12 +1466,8 @@ class _InteractiveAttendanceOverviewCardState
       List<PeriodEntryModel> periods = [];
       int attended = 0;
 
-      if (isSunday) {
-        status = 'WEEKEND';
-        label = 'WEEKEND';
-        details = 'College holiday / Sunday';
-        attended = 0;
-      } else if (matchingEntry != null) {
+      if (matchingEntry != null) {
+        // Authoritative recorded attendance for this date (even if on weekend/special working day)
         periods = matchingEntry.periods;
         int pPresent = 0;
         int pAbsent = 0;
@@ -1542,7 +1489,7 @@ class _InteractiveAttendanceOverviewCardState
         }
 
         attended = pPresent + pOd;
-        final totalEffective = pRecorded > 0 ? pRecorded : scheduledCount;
+        final totalEffective = pRecorded > 0 ? pRecorded : (scheduledCount > 0 ? scheduledCount : periods.length);
 
         if (pRecorded == 0) {
           status = 'NO_DATA';
@@ -1561,8 +1508,15 @@ class _InteractiveAttendanceOverviewCardState
           label = 'PARTIAL ATTENDANCE';
           details = '$attended of $totalEffective periods attended ($pAbsent absent)';
         }
+      } else if (!hasTimetableForDay) {
+        // Genuine non-working day (Sunday or non-working day with 0 timetable entries)
+        status = 'WEEKEND';
+        label = isSunday ? 'WEEKEND' : 'OFF DAY';
+        details = isSunday ? 'College holiday / Sunday' : 'No classes scheduled';
+        attended = 0;
+        periods = [];
       } else {
-        // Genuine unrecorded day — NEVER synthesize fake P/A/OD!
+        // Genuine unrecorded day with scheduled timetable
         final thisDate = DateTime(year, month, day);
         if (thisDate.isAfter(todayDate)) {
           status = 'FUTURE';
@@ -1580,28 +1534,15 @@ class _InteractiveAttendanceOverviewCardState
         attended = 0;
 
         // Populate genuine timetable slots marked as NOT_ENTERED
-        if (dayTimetable.isNotEmpty) {
-          for (int i = 0; i < dayTimetable.length; i++) {
-            final t = dayTimetable[i];
-            periods.add(PeriodEntryModel(
-              periodNumber: t.periodNumber ?? (i + 1),
-              periodName: t.periodName ?? 'Period ${t.periodNumber ?? (i + 1)}',
-              subjectCode: t.subjectCode ?? '',
-              subjectName: t.subjectName ?? '',
-              status: 'NOT_ENTERED',
-            ));
-          }
-        } else {
-          final fallbackSlots = _fallbackCurriculum[targetDayName] ?? [];
-          for (final s in fallbackSlots) {
-            periods.add(PeriodEntryModel(
-              periodNumber: int.tryParse(s['num'] ?? '1') ?? 1,
-              periodName: 'Period ${s['num']}',
-              subjectCode: s['code'] ?? '',
-              subjectName: s['name'] ?? '',
-              status: 'NOT_ENTERED',
-            ));
-          }
+        for (int i = 0; i < dayTimetable.length; i++) {
+          final t = dayTimetable[i];
+          periods.add(PeriodEntryModel(
+            periodNumber: t.periodNumber ?? (i + 1),
+            periodName: t.periodName ?? 'Period ${t.periodNumber ?? (i + 1)}',
+            subjectCode: t.subjectCode ?? '',
+            subjectName: t.subjectName ?? '',
+            status: 'NOT_ENTERED',
+          ));
         }
       }
 
@@ -1615,6 +1556,10 @@ class _InteractiveAttendanceOverviewCardState
         periods: periods,
       );
 
+      final int effectiveTotal = (matchingEntry != null && matchingEntry.periods.isNotEmpty)
+          ? matchingEntry.periods.length
+          : (hasTimetableForDay ? scheduledCount : 0);
+
       list.add(_DayAttendanceData(
         dayNumber: day,
         dateStr: dateStr,
@@ -1624,7 +1569,7 @@ class _InteractiveAttendanceOverviewCardState
         details: details,
         entry: dateEntry,
         periodsAttended: attended,
-        totalPeriods: isSunday ? 0 : scheduledCount,
+        totalPeriods: effectiveTotal,
       ));
     }
 

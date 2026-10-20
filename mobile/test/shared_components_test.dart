@@ -150,7 +150,7 @@ void main() {
       expect(find.text('Network Security'), findsOneWidget);
       expect(find.text('Dr. Shankar'), findsOneWidget);
       expect(find.text('NOW'), findsOneWidget);
-      expect(find.text('LUNCH BREAK (Strictly Excluded)'), findsOneWidget);
+      expect(find.text('LUNCH BREAK (Strictly Excluded)'), findsNothing);
     });
 
     testWidgets('StudentRow and AttendanceRow render and handle marking interactions', (tester) async {
@@ -214,7 +214,7 @@ void main() {
       expect(find.text('P1'), findsOneWidget);
       expect(find.text('P'), findsOneWidget);
       expect(find.text('A'), findsOneWidget);
-      expect(find.byIcon(Icons.restaurant_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.restaurant_rounded), findsNothing);
     });
 
     testWidgets('SearchField and AppFilterChip handle text entry and selection', (tester) async {

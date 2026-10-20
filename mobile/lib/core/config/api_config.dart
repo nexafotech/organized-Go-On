@@ -1,6 +1,28 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
+  /// Zoho Catalyst AppSail Endpoints
+  static const String catalystProductionUrl = 'https://go-on-backend-50046794941.catalystappsail.in';
+  static const String catalystDevelopmentUrl = 'https://go-on-backend-50046794941.development.catalystappsail.in';
+
+  /// Active Live Public Cloud URL (Accessible from mobile data & any Wi-Fi)
+  static const String cloudflareTunnelUrl = 'https://lenders-rain-webpage-screensaver.trycloudflare.com';
+
+  /// Production Backend URL (Defaults to verified active public cloud endpoint)
+  static const String productionUrl = cloudflareTunnelUrl;
+
+  /// Local Development Endpoints & LAN Fallback
+  static const String localDevUrl = 'http://127.0.0.1:8000';
+  static const String localLanUrl = 'http://192.168.29.56:8000';
+  static const String emulatorUrl = 'http://10.0.2.2:8000';
+
+  static List<String> get candidateEndpoints => [
+    cloudflareTunnelUrl,
+    localLanUrl,
+    localDevUrl,
+    emulatorUrl,
+  ];
+
   static String get defaultUrl {
     if (kIsWeb) {
       final origin = Uri.base.origin;
@@ -10,12 +32,12 @@ class ApiConfig {
         }
         return origin;
       }
-      return 'http://127.0.0.1:8000';
+      return productionUrl;
     }
-    return 'http://127.0.0.1:8000';
+    // Production default: Always use permanent public HTTPS URL
+    return productionUrl;
   }
 
-  static const String hotspotUrl = 'http://10.254.103.195:8000';
   static String? _customBaseUrl;
 
   static String get baseUrl => _customBaseUrl ?? defaultUrl;
@@ -61,6 +83,8 @@ class ApiConfig {
   static const String studentEnrollReset = '/api/v1/student/enroll-face/reset';
 
   static const String facultyTimetable = '/api/v1/faculty/timetable';
+  static const String facultyProfile = '/api/v1/faculty/profile';
+  static const String facultyAvatar = '/api/v1/faculty/avatar';
   static const String facultyActiveClass = '/api/v1/faculty/active-class';
   static const String facultySessionsStart = '/api/v1/faculty/sessions/start';
   static const String facultySessionsActive = '/api/v1/faculty/sessions/active';
@@ -81,6 +105,9 @@ class ApiConfig {
 
   // Class Advisor Endpoints
   static const String facultyClassAdvisorClass = '/api/v1/faculty/class-advisor/class';
+  static const String facultyClassAdvisorTimetable = '/api/v1/faculty/class-advisor/timetable';
+  static String facultyClassTimetable(int classId) =>
+      '/api/v1/faculty/class/$classId/timetable';
   static const String facultyClassAdvisorAvailablePeriods = '/api/v1/faculty/class-advisor/available-periods';
   static String facultyClassAdvisorPeriodsForDate(String date) =>
       '/api/v1/faculty/class-advisor/periods-for-date?date=$date';

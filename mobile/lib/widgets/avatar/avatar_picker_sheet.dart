@@ -1,10 +1,18 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../models/student_model.dart';
 
-/// AvatarPickerSheet — Modal sheet for selecting from the 16 illustrated avatars
-/// Inspired by the minimalist illustrated character design reference.
+/// AvatarPickerSheet — High-performance modal sheet for selecting from the 16 illustrated avatars.
+/// Optimized with:
+/// - Pre-caching of all 16 bundled avatar assets to eliminate image decode latency
+/// - Granular ValueNotifier selection state to avoid full grid re-renders on tap
+/// - Reusable Image child caching to prevent frame drops during rapid selection
+/// - Non-blocking save with 8s timeout, fast-path for unchanged avatar, and clear retry on failure
+/// - Responsive 3-column layout matching the Galaxy S24 reference UI
 class AvatarPickerSheet extends StatefulWidget {
   final String currentAvatarId;
   final String userSeed;
@@ -63,17 +71,44 @@ class AvatarPickerSheet extends StatefulWidget {
 
 class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
   late String _selectedAvatarId;
+  late final ValueNotifier<String> _selectedIdNotifier;
   String _selectedCategory = 'all'; // 'all', 'masculine', 'feminine', 'neutral'
   bool _isSaving = false;
   String? _statusMessage;
   bool _hasSaved = false;
+  bool _precached = false;
 
   @override
   void initState() {
     super.initState();
     _selectedAvatarId = widget.currentAvatarId.isNotEmpty
         ? widget.currentAvatarId
-        : AvatarItemModel.resolveAsset(null, fallbackSeed: widget.userSeed).split('/').last.replaceAll('.png', '');
+        : AvatarItemModel.resolveAsset(null, fallbackSeed: widget.userSeed)
+            .split('/')
+            .last
+            .replaceAll('.png', '');
+    _selectedIdNotifier = ValueNotifier<String>(_selectedAvatarId);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_precached) {
+      _precached = true;
+      // Pre-cache all 16 local avatar images into Flutter's ImageCache for instantaneous rendering
+      for (final avatar in AvatarItemModel.catalog) {
+        precacheImage(AssetImage(avatar.assetPath), context);
+      }
+    }
+  }
+
+  Timer? _dismissTimer;
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    _selectedIdNotifier.dispose();
+    super.dispose();
   }
 
   List<AvatarItemModel> get _filteredAvatars {
@@ -86,29 +121,87 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
     }
   }
 
+  void _onAvatarTapped(String avatarId) {
+    if (_isSaving) return;
+    if (_selectedAvatarId == avatarId) return;
+
+    _selectedAvatarId = avatarId;
+    _selectedIdNotifier.value = avatarId;
+
+    if (_statusMessage != null) {
+      setState(() {
+        _statusMessage = null;
+      });
+    }
+  }
+
   Future<void> _handleSave() async {
+    if (_isSaving) return; // Prevent concurrent submissions
+
+    final targetId = _selectedIdNotifier.value;
+
+    // Fast-path: If the avatar was not changed, dismiss immediately without redundant API call
+    if (targetId == widget.currentAvatarId) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+
     setState(() {
       _isSaving = true;
       _statusMessage = null;
+      _hasSaved = false;
     });
 
-    final success = await widget.onSave(_selectedAvatarId);
+    try {
+      // 8-second bounded timeout prevents the UI from appearing frozen on network anomalies
+      final success = await widget.onSave(targetId).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          throw TimeoutException('Request timed out. Please check your connection and retry.');
+        },
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (success) {
+      if (success) {
+        setState(() {
+          _isSaving = false;
+          _hasSaved = true;
+          _statusMessage = 'Avatar updated successfully!';
+        });
+        // Prompt, smooth transition back to profile screen
+        _dismissTimer?.cancel();
+        _dismissTimer = Timer(const Duration(milliseconds: 250), () {
+          if (mounted) Navigator.of(context).pop(true);
+        });
+      } else {
+        setState(() {
+          _isSaving = false;
+          _statusMessage = 'Failed to save avatar. Please try again.';
+        });
+      }
+    } on TimeoutException catch (e) {
+      if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _hasSaved = true;
-        _statusMessage = 'Avatar updated successfully!';
+        _hasSaved = false;
+        _statusMessage = e.message ?? 'Connection timed out. Please retry.';
       });
-      Future.delayed(const Duration(milliseconds: 650), () {
-        if (mounted) Navigator.of(context).pop();
-      });
-    } else {
+    } catch (e) {
+      if (!mounted) return;
+      String err = 'Failed to save avatar. Please retry.';
+      if (e is ApiException) {
+        err = e.message;
+      } else {
+        final errStr = e.toString();
+        if (errStr.contains('SocketException') || errStr.contains('Connection') || errStr.contains('timed out')) {
+          err = 'Network connection issue. Please check your internet connection.';
+        }
+      }
       setState(() {
         _isSaving = false;
-        _statusMessage = 'Failed to save avatar. Please try again.';
+        _hasSaved = false;
+        _statusMessage = err;
       });
     }
   }
@@ -118,7 +211,6 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
     final colors = context.colors;
     final isDesktop = MediaQuery.of(context).size.width >= 600;
     final sheetHeight = MediaQuery.of(context).size.height * 0.88;
-    final activeItem = AvatarItemModel.findById(_selectedAvatarId);
 
     return Container(
       height: sheetHeight,
@@ -188,7 +280,7 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
                   icon: Icon(Icons.close_rounded, color: colors.textSecondary, size: 22),
                   tooltip: 'Close',
                 ),
@@ -205,108 +297,114 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Featured Active Preview Card
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: colors.glassSurfaceStrong,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: colors.primary.withValues(alpha: 0.35),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        // Large Avatar Circle
-                        Container(
-                          width: 68,
-                          height: 68,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: colors.primary, width: 2.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: colors.primary.withValues(alpha: 0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              activeItem.assetPath,
-                              fit: BoxFit.cover,
-                            ),
+                  // Featured Active Preview Card (listens to _selectedIdNotifier)
+                  ValueListenableBuilder<String>(
+                    valueListenable: _selectedIdNotifier,
+                    builder: (context, selectedId, _) {
+                      final activeItem = AvatarItemModel.findById(selectedId);
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: colors.glassSurfaceStrong,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: colors.primary.withValues(alpha: 0.35),
+                            width: 1.2,
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                activeItem.name,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: colors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: colors.primary.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      activeItem.category.toUpperCase(),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        color: colors.primary,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
+                        child: Row(
+                          children: [
+                            // Large Avatar Circle
+                            Container(
+                              width: 68,
+                              height: 68,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: colors.primary, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colors.primary.withValues(alpha: 0.25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
                                   ),
-                                  if (activeItem.isNeutral) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: colors.accent.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        'NEUTRAL',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: colors.accent,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                activeItem.tags.map((t) => '#$t').join('  '),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: colors.textMuted,
-                                  fontWeight: FontWeight.w500,
+                              child: ClipOval(
+                                child: Image.asset(
+                                  activeItem.assetPath,
+                                  fit: BoxFit.cover,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    activeItem.name,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: colors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: colors.primary.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          activeItem.category.toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: colors.primary,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                      if (activeItem.isNeutral) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: colors.accent.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            'NEUTRAL',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              color: colors.accent,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    activeItem.tags.map((t) => '#$t').join('  '),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: colors.textMuted,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -326,14 +424,15 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
 
                   const SizedBox(height: 16),
 
-                  // 4-Column Grid matching 4x4 reference image
+                  // 3-Column Grid matching reference UI
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final crossAxisCount = constraints.maxWidth >= 500 ? 4 : 3;
+                      final crossAxisCount = constraints.maxWidth >= 540 ? 4 : 3;
+                      final avatars = _filteredAvatars;
                       return GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _filteredAvatars.length,
+                        itemCount: avatars.length,
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
                           crossAxisSpacing: 10,
@@ -341,77 +440,12 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
                           childAspectRatio: 1.0,
                         ),
                         itemBuilder: (context, index) {
-                          final avatar = _filteredAvatars[index];
-                          final isSelected = avatar.id == _selectedAvatarId;
-
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedAvatarId = avatar.id;
-                                _statusMessage = null;
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              curve: Curves.easeOut,
-                              decoration: BoxDecoration(
-                                color: colors.isDark ? const Color(0xFF1E222C) : const Color(0xFFF3F2EE),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isSelected ? colors.primary : colors.glassBorder,
-                                  width: isSelected ? 2.5 : 1.0,
-                                ),
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: colors.primary.withValues(alpha: 0.35),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ]
-                                    : [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.05),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                              ),
-                              child: Stack(
-                                children: [
-                                  Positioned.fill(
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: Image.asset(
-                                        avatar.assetPath,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (ctx, err, stack) => Center(
-                                          child: Icon(Icons.person, color: colors.textMuted),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  if (isSelected)
-                                    Positioned(
-                                      top: 6,
-                                      right: 6,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(3),
-                                        decoration: BoxDecoration(
-                                          color: colors.primary,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.white, width: 1.5),
-                                        ),
-                                        child: const Icon(
-                                          Icons.check_rounded,
-                                          size: 12,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
+                          final avatar = avatars[index];
+                          return _AvatarCardItem(
+                            key: ValueKey(avatar.id),
+                            avatar: avatar,
+                            selectedIdListenable: _selectedIdNotifier,
+                            onTap: _onAvatarTapped,
                           );
                         },
                       );
@@ -450,6 +484,25 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
                               ),
                             ),
                           ),
+                          if (!_hasSaved && !_isSaving) ...[
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: _handleSave,
+                              borderRadius: BorderRadius.circular(6),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                child: Text(
+                                  'Retry',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.error,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -565,6 +618,100 @@ class _AvatarPickerSheetState extends State<AvatarPickerSheet> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dedicated, granularly updated avatar grid card.
+/// Listens to [selectedIdListenable] so ONLY the items whose selection state changes
+/// re-render their container border/checkmark, while the inner image is reused without decoding.
+class _AvatarCardItem extends StatelessWidget {
+  final AvatarItemModel avatar;
+  final ValueListenable<String> selectedIdListenable;
+  final ValueChanged<String> onTap;
+
+  const _AvatarCardItem({
+    Key? key,
+    required this.avatar,
+    required this.selectedIdListenable,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return ValueListenableBuilder<String>(
+      valueListenable: selectedIdListenable,
+      builder: (context, selectedId, child) {
+        final isSelected = selectedId == avatar.id;
+        return GestureDetector(
+          onTap: () => onTap(avatar.id),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: colors.isDark ? const Color(0xFF1E222C) : const Color(0xFFF3F2EE),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? colors.primary : colors.glassBorder,
+                width: isSelected ? 2.5 : 1.0,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: colors.primary.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+            ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: child!, // Cached child - zero image re-creation or re-decoding
+                ),
+                if (isSelected)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: colors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+      // Inner image widget is built ONCE and cached across selection changes
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.asset(
+          avatar.assetPath,
+          fit: BoxFit.cover,
+          errorBuilder: (ctx, err, stack) => Center(
+            child: Icon(Icons.person, color: colors.textMuted),
           ),
         ),
       ),

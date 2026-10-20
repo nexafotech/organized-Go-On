@@ -1,4 +1,14 @@
 # Root .gitignore for Go-On repository
+# Secrets, Environment Files & Keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.bundle
+firebase-credentials.json
+*service_account*.json
+
 # Heavy AI/ML model binaries
 /models/
 *.onnx
@@ -64,3 +74,9 @@ mobile/.flutter-plugins-dependencies
 mobile/android/.gradle/
 mobile/android/local.properties
 mobile/web/canvaskit/
+
+# Zoho Catalyst local artifacts
+.catalyst/
+
+# Safe quarantine directory for archived scratch files
+.quarantine/

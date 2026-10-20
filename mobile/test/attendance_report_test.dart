@@ -499,7 +499,7 @@ void main() {
       expect(find.text('Present'), findsOneWidget);
       expect(find.text('Absent'), findsOneWidget);
       expect(find.text('On Duty'), findsOneWidget);
-      expect(find.text('Lunch Break'), findsOneWidget);
+      expect(find.text('Lunch Break'), findsNothing);
     });
 
     testWidgets('AttendanceSummaryCard renders percentage and stats', (tester) async {

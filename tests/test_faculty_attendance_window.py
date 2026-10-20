@@ -120,20 +120,20 @@ class TestAttendanceWindowEngine:
         assert p2["can_mark"] is True
         assert p2["lock_reason"] is None
 
-    def test_02_today_active_period_locked(self, live_db):
-        """At 14:50 on Tuesday 2026-09-29, P6 (14:30-15:20) is active and LOCKED."""
+    def test_02_today_active_period_available_at_start(self, live_db):
+        """At 14:50 on Tuesday 2026-09-29, P6 (14:30-15:20) is active and AVAILABLE (unlocked at 14:30 start time)."""
         # Santhiya (ID 7) has Tuesday P6 (LIB)
         simulated_now = _make_ist_dt(2026, 9, 29, 14, 50)
         res = get_faculty_available_attendance_periods(live_db, faculty_id=7, dt=simulated_now)
 
         p6 = next((p for p in res["today_periods"] if p["period_number"] == 6), None)
         assert p6 is not None
-        assert p6["status"] == "LOCKED"
-        assert p6["can_mark"] is False
-        assert "15:20" in p6["lock_reason"]
+        assert p6["status"] == "AVAILABLE"
+        assert p6["can_mark"] is True
+        assert p6["lock_reason"] is None
 
     def test_03_today_future_period_locked(self, live_db):
-        """At 14:00 on Tuesday 2026-09-29, P7 (15:20-16:10) is future and LOCKED."""
+        """At 14:00 on Tuesday 2026-09-29, P7 (15:20-16:10) is future and LOCKED with start time in lock_reason."""
         # Showmiya (ID 4) has Tuesday P7 (E&I)
         simulated_now = _make_ist_dt(2026, 9, 29, 14, 0)
         res = get_faculty_available_attendance_periods(live_db, faculty_id=4, dt=simulated_now)
@@ -142,7 +142,7 @@ class TestAttendanceWindowEngine:
         assert p7 is not None
         assert p7["status"] == "LOCKED"
         assert p7["can_mark"] is False
-        assert "16:10" in p7["lock_reason"]
+        assert "3:20 PM" in p7["lock_reason"]
 
     def test_04_yesterday_periods_all_available(self, live_db):
         """On Tuesday 2026-09-29, Monday periods for FAC04 are completed and AVAILABLE."""
@@ -157,20 +157,22 @@ class TestAttendanceWindowEngine:
             if p["status"] == "AVAILABLE":
                 assert p["can_mark"] is True
 
-    def test_05_exact_end_time_boundary_transition(self, live_db):
-        """P6 ends at 15:20. At 15:19 it is LOCKED; at 15:20 it transitions to AVAILABLE."""
-        # Santhiya (ID 7) has Tuesday P6
-        at_15_19 = _make_ist_dt(2026, 9, 29, 15, 19, 59)
-        res_locked = get_faculty_available_attendance_periods(live_db, faculty_id=7, dt=at_15_19)
+    def test_05_exact_start_time_boundary_transition(self, live_db):
+        """P6 starts at 14:30. At 14:29:59 it is LOCKED; at 14:30:00 it transitions to AVAILABLE."""
+        # Santhiya (ID 7) has Tuesday P6 (14:30-15:20)
+        at_14_29 = _make_ist_dt(2026, 9, 29, 14, 29, 59)
+        res_locked = get_faculty_available_attendance_periods(live_db, faculty_id=7, dt=at_14_29)
         p6_locked = next(p for p in res_locked["today_periods"] if p["period_number"] == 6)
         assert p6_locked["status"] == "LOCKED"
         assert p6_locked["can_mark"] is False
+        assert "2:30 PM" in p6_locked["lock_reason"]
 
-        at_15_20 = _make_ist_dt(2026, 9, 29, 15, 20, 0)
-        res_available = get_faculty_available_attendance_periods(live_db, faculty_id=7, dt=at_15_20)
+        at_14_30 = _make_ist_dt(2026, 9, 29, 14, 30, 0)
+        res_available = get_faculty_available_attendance_periods(live_db, faculty_id=7, dt=at_14_30)
         p6_avail = next(p for p in res_available["today_periods"] if p["period_number"] == 6)
         assert p6_avail["status"] == "AVAILABLE"
         assert p6_avail["can_mark"] is True
+        assert p6_avail["lock_reason"] is None
 
     def test_06_past_dates_allowed_in_phase_8(self, live_db):
         """In Phase 8 retrospective attendance, valid past dates matching day of week are allowed."""

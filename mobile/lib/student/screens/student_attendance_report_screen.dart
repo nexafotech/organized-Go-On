@@ -471,311 +471,259 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => SubjectDetailSheet.show(context, sub),
-          borderRadius: BorderRadius.circular(22),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Row 1: Period dot & time on left, Live status pill on right
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Row 1: Period dot & time on left, Live status pill on right
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: theme.primary,
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.primary.withValues(alpha: 0.65),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          '$periodLabel • $timeSlot',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!liveStatusText.contains('Completed')) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: liveBadgeColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: liveBadgeColor.withValues(alpha: 0.45),
+                        width: 0.9,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (liveStatusText.contains('In Progress')) ...[
                           Container(
-                            width: 8,
-                            height: 8,
+                            width: 5.5,
+                            height: 5.5,
+                            margin: const EdgeInsets.only(right: 4.5),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: theme.primary,
+                              color: liveBadgeColor,
                               boxShadow: [
                                 BoxShadow(
-                                  color: theme.primary.withValues(alpha: 0.65),
-                                  blurRadius: 6,
-                                  spreadRadius: 1,
+                                  color: liveBadgeColor.withValues(alpha: 0.8),
+                                  blurRadius: 4,
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              '$periodLabel • $timeSlot',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: colors.textSecondary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
                         ],
-                      ),
+                        Text(
+                          liveStatusText,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: liveBadgeColor,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
-                      decoration: BoxDecoration(
-                        color: liveStatusText.contains('Completed')
-                            ? (colors.isDark ? colors.surfaceElevated : const Color(0xFFFFFFFF))
-                            : liveBadgeColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: liveStatusText.contains('Completed')
-                              ? (colors.isDark ? colors.glassBorderStrong : const Color(0xFFD6E0EC))
-                              : liveBadgeColor.withValues(alpha: 0.45),
-                          width: 0.9,
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 11),
+
+            // Row 2: Subject Name & Code on left, Percentage pill on right
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        sub.subjectName,
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                          letterSpacing: -0.2,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (liveStatusText.contains('In Progress')) ...[
-                            Container(
-                              width: 5.5,
-                              height: 5.5,
-                              margin: const EdgeInsets.only(right: 4.5),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: liveBadgeColor,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: liveBadgeColor.withValues(alpha: 0.8),
-                                    blurRadius: 4,
-                                  ),
-                                ],
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: colors.isDark ? theme.surfaceTint : const Color(0xFFFFFFFF),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: colors.isDark
+                                ? theme.borderTint.withValues(alpha: 0.55)
+                                : const Color(0xFFD0DDEB),
+                            width: 0.9,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.tag_rounded,
+                              size: 11,
+                              color: theme.primary,
+                            ),
+                            const SizedBox(width: 3.5),
+                            Text(
+                              'Code: ${sub.subjectCode}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.primary,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
-                          Text(
-                            liveStatusText,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: liveStatusText.contains('Completed')
-                                  ? colors.textSecondary
-                                  : liveBadgeColor,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 11),
+                const SizedBox(width: 12),
+                _buildPercentagePill(sub.percentage, theme, colors),
+              ],
+            ),
+            const SizedBox(height: 14),
 
-                // Row 2: Subject Name & Code on left, Percentage pill on right
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            // Row 3: Horizontal Progress Bar with Clean 0% / 100% Milestones
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final totalWidth = constraints.maxWidth;
+                final pct = (sub.percentage / 100.0).clamp(0.0, 1.0);
+                final activeWidth = totalWidth * pct;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            sub.subjectName,
-                            style: TextStyle(
-                              fontSize: 15.5,
-                              fontWeight: FontWeight.bold,
-                              color: colors.textPrimary,
-                              letterSpacing: -0.2,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Background Track (Recessed bevel with subtle inner border)
+                        Container(
+                          height: 8.5,
+                          decoration: BoxDecoration(
+                            color: colors.isDark
+                                ? colors.surfaceElevated
+                                : const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: colors.isDark
+                                  ? Colors.white.withValues(alpha: 0.06)
+                                  : const Color(0xFFCBD5E1).withValues(alpha: 0.6),
+                              width: 0.8,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                        ),
+
+                        // Active Fill with Multi-stop Gradient and Glow
+                        if (activeWidth > 0)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            width: activeWidth,
+                            height: 8.5,
                             decoration: BoxDecoration(
-                              color: colors.isDark ? theme.surfaceTint : const Color(0xFFFFFFFF),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: colors.isDark
-                                    ? theme.borderTint.withValues(alpha: 0.55)
-                                    : const Color(0xFFD0DDEB),
-                                width: 0.9,
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  theme.secondary,
+                                  theme.primary,
+                                  theme.accent,
+                                ],
                               ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.tag_rounded,
-                                  size: 11,
-                                  color: theme.primary,
-                                ),
-                                const SizedBox(width: 3.5),
-                                Text(
-                                  'Code: ${sub.subjectCode}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: theme.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                              borderRadius: BorderRadius.circular(100),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.primary.withValues(alpha: colors.isDark ? 0.45 : 0.32),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                  spreadRadius: 0.5,
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _buildPercentagePill(sub.percentage, theme, colors),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Row 3: Horizontal Progress Bar with 75% Institutional Notch & Glowing Pearl Tip
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final totalWidth = constraints.maxWidth;
-                    final pct = (sub.percentage / 100.0).clamp(0.0, 1.0);
-                    final activeWidth = totalWidth * pct;
-                    final target75X = totalWidth * 0.75;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            // Background Track (Recessed bevel with subtle inner border)
-                            Container(
-                              height: 8.5,
-                              decoration: BoxDecoration(
-                                color: colors.isDark
-                                    ? colors.surfaceElevated
-                                    : const Color(0xFFE2E8F0).withValues(alpha: 0.8),
-                                borderRadius: BorderRadius.circular(100),
-                                border: Border.all(
-                                  color: colors.isDark
-                                      ? Colors.white.withValues(alpha: 0.06)
-                                      : const Color(0xFFCBD5E1).withValues(alpha: 0.6),
-                                  width: 0.8,
-                                ),
-                              ),
-                            ),
-
-                            // 75% Institutional Threshold Line
-                            Positioned(
-                              left: target75X - 1.0,
-                              top: 0,
-                              bottom: 0,
+                            child: Align(
+                              alignment: Alignment.centerRight,
                               child: Container(
-                                width: 2.0,
+                                width: 6.5,
+                                height: 6.5,
+                                margin: const EdgeInsets.only(right: 1),
                                 decoration: BoxDecoration(
-                                  color: colors.isDark
-                                      ? Colors.white.withValues(alpha: 0.35)
-                                      : const Color(0xFF64748B).withValues(alpha: 0.45),
-                                  borderRadius: BorderRadius.circular(1),
-                                ),
-                              ),
-                            ),
-
-                            // Active Fill with Multi-stop Gradient and Glow
-                            if (activeWidth > 0)
-                              Container(
-                                width: activeWidth,
-                                height: 8.5,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                    colors: [
-                                      theme.secondary,
-                                      theme.primary,
-                                      theme.accent,
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(100),
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.92),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: theme.primary.withValues(alpha: colors.isDark ? 0.45 : 0.32),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 2),
-                                      spreadRadius: 0.5,
+                                      color: Colors.white.withValues(alpha: 0.8),
+                                      blurRadius: 4,
                                     ),
                                   ],
                                 ),
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Container(
-                                    width: 6.5,
-                                    height: 6.5,
-                                    margin: const EdgeInsets.only(right: 1),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white.withValues(alpha: 0.92),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.white.withValues(alpha: 0.8),
-                                          blurRadius: 4,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
                               ),
-                          ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    // Milestone footer labels: 0% | 100%
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '0%',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textMuted.withValues(alpha: 0.75),
+                          ),
                         ),
-                        const SizedBox(height: 5),
-                        // Milestone footer labels: 0% | 75% Min Target | 100%
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '0%',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w600,
-                                color: colors.textMuted.withValues(alpha: 0.75),
-                              ),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 5,
-                                  height: 5,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: sub.percentage >= 75.0 ? colors.present : colors.warning,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '75% Min Target',
-                                  style: TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: sub.percentage >= 75.0
-                                        ? (colors.isDark ? colors.present : const Color(0xFF047857))
-                                        : colors.warning,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              '100%',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w600,
-                                color: colors.textMuted.withValues(alpha: 0.75),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          '100%',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textMuted.withValues(alpha: 0.75),
+                          ),
                         ),
                       ],
-                    );
-                  },
-                ),
-              ],
+                    ),
+                  ],
+                );
+              },
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -978,6 +926,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
               percentage: summary.percentage,
               total: summary.total,
               present: summary.present,
+              purePresent: summary.purePresentCount,
               absent: summary.absent,
               od: summary.od,
               halfDayPresent: summary.halfDayPresent,
@@ -986,6 +935,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
               minimumRequired: summary.minimumRequired,
               calculationMode: summary.calculationMode,
               alertMessage: summary.alertMessage,
+              showStatusBadge: summary.attendanceStatus.toUpperCase() != 'OK',
             ),
           ),
         ],
@@ -1370,7 +1320,7 @@ class _StudentAttendanceReportScreenState extends State<StudentAttendanceReportS
                         // Attendance Legend
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                          child: AttendanceLegend(),
+                          child: AttendanceLegend(isStudent: true),
                         ),
                         // Adequate bottom clearance ensuring content scrolls completely above floating navigation bar
                         const SizedBox(height: 110),

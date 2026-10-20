@@ -121,6 +121,8 @@ class AuthService extends ChangeNotifier {
       try {
         await AppPreferencesService().saveCachedUser(_currentUser!);
       } catch (_) {}
+      // Clear any previous notification data and initialize for current user
+      NotificationService().clearUserData();
       // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
       NotificationService().startInAppPolling(_apiClient);
@@ -189,6 +191,8 @@ class AuthService extends ChangeNotifier {
       try {
         await AppPreferencesService().saveCachedUser(_currentUser!);
       } catch (_) {}
+      // Clear any previous notification data and initialize for current user
+      NotificationService().clearUserData();
       // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
       NotificationService().startInAppPolling(_apiClient);
@@ -237,6 +241,8 @@ class AuthService extends ChangeNotifier {
       try {
         await AppPreferencesService().saveCachedUser(_currentUser!);
       } catch (_) {}
+      // Clear any previous notification data and initialize for current user
+      NotificationService().clearUserData();
       // Register device token for push notifications and start in-app polling
       NotificationService().registerTokenWithBackend(_apiClient, user: _currentUser);
       NotificationService().startInAppPolling(_apiClient);
@@ -374,6 +380,130 @@ class AuthService extends ChangeNotifier {
       _errorMessage = 'Unable to reach the server. Check your connection or server address.';
       notifyListeners();
       rethrow;
+    }
+  }
+
+  /// Update Faculty Self-Service Profile (Full Name, Email, Phone, Avatar)
+  Future<bool> updateFacultyProfile({
+    String? fullName,
+    String? email,
+    String? phone,
+    String? avatarId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    final payload = <String, dynamic>{};
+    if (fullName != null && fullName.trim().isNotEmpty) payload['full_name'] = fullName.trim();
+    if (email != null) payload['email'] = email.trim();
+    if (phone != null) payload['phone'] = phone.trim();
+    if (avatarId != null && avatarId.trim().isNotEmpty) payload['avatar_id'] = avatarId.trim();
+
+    try {
+      final response = await _apiClient.patch(
+        ApiConfig.facultyProfile,
+        body: payload,
+      );
+
+      if (response is Map && (response['success'] == true || response.containsKey('user_id'))) {
+        final updatedName = response['full_name'] as String? ?? (fullName ?? _currentUser?.fullName ?? '');
+        final updatedEmail = response.containsKey('email') ? response['email'] as String? : (email ?? _currentUser?.email ?? '');
+        final updatedPhone = response.containsKey('phone') ? response['phone'] as String? : (phone ?? _currentUser?.phone);
+        final updatedAvatar = response['avatar_id'] as String? ?? (avatarId ?? _currentUser?.avatarId);
+        final updatedDept = response['department'] as String? ?? _currentUser?.department;
+
+        if (_currentUser != null) {
+          _currentUser = _currentUser!.copyWith(
+            fullName: updatedName,
+            email: updatedEmail,
+            phone: updatedPhone,
+            avatarId: updatedAvatar,
+            department: updatedDept,
+          );
+          try {
+            await AppPreferencesService().saveCachedUser(_currentUser!);
+          } catch (_) {}
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+      _isLoading = false;
+      _errorMessage = 'Failed to update profile. Unexpected server response.';
+      notifyListeners();
+      return false;
+    } on ApiException catch (e) {
+      _isLoading = false;
+      _errorMessage = _formatErrorMessage(e, defaultMessage: 'Failed to update profile.');
+      notifyListeners();
+      rethrow;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = 'Unable to reach the server. Check your connection or server address.';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Update Faculty Avatar only
+  Future<bool> updateFacultyAvatar(String avatarId) async {
+    _errorMessage = null;
+    final String? previousAvatarId = _currentUser?.avatarId;
+    if (previousAvatarId == avatarId) {
+      return true;
+    }
+
+    // Optimistic UI update: update memory and notify immediately
+    if (_currentUser != null) {
+      _currentUser = _currentUser!.copyWith(avatarId: avatarId);
+      notifyListeners();
+    }
+
+    try {
+      final response = await _apiClient.patch(
+        ApiConfig.facultyAvatar,
+        body: {'avatar_id': avatarId},
+      );
+      if (response is Map && response['success'] == true) {
+        if (_currentUser != null) {
+          try {
+            await AppPreferencesService().saveCachedUser(_currentUser!);
+          } catch (_) {}
+        }
+        return true;
+      }
+      // Revert if response unsuccessful
+      if (_currentUser != null) {
+        _currentUser = _currentUser!.copyWith(avatarId: previousAvatarId);
+        notifyListeners();
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[AuthService] updateFacultyAvatar error: $e');
+      if (_currentUser != null) {
+        _currentUser = _currentUser!.copyWith(avatarId: previousAvatarId);
+        notifyListeners();
+      }
+      rethrow;
+    }
+  }
+
+  /// Refresh Current User from /auth/me
+  Future<UserModel?> refreshCurrentUser() async {
+    try {
+      final response = await _apiClient.get(ApiConfig.authMe);
+      if (response is Map) {
+        _currentUser = UserModel.fromJson(Map<String, dynamic>.from(response));
+        try {
+          await AppPreferencesService().saveCachedUser(_currentUser!);
+        } catch (_) {}
+        notifyListeners();
+      }
+      return _currentUser;
+    } catch (e) {
+      debugPrint('[AuthService] refreshCurrentUser error: $e');
+      return _currentUser;
     }
   }
 

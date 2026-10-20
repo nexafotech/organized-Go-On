@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../core/config/api_config.dart';
 import '../../core/storage/app_preferences.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/theme_service.dart';
 import '../../services/auth_service.dart';
 import '../../student/screens/student_dashboard_screen.dart';
 import '../../faculty/screens/faculty_dashboard_screen.dart';
@@ -268,26 +267,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          SafeThemeConsumer(
-            builder: (context, themeService, _) {
-              final isDark = themeService.isDarkMode;
-              return IconButton(
-                icon: Icon(
-                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                  color: isDark ? const Color(0xFFF59E0B) : colors.textPrimary,
-                ),
-                tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
-                onPressed: () => themeService.toggleTheme(),
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Stack(
         children: [
           AppScaffold.buildLiquidAmbientCanvas(context),
@@ -870,28 +849,56 @@ class _ServerConfigDialogState extends State<_ServerConfigDialog> {
                 runSpacing: 6,
                 children: [
                   ActionChip(
-                    avatar: Icon(Icons.wifi_rounded, size: 14, color: colors.info),
-                    label: Text('WiFi (${Uri.tryParse(ApiConfig.defaultUrl)?.host ?? "10.50.3.40"})', style: const TextStyle(fontSize: 11)),
+                    avatar: Icon(Icons.cloud_done_rounded, size: 14, color: colors.success),
+                    label: const Text('Catalyst (Prod)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     backgroundColor: colors.surfaceMuted,
-                    side: BorderSide(color: colors.glassBorder),
+                    side: BorderSide(color: colors.success.withValues(alpha: 0.5)),
                     shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
                     onPressed: () {
                       setState(() {
-                        _urlController.text = ApiConfig.defaultUrl;
+                        _urlController.text = ApiConfig.catalystProductionUrl;
                         _testResult = null;
                         _testSuccess = null;
                       });
                     },
                   ),
                   ActionChip(
-                    avatar: Icon(Icons.wifi_tethering_rounded, size: 14, color: colors.success),
-                    label: const Text('Hotspot (10.254.103.195)', style: TextStyle(fontSize: 11)),
+                    avatar: Icon(Icons.cloud_queue_rounded, size: 14, color: colors.info),
+                    label: const Text('Catalyst (Dev)', style: TextStyle(fontSize: 11)),
                     backgroundColor: colors.surfaceMuted,
                     side: BorderSide(color: colors.glassBorder),
                     shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
                     onPressed: () {
                       setState(() {
-                        _urlController.text = ApiConfig.hotspotUrl;
+                        _urlController.text = ApiConfig.catalystDevelopmentUrl;
+                        _testResult = null;
+                        _testSuccess = null;
+                      });
+                    },
+                  ),
+                  ActionChip(
+                    avatar: Icon(Icons.alt_route_rounded, size: 14, color: colors.warning),
+                    label: const Text('Live Tunnel', style: TextStyle(fontSize: 11)),
+                    backgroundColor: colors.surfaceMuted,
+                    side: BorderSide(color: colors.glassBorder),
+                    shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
+                    onPressed: () {
+                      setState(() {
+                        _urlController.text = ApiConfig.cloudflareTunnelUrl;
+                        _testResult = null;
+                        _testSuccess = null;
+                      });
+                    },
+                  ),
+                  ActionChip(
+                    avatar: Icon(Icons.computer_rounded, size: 14, color: colors.textMuted),
+                    label: const Text('Local (127.0.0.1)', style: TextStyle(fontSize: 11)),
+                    backgroundColor: colors.surfaceMuted,
+                    side: BorderSide(color: colors.glassBorder),
+                    shape: RoundedRectangleBorder(borderRadius: AppRadius.pillBorder),
+                    onPressed: () {
+                      setState(() {
+                        _urlController.text = ApiConfig.localDevUrl;
                         _testResult = null;
                         _testSuccess = null;
                       });
