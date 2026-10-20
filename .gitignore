@@ -88,7 +88,6 @@ mobile/.dart_tool/
 mobile/.flutter-plugins-dependencies
 mobile/android/.gradle/
 mobile/android/local.properties
-mobile/web/canvaskit/
 
 # Zoho Catalyst local artifacts
 .catalyst/
