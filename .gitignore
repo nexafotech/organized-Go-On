@@ -9,18 +9,26 @@
 firebase-credentials.json
 *service_account*.json
 
-# Heavy AI/ML model binaries
-/models/
+# Heavy AI/ML model binaries (>100MB exceeds GitHub limit; downloaded via scripts/download_models.py)
+/models/**/*.onnx
+/models/*.onnx
 *.onnx
 !mobile/lib/models/
+!/models/**/README.md
+!/models/**/.gitkeep
 
 # Database files
 *.db
 *.sqlite
 *.sqlite3
+!/backups/README.md
+!/backups/.gitkeep
 
-# Personal Biometric Face Dataset
-data/
+# Personal Biometric Face Dataset (Raw photos excluded for biometric privacy & size)
+/data/**
+!/data/**/
+!/data/README.md
+!/data/**/.gitkeep
 
 # Temporary Packages & Binaries
 *.ipa
@@ -29,8 +37,15 @@ data/
 *.aab
 *.zip
 ui-desine.zip
-tools/
+/tools/*.exe
+/tools/*.bin
 mobile/artifact.zip
+!/tools/README.md
+!/tools/.gitkeep
+!/release/README.md
+!/release/.gitkeep
+!/dist/README.md
+!/dist/.gitkeep
 
 # Heavy test animations and videos
 *.mp4
