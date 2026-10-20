@@ -1,49 +1,19 @@
 {
-  "timestamp": "2026-10-19T11:46:40.006213",
-  "metrics_before": {
-    "total_repository_size_bytes": 5735577762,
-    "total_repository_files": 19913,
-    "mobile_assets_size_bytes": 8944261,
-    "mobile_assets_files": 31,
-    "image_and_animation_files_count": 655,
-    "image_and_animation_size_bytes": 505290809,
-    "release_apk_size_bytes": 69463622,
-    "release_apk_size_mb": 66.25
+  "generated_at": "2026-10-21T00:13:45.398039",
+  "total_items_in_manifest": 453,
+  "bytes_freed": 1010056404,
+  "mb_freed": 1010.06,
+  "files_removed": 3,
+  "dirs_removed": 372,
+  "files_moved_organized": 76,
+  "files_quarantined": 2,
+  "breakdown": {
+    "build_artifacts_cleaned_MB": 0.0,
+    "pycache_cleaned_MB": 63.18,
+    "dbs_moved_count": 11,
+    "docs_organized_count": 42,
+    "scripts_organized_count": 12,
+    "tests_organized_count": 9
   },
-  "metrics_after": {
-    "total_repository_size_bytes": 5688674071,
-    "total_repository_files": 19737,
-    "mobile_assets_size_bytes": 5765180,
-    "mobile_assets_files": 27,
-    "image_and_animation_files_count": 607,
-    "image_and_animation_size_bytes": 480970977,
-    "release_apk_size_bytes": 69463622,
-    "release_apk_size_mb": 66.25
-  },
-  "net_savings": {
-    "repository_bytes_saved": 46903691,
-    "repository_mb_saved": 44.73,
-    "mobile_assets_bytes_saved": 3179081,
-    "mobile_assets_mb_saved": 3.03,
-    "media_files_removed": 48,
-    "confirmed_duplicate_assets_removed": 2,
-    "unused_assets_removed": 2,
-    "temporary_files_removed": 55,
-    "quarantined_files_count": 58,
-    "quarantined_bytes_total": 39691846,
-    "pycache_files_purged": 1,
-    "pycache_bytes_purged": 7685
-  },
-  "retained_categories": {
-    "databases_and_backups": "Protected (attendance_system.db + 11 backup files)",
-    "zoho_catalyst_runtime": "Protected (lib/ site-packages directory required for AppSail)",
-    "historical_reports_and_evidence": "Protected (reports/*.pdf, reports/*.png, reports/*.json)",
-    "ai_models_and_datasets": "Protected (models/ onnx models, data/ templates)",
-    "production_release_apk": "Protected (app-release.apk actively served by serve_apk.py)"
-  },
-  "test_results": {
-    "flutter_pub_get": "PASS",
-    "flutter_analyze": "PASS (0 issues)",
-    "flutter_test_auto_scroll": "PASS (10/10 tests passed)"
-  }
+  "note": "build/ and .dart_tool/ are the dominant space savings. All database, attendance, Firebase, and source files are preserved."
 }

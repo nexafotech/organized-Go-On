@@ -1,5 +1,8 @@
-# Root .gitignore for Go-On repository
-# Secrets, Environment Files & Keys
+# go-On AI Face Attendance System
+# NEW REPOSITORY .gitignore — organized-Go-On
+# ============================================================
+
+# ── Secrets & Credentials ──────────────────────────────────
 .env
 .env.*
 !.env.example
@@ -8,75 +11,99 @@
 *.bundle
 firebase-credentials.json
 *service_account*.json
+*credentials*.json
+!app/assets/firebase/README.md
 
-# Database files
+# ── Production Databases (contain real student records) ────
 *.db
 *.sqlite
 *.sqlite3
-!/backups/README.md
+# Allow placeholder keepfiles
 !/backups/.gitkeep
+!/backups/README.md
 
-# Personal Biometric Face Dataset (Raw photos excluded for biometric privacy & size)
+# ── Biometric / Personal Data ──────────────────────────────
+# Raw student face photos — biometric privacy
 /data/**
-!/data/**/
 !/data/README.md
+!/data/.gitkeep
 !/data/**/.gitkeep
 
-# Temporary Packages & Binaries
-*.ipa
-*.apk
-*.aab
-*.zip
-*.exe
-!tools/cloudflared.exe
-ui-desine.zip
-/tools/*.bin
-lib/bin/
-mobile/artifact.zip
-!/tools/README.md
-!/tools/.gitkeep
-!/release/README.md
-!/release/.gitkeep
-!/dist/README.md
-!/dist/.gitkeep
+# Official college photos and name lists (personal data)
+/college_data/official_photos/
+/college_data/official_name_lists/*.jpeg
+/college_data/official_name_lists/*.jpg
+/college_data/official_name_lists/*.png
 
-# Scratch animations
-test_*.webp
-test_*.gif
+# ── Python Virtual Environment (lib/) ─────────────────────
+# lib/ is a local venv. Use requirements.txt to reproduce.
+/lib/
+!/lib/README.md
 
-# Python caches & logs
+# Python caches
 __pycache__/
 *.py[cod]
+*.pyo
 .pytest_cache/
 *.log
+*.pyc
+
+# ── Flutter / Dart Build Artifacts ────────────────────────
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/.packages
+ios/Pods/
+ios/.symlinks/
+.dart_tool/
+
+# ── APK / Binary Release Files ────────────────────────────
+*.apk
+*.aab
+*.ipa
+# Keep release directory structure (README only)
+!/release/.gitkeep
+!/release/README.md
 
 # Scratch scripts & temporary dumps
 scratch/
+.quarantine/
 scratch_*.txt
 prompt_dump.txt
 ~$*
-*_dump.xml
-scripts/*.xml
 temp_*.xml
-login_ui.xml
+*_dump.xml
+*dump.xml
 window_dump.xml
+*.zip
+!tools/README.md
+!tools/.gitkeep
+tools/*.bin
 
-# Ephemeral test automation screenshots (keep mobile assets, reports, and web icons)
+# ── IDE ───────────────────────────────────────────────────
+.idea/
+.vscode/settings.json
+*.iml
+.DS_Store
+Thumbs.db
+
+# ── Zoho Catalyst local artifacts ─────────────────────────
+.catalyst/
+
+# ── Test scratch animations ───────────────────────────────
+test_*.webp
+test_*.gif
+
+# ── Ephemeral screenshots ─────────────────────────────────
 /*.png
 mobile/*.png
 android_phase7_6_screens/
 !mobile/assets/
 !mobile/web/
 
-# Flutter & Android build artifacts
-mobile/build/
-mobile/.dart_tool/
-mobile/.flutter-plugins-dependencies
-mobile/android/.gradle/
-mobile/android/local.properties
-
-# Zoho Catalyst local artifacts
-.catalyst/
-
-# Safe quarantine directory for archived scratch files
-.quarantine/
+# ── College data zip archives ─────────────────────────────
+college_seed/*.zip
+ui-desine.zip
