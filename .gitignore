@@ -9,14 +9,6 @@
 firebase-credentials.json
 *service_account*.json
 
-# Heavy AI/ML model binaries (>100MB exceeds GitHub limit; downloaded via scripts/download_models.py)
-/models/**/*.onnx
-/models/*.onnx
-*.onnx
-!mobile/lib/models/
-!/models/**/README.md
-!/models/**/.gitkeep
-
 # Database files
 *.db
 *.sqlite
@@ -32,13 +24,14 @@ firebase-credentials.json
 
 # Temporary Packages & Binaries
 *.ipa
-*.exe
 *.apk
 *.aab
 *.zip
+*.exe
+!tools/cloudflared.exe
 ui-desine.zip
-/tools/*.exe
 /tools/*.bin
+lib/bin/
 mobile/artifact.zip
 !/tools/README.md
 !/tools/.gitkeep
@@ -47,8 +40,7 @@ mobile/artifact.zip
 !/dist/README.md
 !/dist/.gitkeep
 
-# Heavy test animations and videos
-*.mp4
+# Scratch animations
 test_*.webp
 test_*.gif
 
@@ -69,16 +61,10 @@ temp_*.xml
 login_ui.xml
 window_dump.xml
 
-# Ephemeral test automation screenshots (keep mobile assets and web icons)
+# Ephemeral test automation screenshots (keep mobile assets, reports, and web icons)
 /*.png
 mobile/*.png
 android_phase7_6_screens/
-reports/*.png
-reports/*.xml
-reports/evidence/*frame*.png
-reports/evidence/sp_*.png
-reports/evidence/uidump*.xml
-reports/evidence/s24_splash_*.png
 !mobile/assets/
 !mobile/web/
 
