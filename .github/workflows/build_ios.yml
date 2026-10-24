@@ -18,7 +18,7 @@ on:
 jobs:
   build-ios:
     name: Build & Package iOS IPA
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
       P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -34,6 +34,7 @@ jobs:
           sudo xcodebuild -runFirstLaunch
           xcodebuild -version
           xcodebuild -showsdks
+          xcrun simctl list runtimes
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -55,8 +56,9 @@ jobs:
           flutter precache --ios
           flutter pub get
           cd ios
-          pod install --repo-update
+          pod install
           cd ..
+          xcodebuild -showdestinations -scheme Runner -project ios/Runner.xcodeproj
 
       # Step A: Install Apple Certificate and Provisioning Profile if secrets are provided
       - name: Install Apple Certificate and Provisioning Profile
@@ -118,14 +120,7 @@ jobs:
         working-directory: mobile
         run: |
           echo "Apple Developer cloud secrets not configured. Building clean release binary for local Sideloadly / AltStore signing..."
-          mkdir -p /tmp/build_logs
-          
-          # Build release bundle without codesign
-          flutter build ios --release --no-codesign -v > /tmp/build_logs/flutter_ios_build.log 2>&1 || {
-            echo "::error::Flutter iOS release build failed! Displaying last 120 lines of build log:"
-            tail -n 120 /tmp/build_logs/flutter_ios_build.log
-            exit 1
-          }
+          flutter build ios --release --no-codesign -v
 
           echo "Packaging into Payload directory..."
           mkdir -p Payload
@@ -150,6 +145,7 @@ jobs:
           unzip -q dist_output/go-on-latest.ipa -d /tmp/verify-ipa
           ls -la /tmp/verify-ipa/Payload/Runner.app
           file /tmp/verify-ipa/Payload/Runner.app/Runner
+          codesign -dv --verbose=4 /tmp/verify-ipa/Payload/Runner.app || true
           echo "Binary type confirmed!"
           rm -rf /tmp/verify-ipa
 
@@ -171,8 +167,5 @@ jobs:
       # Step F: Upload Diagnostic Logs on Failure
       - name: Upload Diagnostic Logs
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build-diagnostic-logs
-          path: /tmp/build_logs/*
-          retention-days: 7
+        run: |
+          echo "Build step encountered failure. Check step output above."
