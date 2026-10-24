@@ -118,7 +118,14 @@ jobs:
         working-directory: mobile
         run: |
           echo "Apple Developer cloud secrets not configured. Building clean release binary for local Sideloadly / AltStore signing..."
-          flutter build ios --release --no-codesign -v
+          mkdir -p /tmp/build_logs
+          
+          # Build release bundle without codesign
+          flutter build ios --release --no-codesign -v > /tmp/build_logs/flutter_ios_build.log 2>&1 || {
+            echo "::error::Flutter iOS release build failed! Displaying last 120 lines of build log:"
+            tail -n 120 /tmp/build_logs/flutter_ios_build.log
+            exit 1
+          }
 
           echo "Packaging into Payload directory..."
           mkdir -p Payload
@@ -126,13 +133,14 @@ jobs:
 
           echo "Applying clean ad-hoc codesign structure across frameworks and main bundle..."
           find Payload/Runner.app/Frameworks -type d -name "*.framework" -exec codesign --force --sign - --timestamp=none {} \; 2>/dev/null || true
-          codesign --force --deep --sign - --timestamp=none Payload/Runner.app || true
+          codesign --force --deep --sign - --timestamp=none Payload/Runner.app 2>/dev/null || true
 
           mkdir -p ../dist_output
           echo "Creating IPA archive preserving symlinks..."
           zip -qry ../dist_output/go-on-v2.2.2.ipa Payload
           cp ../dist_output/go-on-v2.2.2.ipa ../dist_output/go-on-latest.ipa
           rm -rf Payload
+          echo "Packaging complete!"
 
       # Step C: Inspect and Verify Package Structure
       - name: Verify IPA Package Structure
@@ -159,3 +167,12 @@ jobs:
           name: go-on-ios-release-ipa
           path: dist_output/*
           retention-days: 14
+
+      # Step F: Upload Diagnostic Logs on Failure
+      - name: Upload Diagnostic Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-diagnostic-logs
+          path: /tmp/build_logs/*
+          retention-days: 7
