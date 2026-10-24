@@ -2,26 +2,40 @@ name: Build iOS IPA
 
 on:
   workflow_dispatch:
+    inputs:
+      export_method:
+        description: 'Export method (development, ad-hoc, app-store)'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - ad-hoc
+          - app-store
   push:
-    branches: [ main, master ]
+    branches: [ main, master, fix/ios-ipa-signing ]
 
 jobs:
   build-ios:
-    name: Build iOS Runner IPA
-    runs-on: macos-15
+    name: Build & Package iOS IPA
+    runs-on: macos-14
+    env:
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configure Default Xcode
+      - name: Configure Xcode Environment
         run: |
           sudo xcode-select -s /Applications/Xcode.app
           sudo xcodebuild -runFirstLaunch
           xcodebuild -version
           xcodebuild -showsdks
-          xcrun simctl list runtimes
 
-      - name: Set up Java (for tools)
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
@@ -34,33 +48,102 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Prepare Flutter and Dependencies
+      - name: Prepare Flutter and CocoaPods Dependencies
         working-directory: mobile
         run: |
           flutter config --no-enable-swift-package-manager
           flutter precache --ios
           flutter pub get
           cd ios
-          pod install
+          pod install --repo-update
           cd ..
-          xcodebuild -showdestinations -scheme Runner -project ios/Runner.xcodeproj
 
-      - name: Build iOS (No Codesign)
+      # Step A: Install Apple Certificate and Provisioning Profile if secrets are provided
+      - name: Install Apple Certificate and Provisioning Profile
+        if: ${{ env.BUILD_CERTIFICATE_BASE64 != '' }}
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+
+          echo "Apple Signing Certificate and Provisioning Profile installed successfully!"
+
+      # Step B1: Build Signed iOS IPA if Certificate is present
+      - name: Build Signed iOS IPA
+        if: ${{ env.BUILD_CERTIFICATE_BASE64 != '' }}
         working-directory: mobile
         run: |
+          METHOD="${{ github.event.inputs.export_method || 'development' }}"
+          PLIST="ios/ExportOptions-${METHOD^}.plist"
+          if [ ! -f "$PLIST" ]; then
+            PLIST="ios/ExportOptions.plist"
+          fi
+          echo "Building with ExportOptions: $PLIST"
+          flutter build ipa --release --export-options-plist="$PLIST" -v
+
+          mkdir -p ../dist_output
+          IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -n 1)
+          cp "$IPA_PATH" ../dist_output/go-on-v2.2.2.ipa
+          cp "$IPA_PATH" ../dist_output/go-on-latest.ipa
+
+          echo "Verifying Signed IPA..."
+          mkdir -p /tmp/ipa-verify
+          unzip -q "$IPA_PATH" -d /tmp/ipa-verify
+          codesign --verify --deep --strict --verbose=2 /tmp/ipa-verify/Payload/Runner.app
+          codesign -dv --verbose=4 /tmp/ipa-verify/Payload/Runner.app
+          rm -rf /tmp/ipa-verify
+
+      # Step B2: Build Clean Sideloadly-Ready IPA (Fallback when cloud certificate is absent)
+      - name: Build Clean Sideloadly-Ready IPA
+        if: ${{ env.BUILD_CERTIFICATE_BASE64 == '' }}
+        working-directory: mobile
+        run: |
+          echo "Apple Developer cloud secrets not configured. Building clean release binary for local Sideloadly / AltStore signing..."
           flutter build ios --release --no-codesign -v
 
-      - name: Package Unsigned IPA
-        working-directory: mobile
-        run: |
           mkdir -p Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r go-on-unsigned.ipa Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+
+          echo "Applying clean ad-hoc codesign structure across frameworks and main bundle..."
+          find Payload/Runner.app/Frameworks -type d -name "*.framework" -exec codesign --force --sign - --timestamp=none {} \; 2>/dev/null || true
+          codesign --force --deep --sign - --timestamp=none Payload/Runner.app
+          codesign --verify --deep --verbose=2 Payload/Runner.app
+
+          mkdir -p ../dist_output
+          zip -qry ../dist_output/go-on-v2.2.2.ipa Payload
+          cp ../dist_output/go-on-v2.2.2.ipa ../dist_output/go-on-latest.ipa
           rm -rf Payload
 
-      - name: Upload IPA Artifact
+      # Step C: Generate SHA-256 Checksums
+      - name: Generate Checksums
+        run: |
+          cd dist_output
+          shasum -a 256 *.ipa > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # Step D: Upload Release IPA Artifacts
+      - name: Upload iOS Release IPA Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: go-on-ios-ipa
-          path: mobile/go-on-unsigned.ipa
-          retention-days: 7
+          name: go-on-ios-release-ipa
+          path: dist_output/*
+          retention-days: 14
