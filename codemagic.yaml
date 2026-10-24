@@ -1,0 +1,78 @@
+workflows:
+  flutter-ios-workflow:
+    name: go-On iOS Workflow (Flutter)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.aifaceattendance.attendanceMarkerMobile"
+        XCODE_WORKSPACE: "mobile/ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+    scripts:
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles 2>/dev/null || true
+      - name: Get Flutter packages
+        script: |
+          cd mobile
+          flutter pub get
+      - name: Install CocoaPods
+        script: |
+          cd mobile/ios
+          pod install --repo-update
+      - name: Flutter build ipa
+        script: |
+          cd mobile
+          if [ -f /Users/builder/export_options.plist ]; then
+            flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+          else
+            flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          fi
+    artifacts:
+      - mobile/build/ios/ipa/*.ipa
+      - /Users/builder/clone/mobile/build/ios/ipa/*.ipa
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+  ios-native-workflow:
+    name: go-On iOS Workflow (Native Xcode)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.aifaceattendance.attendanceMarkerMobile"
+        XCODE_WORKSPACE: "mobile/ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+    scripts:
+      - name: Install CocoaPods
+        script: |
+          cd mobile/ios
+          pod install --repo-update
+      - name: Build with xcodebuild
+        script: |
+          xcodebuild build \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO
+    artifacts:
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/*-iphoneos/*.app
