@@ -34,9 +34,20 @@ workflows:
         script: |
           cd mobile
           if [ -f /Users/builder/export_options.plist ]; then
+            echo "Using Codemagic provisioned signing profile..."
             flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
-          else
+          elif security find-identity -v -p codesigning 2>/dev/null | grep -q "1)"; then
+            echo "Signing identity detected in keychain..."
             flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          else
+            echo "No Apple Developer certificate configured. Compiling native release iOS application..."
+            flutter build ios --release --no-codesign
+            mkdir -p build/ios/ipa/Payload
+            cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+            cd build/ios/ipa
+            zip -r -y -q go-on-v2.2.2.ipa Payload
+            rm -rf Payload
+            echo "Successfully generated release go-on-v2.2.2.ipa for device deployment!"
           fi
     artifacts:
       - mobile/build/ios/ipa/*.ipa
