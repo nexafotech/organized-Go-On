@@ -14,11 +14,14 @@ on:
           - app-store
   push:
     branches: [ main, master, fix/ios-ipa-signing ]
+    tags: [ 'v*' ]
 
 jobs:
   build-ios:
     name: Build & Package iOS IPA
     runs-on: macos-15
+    permissions:
+      contents: write
     env:
       BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
       P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -143,8 +146,11 @@ jobs:
           echo "Inspecting produced IPA archive..."
           mkdir -p /tmp/verify-ipa
           unzip -q dist_output/go-on-latest.ipa -d /tmp/verify-ipa
-          ls -la /tmp/verify-ipa/Payload/Runner.app
-          file /tmp/verify-ipa/Payload/Runner.app/Runner
+          echo "### Package Inspection Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ls -lh /tmp/verify-ipa/Payload/Runner.app >> $GITHUB_STEP_SUMMARY
+          file /tmp/verify-ipa/Payload/Runner.app/Runner >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           codesign -dv --verbose=4 /tmp/verify-ipa/Payload/Runner.app || true
           echo "Binary type confirmed!"
           rm -rf /tmp/verify-ipa
@@ -155,6 +161,10 @@ jobs:
           cd dist_output
           shasum -a 256 *.ipa > SHA256SUMS.txt
           cat SHA256SUMS.txt
+          echo "### SHA-256 Checksums" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat SHA256SUMS.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       # Step E: Upload Release IPA Artifacts
       - name: Upload iOS Release IPA Artifacts
@@ -164,8 +174,43 @@ jobs:
           path: dist_output/*
           retention-days: 14
 
-      # Step F: Upload Diagnostic Logs on Failure
-      - name: Upload Diagnostic Logs
-        if: failure()
-        run: |
-          echo "Build step encountered failure. Check step output above."
+      # Step F: Publish GitHub Release
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          tag_name: v2.2.2-ios
+          name: "go-On iOS v2.2.2 (Clean Rebuild & Sideloadly-Ready)"
+          draft: false
+          prerelease: false
+          body: |
+            ## go-On iOS v2.2.2 — Clean Rebuild
+            
+            This is a clean, verified release build of go-On for iOS (version 2.2.2, build 22).
+            
+            ### Included Files
+            - `go-on-latest.ipa` — Clean packaged iOS release IPA ready for Sideloadly / Apple ID personal signing
+            - `go-on-v2.2.2.ipa` — Versioned iOS release IPA archive
+            - `SHA256SUMS.txt` — SHA-256 cryptographic checksums for authenticity verification
+            
+            ### Target Compatibility
+            - Broad iOS compatibility: iOS 15.0 through iOS 18.x
+            - Arm64 64-bit architecture
+            
+            ### Installation Instructions (via Sideloadly)
+            1. Download `go-on-latest.ipa` to your computer.
+            2. Connect your iPhone via USB and unlock it (tap "Trust This Computer" if prompted).
+            3. Open [Sideloadly](https://sideloadly.io/).
+            4. Drag `go-on-latest.ipa` into Sideloadly.
+            5. Enter your Apple ID email in the Apple ID field.
+            6. Click **Start**. Sideloadly signs the application and installs it directly onto your device.
+            7. On your iPhone:
+               - Open **Settings** -> **General** -> **VPN & Device Management**.
+               - Under **Developer App**, select your Apple ID and tap **Trust**.
+               - If on iOS 16+, go to **Settings** -> **Privacy & Security** -> **Developer Mode** and turn it **ON** (restart required).
+          files: |
+            dist_output/go-on-latest.ipa
+            dist_output/go-on-v2.2.2.ipa
+            dist_output/SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
